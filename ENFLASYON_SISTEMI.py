@@ -18,9 +18,9 @@ import base64
 st.set_page_config(page_title="ENFLASYON MONITORU PRO", page_icon="💎", layout="wide", initial_sidebar_state="expanded")
 
 # --- ADMIN AYARI ---
-ADMIN_USER = "fatiharslan"
+ADMIN_USER = "fatih"
 
-# --- CSS (ULTRA PRO & SABİT MENÜ & TEMİZ GİRİŞ) ---
+# --- CSS (GÜNCELLENDİ: SADELEŞTİRİLDİ & SIDEBAR DÜZELDİ) ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -28,9 +28,6 @@ st.markdown("""
 
         /* GİZLİ ELEMENTLER */
         [data-testid="stToolbar"], footer {display: none !important;}
-
-        /* MENÜYÜ SABİTLEME (KAPATMA TUŞUNU GİZLE) */
-        [data-testid="stSidebarCollapseButton"] { display: none !important; }
 
         /* HEADER */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; }
@@ -53,11 +50,17 @@ st.markdown("""
         .metric-delta { font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
         .delta-pos { background: #fee2e2; color: #ef4444; } .delta-neg { background: #dcfce7; color: #16a34a; } .delta-neu { background: #f1f5f9; color: #475569; }
 
-        /* LOGIN EKRANI */
-        .login-wrapper { display: flex; justify-content: center; align-items: center; height: 70vh; }
-        .login-box { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; width: 100%; max-width: 450px; text-align: center; }
+        /* YENİ YATAY LOGIN EKRANI */
+        .login-wrapper {
+            display: flex; justify-content: center; align-items: center; margin-top: 50px;
+        }
+        .login-box {
+            background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            border: 1px solid #e2e8f0; width: 100%; max-width: 900px; /* Daha geniş */
+        }
+        .login-divider { border-right: 1px solid #e2e8f0; height: 100%; }
 
-        /* SIDEBAR ÖZELLEŞTİRME */
+        /* SIDEBAR (GÖRÜNÜR HALE GETİRİLDİ) */
         section[data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #e2e8f0; }
         .user-stat { padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
@@ -343,7 +346,6 @@ def dashboard_modu():
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state['username'].upper()}")
 
-        # OTO YENİLEME CHECKBOX
         auto_ref = st.checkbox("🟢 Canlı Takip", value=False, help="Açıkken sayfa her 10s bir yenilenir.")
 
         st.divider()
@@ -421,19 +423,17 @@ def dashboard_modu():
                 if len(gunler) < 1: st.warning("Yeterli tarih verisi yok."); return
                 baz, son = gunler[0], gunler[-1]
 
-                # Enflasyon Hesapla
                 endeks_genel = (df_analiz.dropna(subset=[son, baz])[agirlik_col] * (
                             df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[
                                    agirlik_col].sum() * 100
                 enf_genel = (endeks_genel / 100 - 1) * 100
-
                 df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
                 top = df_analiz.sort_values('Fark', ascending=False).iloc[0]
                 gida = df_analiz[df_analiz['Kod'].str.startswith("01")].copy()
                 enf_gida = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[
                     agirlik_col].sum() - 1) * 100 if not gida.empty else 0
 
-                # TICKER (DÜZELTİLDİ: İLK 5 ZAM, İLK 5 İNDİRİM)
+                # TICKER (İLK 5 ZAM & İNDİRİM)
                 zamanlar = df_analiz.sort_values('Fark', ascending=False).head(5)
                 indirimler = df_analiz.sort_values('Fark', ascending=True).head(5)
                 items = []
@@ -445,7 +445,6 @@ def dashboard_modu():
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp;&nbsp; ".join(items)}</div></div></div>',
                     unsafe_allow_html=True)
 
-                # UI METRİKLER
                 c1, c2, c3, c4 = st.columns(4)
 
                 def card(c, t, v, s, m="neu"):
@@ -469,7 +468,7 @@ def dashboard_modu():
                     ["📊 GENEL BAKIŞ", "🛒 KENDİ SEPETİM", "🗺️ SEKTÖREL", "🤖 ASİSTAN", "📉 FIRSATLAR", "🎲 SİMÜLASYON",
                      "📑 LİSTE"])
 
-                with t1:
+                with t1:  # GENEL
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                                 df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
@@ -479,7 +478,7 @@ def dashboard_modu():
                                            yaxis=dict(showgrid=True, gridcolor='#f1f5f9'))
                     st.plotly_chart(fig_main, use_container_width=True)
 
-                with t2:
+                with t2:  # KİŞİSEL SEPET
                     st.markdown("### 🛒 Kişisel Enflasyonun")
                     baskets = github_json_oku(SEPETLER_DOSYASI)
                     user_codes = baskets.get(st.session_state['username'], [])
@@ -512,7 +511,7 @@ def dashboard_modu():
                     else:
                         st.info("Sepetin boş.")
 
-                with t3:
+                with t3:  # SEKTÖREL
                     c1, c2 = st.columns(2)
                     c1.plotly_chart(
                         px.treemap(df_analiz, path=[px.Constant("Piyasa"), 'Grup', ad_col], values=agirlik_col,
@@ -523,19 +522,17 @@ def dashboard_modu():
                         px.pie(sect_data, values='Fark', names='Grup', title="Sektörel Artış Dağılımı", hole=0.4),
                         use_container_width=True)
 
-                with t4:  # ASİSTAN (ÇOKLU SEÇİM DESTEKLİ)
+                with t4:  # ASİSTAN
                     st.markdown("##### 🤖 Asistan")
-                    with st.form("ask_form"):
-                        q = st.text_input("Ürün Ara:", placeholder="Örn: Süt")
-                        submitted = st.form_submit_button("Analiz Et")
-
-                    if submitted and q:
+                    # Form kullanılmıyor, anlık arama ve seçim var
+                    q = st.text_input("Ürün Ara:", placeholder="Örn: Süt")
+                    if q:
                         res = df_analiz[df_analiz[ad_col].str.lower().str.contains(q.lower())]
                         if not res.empty:
                             target = None
                             if len(res) > 1:
-                                st.info("Birden fazla sonuç bulundu, lütfen seçim yapın:")
-                                secilen = st.selectbox("Seçiniz:", res[ad_col].unique())
+                                st.info("Birden fazla sonuç bulundu, lütfen seçin:")
+                                secilen = st.selectbox("", res[ad_col].unique(), label_visibility="collapsed")
                                 target = df_analiz[df_analiz[ad_col] == secilen].iloc[0]
                             else:
                                 target = res.iloc[0]
@@ -548,7 +545,7 @@ def dashboard_modu():
                         else:
                             st.warning("Bulunamadı")
 
-                with t5:
+                with t5:  # FIRSATLAR
                     low = df_analiz[df_analiz['Fark'] < 0].sort_values('Fark').head(10)
                     if not low.empty:
                         st.table(low[[ad_col, 'Grup', 'Fark']].assign(
@@ -556,7 +553,7 @@ def dashboard_modu():
                     else:
                         st.info("Şu an indirimde ürün yok.")
 
-                with t6:
+                with t6:  # SİMÜLASYON
                     c = st.columns(4)
                     inps = {g: c[i % 4].number_input(f"{g} (%)", -50., 100., 0.) for i, g in
                             enumerate(sorted(df_analiz['Grup'].unique()))}
@@ -565,20 +562,20 @@ def dashboard_modu():
                          for g, v in inps.items()])
                     st.success(f"Yeni Tahmin: %{(enf_genel + etki):.2f}")
 
-                with t7:
+                with t7:  # LİSTE
                     # Excel İndir
                     output = BytesIO()
                     with pd.ExcelWriter(output, engine='openpyxl') as writer: df_analiz.to_excel(writer, index=False,
                                                                                                  sheet_name='Analiz')
                     st.download_button("📥 Excel Raporunu İndir", data=output.getvalue(),
                                        file_name=f"Enflasyon_Raporu_{son}.xlsx",
-                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                       use_container_width=True)
                     st.dataframe(df_analiz[['Grup', ad_col, 'Fark', baz, son]], use_container_width=True)
 
         except Exception as e:
             st.error(f"Hata: {e}")
 
-    # ACTION BUTTON
     st.markdown('<div class="action-container"><div class="action-btn">', unsafe_allow_html=True)
     if st.button("VERİTABANINI GÜNCELLE (ZIP & MANUEL)", type="primary", use_container_width=True):
         log_ph = st.empty();
@@ -602,44 +599,50 @@ def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
     if not st.session_state['logged_in']:
-        # GİRİŞ EKRANINDA SOL BAR'I SAKLA (CSS ile yapıldı)
-        st.markdown("<style>[data-testid='stSidebar'] {display: none !important;}</style>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center; color: #0f172a; margin-top:50px;'>ENFLASYON MONİTÖRÜ PRO</h1>",
+                    unsafe_allow_html=True)
 
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            st.markdown("<h1 style='text-align: center; color: #0f172a; margin-top:50px;'>ENFLASYON MONİTÖRÜ PRO</h1>",
-                        unsafe_allow_html=True)
-            st.markdown('<div class="login-wrapper"><div class="login-box">', unsafe_allow_html=True)
+        # YATAY GİRİŞ DÜZENİ
+        st.markdown("""
+        <div class="login-wrapper">
+            <div class="login-box">
+                <h3 style="margin-bottom: 20px; color: #334155;">Giriş Yap veya Kayıt Ol</h3>
+        """, unsafe_allow_html=True)
 
-            tab1, tab2 = st.tabs(["GİRİŞ YAP", "KAYIT OL"])
-            with tab1:
-                with st.form("login_form"):
-                    l_user = st.text_input("Kullanıcı Adı")
-                    l_pass = st.text_input("Şifre", type="password")
-                    if st.form_submit_button("Giriş Yap", use_container_width=True):
-                        ok, msg = github_user_islem("login", l_user, l_pass)
+        # Streamlit Columns ile Yatay Düzen
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("Giriş Yap")
+            with st.form("login_f"):
+                l_u = st.text_input("Kullanıcı Adı", key="l1")
+                l_p = st.text_input("Şifre", type="password", key="l2")
+                if st.form_submit_button("Giriş", use_container_width=True):
+                    ok, msg = github_user_islem("login", l_u, l_p)
+                    if ok:
+                        st.session_state['logged_in'] = True;
+                        st.session_state['username'] = l_u
+                        st.success("Başarılı!");
+                        time.sleep(1);
+                        st.rerun()
+                    else:
+                        st.error(msg)
+
+        with c2:
+            st.subheader("Kayıt Ol")
+            with st.form("reg_f"):
+                r_u = st.text_input("Kullanıcı Adı", key="r1")
+                r_p = st.text_input("Şifre", type="password", key="r2")
+                if st.form_submit_button("Kayıt", use_container_width=True):
+                    if r_u and r_p:
+                        ok, msg = github_user_islem("register", r_u, r_p)
                         if ok:
-                            st.session_state['logged_in'] = True;
-                            st.session_state['username'] = l_user
-                            st.success("Giriş Başarılı!");
-                            time.sleep(1);
-                            st.rerun()
+                            st.success(msg)
                         else:
                             st.error(msg)
-            with tab2:
-                with st.form("register_form"):
-                    r_user = st.text_input("Kullanıcı Adı Seçin")
-                    r_pass = st.text_input("Şifre Belirleyin", type="password")
-                    if st.form_submit_button("Kayıt Ol", use_container_width=True):
-                        if r_user and r_pass:
-                            ok, msg = github_user_islem("register", r_user, r_pass)
-                            if ok:
-                                st.success(msg)
-                            else:
-                                st.error(msg)
-                        else:
-                            st.warning("Alanları doldurun.")
-            st.markdown('</div></div>', unsafe_allow_html=True)
+                    else:
+                        st.warning("Doldurunuz.")
+
+        st.markdown('</div></div>', unsafe_allow_html=True)
     else:
         dashboard_modu()
 
