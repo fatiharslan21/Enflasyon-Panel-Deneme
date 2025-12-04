@@ -13,6 +13,7 @@ from github import Github
 from io import BytesIO
 import zipfile
 import base64
+import numpy as np  # Histogram hesaplamaları için eklendi
 
 # --- 1. AYARLAR ---
 st.set_page_config(
@@ -23,7 +24,7 @@ st.set_page_config(
 )
 
 # --- ADMIN AYARI ---
-ADMIN_USER = "fatiharslan"
+ADMIN_USER = "fatih"
 
 # --- CSS (GÜNCELLENMİŞ VE ESTETİK - ŞOV MODU) ---
 st.markdown("""
@@ -433,12 +434,15 @@ def dashboard_modu():
             st.rerun()
 
     # --- ANA SAYFA BAŞLIK ---
+    # SAAT AYARI: TR Saati (+3 Saat)
+    tr_time = datetime.now() + timedelta(hours=3)
+
     st.markdown(f"""
         <div class="header-container">
-            <div class="app-title">Enflasyon Monitörü <span style="font-weight:300; opacity:0.6;">PRO X</span></div>
+            <div class="app-title">Enflasyon Monitörü <span style="font-weight:300; opacity:0.6;">PRO ULTRA</span></div>
             <div style="text-align:right;">
                 <div style="color:#64748b; font-size:12px; font-weight:600;">İSTANBUL, TR</div>
-                <div style="color:#0f172a; font-size:14px; font-weight:bold;">{datetime.now().strftime('%d %B %Y, %H:%M')}</div>
+                <div style="color:#0f172a; font-size:14px; font-weight:bold;">{tr_time.strftime('%d %B %Y, %H:%M')}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -516,7 +520,7 @@ def dashboard_modu():
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>',
                     unsafe_allow_html=True)
 
-                # --- 2. KARTLAR (DÜZELTİLMİŞ) ---
+                # --- 2. KARTLAR ---
                 def kpi_card(title, val, sub, sub_color, color_class, is_long_text=False):
                     val_class = "metric-val long-text" if is_long_text else "metric-val"
                     st.markdown(f"""
@@ -538,7 +542,6 @@ def dashboard_modu():
                              "card-purple")
                 with c3:
                     kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
-                # İstenilen Değişiklik: Ürün Adı Büyük, Oran Küçük
                 with c4:
                     kpi_card("En Yüksek Risk", f"{top[ad_col][:15]}", f"%{top['Fark'] * 100:.1f} Artış", "#f59e0b",
                              "card-orange", is_long_text=True)
@@ -546,8 +549,9 @@ def dashboard_modu():
                 st.markdown("<br>", unsafe_allow_html=True)
 
                 # --- 3. SEKMELER VE GRAFİKLER ---
-                t1, t2, t3, t4, t5 = st.tabs(
-                    ["📊 ANALİZ & TREND", "🛒 AKILLI SEPET", "🗺️ SEKTÖREL HARİTA", "📉 FIRSAT RADARI", "📋 VERİ LİSTESİ"])
+                t1, t2, t3, t4, t5, t6 = st.tabs(
+                    ["📊 ANALİZ & TREND", "📈 İSTATİSTİK & DAĞILIM", "🛒 AKILLI SEPET", "🗺️ SEKTÖREL HARİTA",
+                     "📉 FIRSAT RADARI", "📋 VERİ LİSTESİ"])
 
                 with t1:
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
@@ -571,7 +575,31 @@ def dashboard_modu():
                     )
                     st.plotly_chart(fig_main, use_container_width=True)
 
-                with t2:
+                with t2:  # YENİ ŞOV SAYFASI: İSTATİSTİK & DAĞILIM
+                    col_hist, col_box = st.columns(2)
+
+                    # 1. Histogram: Fiyat Artışlarının Dağılımı
+                    df_analiz['Fark_Yuzde'] = df_analiz['Fark'] * 100
+                    fig_hist = px.histogram(df_analiz, x="Fark_Yuzde", nbins=40, title="📊 Zam Dağılımı (Histogram)",
+                                            color_discrete_sequence=['#8b5cf6'])
+                    fig_hist.update_layout(template="plotly_white", xaxis_title="Artış Oranı (%)",
+                                           yaxis_title="Ürün Sayısı",
+                                           plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Inter"))
+                    col_hist.plotly_chart(fig_hist, use_container_width=True)
+
+                    # 2. Box Plot: Sektörel Fiyat Değişim Aralığı
+                    fig_box = px.box(df_analiz, x="Grup", y="Fark_Yuzde",
+                                     title="📦 Sektörel Fiyat Dengesizliği (Box Plot)",
+                                     color="Grup", points="outliers")
+                    fig_box.update_layout(template="plotly_white", xaxis_title="Sektör", yaxis_title="Değişim (%)",
+                                          plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Inter"),
+                                          showlegend=False)
+                    col_box.plotly_chart(fig_box, use_container_width=True)
+
+                    st.info(
+                        "ℹ️ **Histogram:** Ürünlerin ne kadarının hangi oranda zamlandığını gösterir. Sağa çarpık grafik yüksek enflasyon işaretidir.\n\nℹ️ **Box Plot:** Hangi sektörde fiyat belirsizliğinin (makasın) daha açık olduğunu gösterir.")
+
+                with t3:
                     st.info(
                         "💡 **Akıllı İpucu:** Kendi tüketim alışkanlıklarına göre ürünleri seçerek kişisel enflasyonunu hesapla.")
                     baskets = github_json_oku(SEPETLER_DOSYASI)
@@ -611,12 +639,11 @@ def dashboard_modu():
                                                    xaxis=dict(showgrid=False))
                             c_ch.plotly_chart(fig_comp, use_container_width=True)
 
-                            # DÜZELTME: background_gradient KALDIRILDI (HATA ÇÖZÜMÜ)
                             st.dataframe(my_df[[ad_col, 'Fark', baz, son]], use_container_width=True)
                     else:
                         st.warning("Henüz bir sepet oluşturmadın.")
 
-                with t3:
+                with t4:
                     c1, c2 = st.columns([2, 1])
                     # Treemap Şov
                     fig_tree = px.treemap(df_analiz, path=[px.Constant("Piyasa"), 'Grup', ad_col], values=agirlik_col,
@@ -632,7 +659,7 @@ def dashboard_modu():
                     fig_sun.update_layout(margin=dict(t=40, l=0, r=0, b=0))
                     c2.plotly_chart(fig_sun, use_container_width=True)
 
-                with t4:
+                with t5:
                     st.markdown("##### 📉 En Çok Düşenler (Fırsatlar)")
                     low = df_analiz[df_analiz['Fark'] < 0].sort_values('Fark').head(10)
                     if not low.empty:
@@ -642,7 +669,7 @@ def dashboard_modu():
                     else:
                         st.info("Şu an indirimde ürün yok, her şey zamlanmış görünüyor.")
 
-                with t5:
+                with t6:
                     st.dataframe(df_analiz[['Grup', ad_col, 'Fark', baz, son]], use_container_width=True)
 
                     output = BytesIO()
@@ -684,7 +711,7 @@ def main():
 
     if not st.session_state['logged_in']:
         st.markdown(
-            "<div style='text-align: center; margin-top:80px; margin-bottom:30px;'><h1 style='color:#0f172a; font-family:Poppins; font-size:42px;'>ENFLASYON MONİTÖRÜ <br><span style='color:#3b82f6;'>PRO X</span></h1></div>",
+            "<div style='text-align: center; margin-top:80px; margin-bottom:30px;'><h1 style='color:#0f172a; font-family:Poppins; font-size:42px;'>ENFLASYON MONİTÖRÜ <br><span style='color:#3b82f6;'>PRO ULTRA</span></h1></div>",
             unsafe_allow_html=True)
 
         c1, c2, c3 = st.columns([1, 2, 1])
