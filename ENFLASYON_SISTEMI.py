@@ -11,12 +11,12 @@ import json
 from github import Github
 from io import BytesIO
 import zipfile
-import base64  # <--- BU KRİTİK, ZIP'İ ÇÖZMEK İÇİN
+import base64
 
 # --- 1. AYARLAR ---
 st.set_page_config(page_title="ENFLASYON MONITORU PRO", page_icon="💎", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CSS (AYNI PRESTİJLİ TASARIM) ---
+# --- CSS ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -141,12 +141,52 @@ def fiyat_bul_siteye_gore(soup, url):
             for get in selectors:
                 if el := get(soup):
                     if v := temizle_fiyat(el.get_text()): fiyat = v; kaynak = "Migros(CSS)"; break
-    # CİMRİ
+
+    # --- CİMRİ (SENİN ÖZEL KODUN) ---
     elif "cimri" in domain:
-        for sel in ["div.rTdMX", ".offer-price", "div.sS0lR"]:
-            if els := soup.select(sel):
-                vals = [v for v in [temizle_fiyat(e.get_text()) for e in els] if v and v > 0]
-                if vals: fiyat = min(vals); kaynak = "Cimri(CSS)"; break
+        bulundu = False
+        selectors = ["div.rTdMX", ".offer-price", "div.sS0lR", ".min-price-val"]
+
+        # 1. CSS Selector ile Ara
+        for sel in selectors:
+            try:
+                elements = soup.select(sel)
+                if elements:
+                    texts = [e.get_text() for e in elements]
+                    prices = [p for p in [temizle_fiyat(t) for t in texts] if p]
+
+                    if prices:
+                        # Eğer çok fazla fiyat varsa uç değerleri at (Outlier removal)
+                        if len(prices) > 4:
+                            prices.sort()
+                            prices = prices[1:-1]
+
+                        fiyat = sum(prices) / len(prices)
+                        kaynak = f"Cimri ({len(prices)})"
+                        bulundu = True
+                        break
+            except:
+                pass
+
+        # 2. Regex (Eğer CSS bulamazsa)
+        if not bulundu:
+            try:
+                body_text = soup.get_text()
+                bulunanlar = re.findall(r'(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(?:TL|₺)', body_text)
+                fiyatlar = []
+                for ham in bulunanlar:
+                    temiz = temizle_fiyat(ham)
+                    if temiz: fiyatlar.append(temiz)
+
+                if fiyatlar:
+                    fiyatlar.sort()
+                    # En ucuz %50'lik dilimi al ve ortalamasını bul
+                    mantikli = fiyatlar[:max(1, len(fiyatlar) // 2)]
+                    fiyat = sum(mantikli) / len(mantikli)
+                    kaynak = "Cimri (Regex)"
+            except:
+                pass
+
     # GENEL
     else:
         try:
@@ -161,7 +201,7 @@ def fiyat_bul_siteye_gore(soup, url):
                 if el := soup.select_one(sel):
                     if v := temizle_fiyat(el.get_text()): fiyat = v; kaynak = "Genel(CSS)"; break
 
-    if fiyat == 0:  # REGEX
+    if fiyat == 0 and "cimri" not in domain:
         if m := re.search(r'(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(?:TL|₺)', soup.get_text()[:5000]):
             if v := temizle_fiyat(m.group(1)): fiyat = v; kaynak = "Regex"
 
@@ -174,7 +214,7 @@ def html_isleyici(log_callback):
     log_callback("📂 Konfigürasyon okunuyor...")
 
     try:
-        # 1. Konfigürasyonu Oku
+        # 1. Konfigürasyon
         df_conf = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
         df_conf.columns = df_conf.columns.str.strip()
         kod_col = next((c for c in df_conf.columns if c.lower() == 'kod'), None)
@@ -192,9 +232,8 @@ def html_isleyici(log_callback):
         simdi = datetime.now().strftime("%H:%M")
 
         # --- A. MANUEL FİYATLAR ---
-        log_callback("✍️ Manuel fiyat girişleri taranıyor...")
+        log_callback("✍️ Manuel fiyatlar kontrol ediliyor...")
         manuel_col = next((c for c in df_conf.columns if 'manuel' in c.lower()), None)
-
         manuel_sayac = 0
         if manuel_col:
             for _, row in df_conf.iterrows():
@@ -203,14 +242,14 @@ def html_isleyici(log_callback):
                         fiyat_man = float(row[manuel_col])
                         if fiyat_man > 0:
                             veriler.append({"Tarih": bugun, "Zaman": simdi, "Kod": row['Kod'], "Madde_Adi": row[ad_col],
-                                            "Fiyat": fiyat_man, "Kaynak": "Manuel Giriş", "URL": row[url_col]})
+                                            "Fiyat": fiyat_man, "Kaynak": "Manuel", "URL": row[url_col]})
                             islenen_kodlar.add(row['Kod'])
                             manuel_sayac += 1
                     except:
                         pass
-        if manuel_sayac > 0: log_callback(f"✅ {manuel_sayac} adet manuel fiyat eklendi.")
+        if manuel_sayac > 0: log_callback(f"✅ {manuel_sayac} manuel fiyat eklendi.")
 
-        # --- B. ZIP ARŞİVLERİ (BLOB METODU İLE) ---
+        # --- B. ZIP ARŞİVLERİ ---
         log_callback("📦 ZIP dosyaları taranıyor...")
         contents = repo.get_contents("", ref=st.secrets["github"]["branch"])
         zip_files = [c for c in contents if c.name.endswith(".zip")]
@@ -219,7 +258,7 @@ def html_isleyici(log_callback):
         for zip_file in zip_files:
             log_callback(f"📂 Arşiv okunuyor: {zip_file.name}")
             try:
-                # !!! BURASI DÜZELTİLDİ: BLOB API KULLANIMI !!!
+                # BLOB OKUMA (Büyük Dosya Fix)
                 blob = repo.get_git_blob(zip_file.sha)
                 zip_data = base64.b64decode(blob.content)
 
