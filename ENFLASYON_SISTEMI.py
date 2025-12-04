@@ -24,7 +24,7 @@ st.set_page_config(
 )
 
 # --- ADMIN AYARI ---
-ADMIN_USER = "fatiharslan"
+ADMIN_USER = "fatih"
 
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
@@ -545,7 +545,7 @@ def dashboard_modu():
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- 3. SEKMELER (8 SEKME OLDU - ZAMAN MAKİNESİ EKLENDİ) ---
+                # --- 3. SEKMELER ---
                 t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs(
                     ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE",
                      "⏳ ZAMAN MAKİNESİ"])
@@ -567,10 +567,12 @@ def dashboard_modu():
                     col_trend.plotly_chart(fig_main, use_container_width=True)
 
                     with col_comp:
+                        # MANUEL REFERANS DEĞERLERİ
                         REF_ARALIK_2024 = 1.03
                         REF_KASIM_2025 = 0.87
                         diff_24 = enf_genel - REF_ARALIK_2024
 
+                        # --- NATIVE STREAMLIT BLOCKS (NO HTML RISK) ---
                         st.markdown(f"""
                         <div style="background:white; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:center;">
                             <h4 style="margin:0; color:#334155;">⚖️ ENFLASYON KARŞILAŞTIRMASI</h4>
@@ -578,14 +580,20 @@ def dashboard_modu():
                         <br>
                         """, unsafe_allow_html=True)
 
+                        # Referanslar
                         c_r1, c_r2 = st.columns(2)
                         c_r1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
                         c_r2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
 
                         st.divider()
-                        st.metric(label="ŞU ANKİ (SİSTEM)", value=f"%{enf_genel:.2f}",
-                                  delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
-                                  delta_color="inverse" if diff_24 > 0 else "normal")
+
+                        # Büyük Sistem Verisi (Native Metric ile)
+                        st.metric(
+                            label="ŞU ANKİ (SİSTEM)",
+                            value=f"%{enf_genel:.2f}",
+                            delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
+                            delta_color="inverse" if diff_24 > 0 else "normal"
+                        )
                         st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
@@ -721,71 +729,73 @@ def dashboard_modu():
                                        file_name=f"Enflasyon_Raporu_{son}.xlsx",
                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-                # --- 8. SEKME: ZAMAN MAKİNESİ (YENİ ŞOV) ---
+                # --- 8. SEKME: ZAMAN MAKİNESİ (ENFLASYON BAZLI YENİ MANTIK) ---
                 with t8:
-                    st.markdown("#### ⏳ FİYAT ZAMAN MAKİNESİ")
-                    st.caption("Paranın zamana yenik düşüşünü canlı canlı gör.")
+                    st.markdown("#### ⏳ PARANIN ZAMAN MAKİNESİ")
+                    st.info(
+                        "ℹ️ Bu modül, TÜİK (veya senin girdiğin) aylık enflasyon oranlarını kullanarak paranın gerçek erime gücünü hesaplar. Ürün bazlı değil, genel ekonomi bazlıdır.")
 
-                    # Kullanıcı Girdileri
-                    col_input1, col_input2, col_input3 = st.columns(3)
-                    money = col_input1.number_input("Cebindeki Para (TL)", min_value=100, value=1000, step=100)
-                    product_tm = col_input2.selectbox("Karşılaştırılacak Ürün", df_analiz[ad_col].unique(), index=0)
+                    # --- ENFLASYON VERİ BANKASI (SENİN DOLDURACAĞIN YER) ---
+                    # Buraya gerçek aylık enflasyonları gireceksin. Format: YIL-AY: Yüzde
+                    ENFLASYON_VERILERI = {
+                        "2023-01": 6.65, "2023-02": 3.15, "2023-03": 2.29, "2023-04": 2.39, "2023-05": 0.04,
+                        "2023-06": 3.92,
+                        "2023-07": 9.49, "2023-08": 9.09, "2023-09": 4.75, "2023-10": 3.43, "2023-11": 3.28,
+                        "2023-12": 2.93,
+                        "2024-01": 6.70, "2024-02": 4.53, "2024-03": 3.16, "2024-04": 3.18, "2024-05": 3.37,
+                        "2024-06": 1.64,
+                        "2024-07": 3.23, "2024-08": 2.47, "2024-09": 2.97, "2024-10": 2.88, "2024-11": 2.24,
+                        "2024-12": 1.03  # Tahmini
+                    }
 
-                    # Tarih Listesi (Pivot tablosunun sütunlarından alınıyor)
-                    available_dates = [c for c in pivot.columns if c != 'Kod']
-                    # Sadece geçmiş tarihleri (son tarih hariç) göster
-                    past_dates = available_dates[:-1] if len(available_dates) > 1 else available_dates
-                    past_date = col_input3.selectbox("Hangi Tarihe Dönelim?", past_dates, index=0)
+                    col_m1, col_m2 = st.columns(2)
+                    money_tm = col_m1.number_input("O Tarihteki Paran (TL):", min_value=100, value=1000, step=100)
 
-                    current_date_tm = available_dates[-1]  # En son tarih
+                    # Tarihleri Sırala ve Seçtir
+                    sorted_dates = sorted(ENFLASYON_VERILERI.keys(), reverse=True)
+                    start_date_tm = col_m2.selectbox("Hangi Tarihe Dönelim?", sorted_dates)
 
-                    # Hesaplama Mantığı
-                    if st.button("HESAPLA VE ŞOK OL", type="primary", use_container_width=True):
-                        try:
-                            # Fiyatları Bul
-                            row = df_analiz[df_analiz[ad_col] == product_tm].iloc[0]
-                            price_old = float(row[past_date])
-                            price_new = float(row[current_date_tm])
+                    if st.button("HESAPLA VE GERÇEĞİ GÖR", type="primary", use_container_width=True):
+                        # Kümülatif Enflasyon Hesabı
+                        cumulative_inflation = 1.0
+                        log_text = []
 
-                            # Adet Hesapla
-                            qty_old = money / price_old
-                            qty_new = money / price_new
-                            loss = qty_old - qty_new
+                        # Seçilen tarihten bugüne kadar olanları bul
+                        selected_index = sorted_dates.index(start_date_tm)
+                        # Tersten (eskiden yeniye) gitmek için listeyi dilimleyip ters çeviriyoruz
+                        relevant_months = sorted_dates[:selected_index + 1][::-1]
 
-                            # Görselleştirme
-                            col_res1, col_res2 = st.columns(2)
+                        for m in relevant_months:
+                            rate = ENFLASYON_VERILERI.get(m, 0)
+                            cumulative_inflation *= (1 + rate / 100)
 
-                            # Sol Taraf: Nostalji
-                            with col_res1:
-                                st.markdown(f"""
-                                <div style="background:#f1f5f9; padding:20px; border-radius:15px; text-align:center; border:1px solid #e2e8f0;">
-                                    <div style="font-size:14px; color:#64748b; font-weight:bold;">GEÇMİŞ ({past_date})</div>
-                                    <div style="font-size:28px; font-weight:800; color:#475569;">{qty_old:.2f} Adet</div>
-                                    <div style="font-size:12px; color:#94a3b8;">Fiyat: {price_old:.2f} TL</div>
-                                </div>
-                                """, unsafe_allow_html=True)
+                        # Sonuçlar
+                        real_value_today = money_tm / cumulative_inflation
+                        needed_money = money_tm * cumulative_inflation
 
-                            # Sağ Taraf: Gerçekler
-                            with col_res2:
-                                st.markdown(f"""
-                                <div style="background:#eff6ff; padding:20px; border-radius:15px; text-align:center; border:1px solid #3b82f6;">
-                                    <div style="font-size:14px; color:#3b82f6; font-weight:bold;">BUGÜN ({current_date_tm})</div>
-                                    <div style="font-size:28px; font-weight:800; color:#1e40af;">{qty_new:.2f} Adet</div>
-                                    <div style="font-size:12px; color:#93c5fd;">Fiyat: {price_new:.2f} TL</div>
-                                </div>
-                                """, unsafe_allow_html=True)
+                        col_res_a, col_res_b = st.columns(2)
 
-                            st.markdown("<br>", unsafe_allow_html=True)
+                        with col_res_a:
+                            st.markdown(f"""
+                            <div style="background:#fee2e2; padding:20px; border-radius:15px; text-align:center; border:1px solid #ef4444;">
+                                <div style="font-size:14px; color:#b91c1c; font-weight:bold;">PARANIN BUGÜNKÜ ALIM GÜCÜ</div>
+                                <div style="font-size:32px; font-weight:900; color:#dc2626;">{real_value_today:.2f} TL</div>
+                                <div style="font-size:12px; color:#7f1d1d;">O günkü {money_tm} TL, bugün markette sadece bu kadar ediyor.</div>
+                            </div>
+                            """, unsafe_allow_html=True)
 
-                            # SONUÇ KARTI (ŞOV)
-                            if loss > 0:
-                                st.error(f"😱 KAYIP: Cebinden {loss:.2f} adet {product_tm} çalındı!", icon="💸")
-                            else:
-                                st.success(f"🎉 KAZANÇ: {abs(loss):.2f} adet fazladan alabiliyorsun! (İlginç...)",
-                                           icon="🍀")
+                        with col_res_b:
+                            st.markdown(f"""
+                            <div style="background:#dcfce7; padding:20px; border-radius:15px; text-align:center; border:1px solid #22c55e;">
+                                <div style="font-size:14px; color:#15803d; font-weight:bold;">AYNI HAYAT İÇİN GEREKEN</div>
+                                <div style="font-size:32px; font-weight:900; color:#16a34a;">{needed_money:.2f} TL</div>
+                                <div style="font-size:12px; color:#14532d;">O günkü standartlarını korumak için bugün cebinde olması gereken para.</div>
+                            </div>
+                            """, unsafe_allow_html=True)
 
-                        except Exception as e:
-                            st.error(f"Veri hatası: {e}")
+                        st.markdown(
+                            f"<div style='text-align:center; margin-top:20px; color:#64748b; font-size:12px;'>Kümülatif Enflasyon Çarpanı: <b>{cumulative_inflation:.2f}x</b></div>",
+                            unsafe_allow_html=True)
 
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
