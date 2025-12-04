@@ -24,7 +24,7 @@ st.set_page_config(
 )
 
 # --- ADMIN AYARI ---
-ADMIN_USER = "fatih"
+ADMIN_USER = "fatiharslan"
 
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
@@ -356,31 +356,31 @@ def dashboard_modu():
         {theme_css}
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
 
-        .header-container {display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border-bottom: 4px solid #3b82f6; }
-        .app-title {font - family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: -webkit-linear-gradient(#0f172a, #334155); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-container {{ display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border-bottom: 4px solid #3b82f6; }}
+        .app-title {{ font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: -webkit-linear-gradient(#0f172a, #334155); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
 
-        .metric-card {padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: transform 0.3s; }
-        .metric-card:hover {transform: translateY(-5px); }
-        .metric-card::before {content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
-        .card-blue::before {background: #3b82f6; } .card-purple::before {background: #8b5cf6; } .card-emerald::before {background: #10b981; } .card-orange::before {background: #f59e0b; }
-        .metric-label {font - size: 13px; font-weight: 600; text-transform: uppercase; opacity: 0.8; margin-bottom: 5px; }
-        .metric-val {font - size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
-        .metric-val.long-text {font - size: 24px !important; line-height: 1.2; }
+        .metric-card {{ padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: transform 0.3s; }}
+        .metric-card:hover {{ transform: translateY(-5px); }}
+        .metric-card::before {{ content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }}
+        .card-blue::before {{ background: #3b82f6; }} .card-purple::before {{ background: #8b5cf6; }} .card-emerald::before {{ background: #10b981; }} .card-orange::before {{ background: #f59e0b; }}
+        .metric-label {{ font-size: 13px; font-weight: 600; text-transform: uppercase; opacity: 0.8; margin-bottom: 5px; }}
+        .metric-val {{ font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }}
+        .metric-val.long-text {{ font-size: 24px !important; line-height: 1.2; }}
 
-        .update-btn-container button {background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; }
-        .update-btn-container button:hover {transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); }
+        .update-btn-container button {{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; }}
+        .update-btn-container button:hover {{ transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); }}
 
-        .ticker-wrap {width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
-        .ticker {display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
-        .ticker-item {display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
-        @keyframes ticker {0 % {transform: translateX(100 %);} 100 % {transform: translateX(-100 % );}}
+        .ticker-wrap {{ width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }}
+        .ticker {{ display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }}
+        .ticker-item {{ display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }}
+        @keyframes ticker {{ 0% {{ transform: translateX(100%); }} 100% {{ transform: translateX(-100%); }} }}
 
-        .user-row-dark {background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); padding: 10px; margin-bottom: 6px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .status-dot {height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 10px; }
-        .online {background - color: #4ade80; box-shadow: 0 0 8px #4ade80; }
-        .offline {background - color: #64748b; }
-        .bot-bubble {background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
-        .bot-log {background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
+        .user-row-dark {{ background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); padding: 10px; margin-bottom: 6px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }}
+        .status-dot {{ height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 10px; }}
+        .online {{ background-color: #4ade80; box-shadow: 0 0 8px #4ade80; }}
+        .offline {{ background-color: #64748b; }}
+        .bot-bubble {{ background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }}
+        .bot-log {{ background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }}
     </style>
     """, unsafe_allow_html=True)
 
