@@ -13,20 +13,20 @@ from github import Github
 from io import BytesIO
 import zipfile
 import base64
-import numpy as np  # Histogram hesaplamaları için eklendi
+import numpy as np
 
 # --- 1. AYARLAR ---
 st.set_page_config(
-    page_title="ENFLASYON MONITORU",
+    page_title="ENFLASYON MONİTÖRÜ",
     page_icon="💎",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # --- ADMIN AYARI ---
-ADMIN_USER = "fatih"
+ADMIN_USER = "fatiharslan"
 
-# --- CSS (GÜNCELLENMİŞ VE ESTETİK - ŞOV MODU) ---
+# --- CSS (ESTETİK VE ŞIK) ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -39,7 +39,7 @@ st.markdown("""
             color: #0f172a; 
         }
 
-        /* SIDEBAR TASARIMI (DARK PRO) */
+        /* SIDEBAR TASARIMI (DARK) */
         section[data-testid="stSidebar"] {
             background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
             color: white;
@@ -83,7 +83,7 @@ st.markdown("""
         }
         .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; color: #0f172a; letter-spacing: -1px; background: -webkit-linear-gradient(#0f172a, #334155); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
-        /* METRİK KARTLARI (ŞOV MODU) */
+        /* METRİK KARTLARI */
         .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .metric-card { 
             background: white; padding: 24px; border-radius: 20px; 
@@ -100,12 +100,11 @@ st.markdown("""
 
         .metric-label { color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
-        /* Özel override: Uzun isimler için font küçültme */
         .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
         .metric-sub { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 
-        /* TICKER (Kayan Yazı) */
+        /* TICKER */
         .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(15, 23, 42, 0.2); animation: fadeIn 1s ease-out; }
         .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
@@ -393,7 +392,6 @@ def dashboard_modu():
         """, unsafe_allow_html=True)
 
         st.markdown("### ⚙️ Kontrol Paneli")
-        # auto_ref = st.checkbox("🟢 Canlı Veri Akışı", value=False) -> BUTON GİZLENDİ
 
         st.divider()
         st.markdown("### 🟢 Çevrimiçi Ekip")
@@ -439,7 +437,7 @@ def dashboard_modu():
 
     st.markdown(f"""
         <div class="header-container">
-            <div class="app-title">Enflasyon Monitörü <span style="font-weight:300; opacity:0.6;">PRO ULTRA</span></div>
+            <div class="app-title">Enflasyon Monitörü</div>
             <div style="text-align:right;">
                 <div style="color:#64748b; font-size:12px; font-weight:600;">İSTANBUL, TR</div>
                 <div style="color:#0f172a; font-size:14px; font-weight:bold;">{tr_time.strftime('%d %B %Y, %H:%M')}</div>
@@ -711,7 +709,7 @@ def main():
 
     if not st.session_state['logged_in']:
         st.markdown(
-            "<div style='text-align: center; margin-top:80px; margin-bottom:30px;'><h1 style='color:#0f172a; font-family:Poppins; font-size:42px;'>ENFLASYON MONİTÖRÜ <br><span style='color:#3b82f6;'>PRO ULTRA</span></h1></div>",
+            "<div style='text-align: center; margin-top:80px; margin-bottom:30px;'><h1 style='color:#0f172a; font-family:Poppins; font-size:42px;'>ENFLASYON MONİTÖRÜ</h1></div>",
             unsafe_allow_html=True)
 
         c1, c2, c3 = st.columns([1, 2, 1])
