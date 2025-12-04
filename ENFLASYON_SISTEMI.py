@@ -256,7 +256,9 @@ def html_isleyici(log_callback):
 
 
 # --- 4. DASHBOARD MODU ---
+# --- 4. DASHBOARD MODU (DÜZELTİLMİŞ VERSİYON) ---
 def dashboard_modu():
+    # 1. VERİLERİ OKU
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
@@ -265,60 +267,91 @@ def dashboard_modu():
         unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
-        # Veri İşleme (HATA DÜZELTİLDİ: TİP DÖNÜŞÜMÜ)
-        df_f['Kod'] = df_f['Kod'].astype(str).apply(kod_standartlastir)  # Kodu String'e Zorla
-        df_f['Tarih'] = pd.to_datetime(df_f['Tarih'])
-        df_f['Fiyat'] = pd.to_numeric(df_f['Fiyat'], errors='coerce')
+        try:
+            # --- VERİ TEMİZLEME VE FORMATLAMA (ESKİ SİSTEME DÖNÜŞ) ---
+            # Kodları Standartlaştır (010101 gibi)
+            df_f['Kod'] = df_f['Kod'].astype(str).apply(kod_standartlastir)
+            df_s['Kod'] = df_s['Kod'].astype(str).apply(kod_standartlastir)
 
-        if 'Zaman' in df_f.columns:
-            df_f['Tam_Zaman'] = pd.to_datetime(df_f['Tarih'].astype(str) + ' ' + df_f['Zaman'].astype(str),
-                                               errors='coerce')
-        else:
-            df_f['Tam_Zaman'] = df_f['Tarih']
+            # Fiyatları Sayı Yap
+            df_f['Fiyat'] = pd.to_numeric(df_f['Fiyat'], errors='coerce')
+            df_f = df_f[df_f['Fiyat'] > 0]  # 0 olanları at
 
-        # PIVOT (Reset Index Eklendi)
-        pivot = df_f.sort_values('Tam_Zaman').pivot_table(index='Kod', columns=df_f['Tarih'].dt.date, values='Fiyat',
-                                                          aggfunc='last').ffill(axis=1).bfill(axis=1).reset_index()
+            # Tarihleri Zorla Standart Format Yap (YYYY-MM-DD)
+            # dayfirst=True yaptık ki 01.12.2024 gibi tarihleri doğru anlasın
+            df_f['Tarih_Str'] = pd.to_datetime(df_f['Tarih'], dayfirst=True, errors='coerce').dt.strftime('%Y-%m-%d')
 
-        # Config'deki Kodları da String Yap
-        df_s['Kod'] = df_s['Kod'].astype(str).apply(kod_standartlastir)
+            # Zaman sütunu varsa onu kullan, yoksa Tarih'i kullan (Sıralama için)
+            if 'Zaman' in df_f.columns:
+                df_f['Siralama'] = pd.to_datetime(df_f['Tarih'].astype(str) + ' ' + df_f['Zaman'].astype(str),
+                                                  errors='coerce')
+            else:
+                df_f['Siralama'] = pd.to_datetime(df_f['Tarih'], dayfirst=True)
 
-        if not pivot.empty:
-            # MERGE (Artık hata vermez çünkü iki taraf da string)
+            # PIVOT TABLO (İndeks: Kod, Sütunlar: Tarih_Str)
+            # En son girilen fiyatı alır (last)
+            pivot = df_f.sort_values('Siralama').pivot_table(
+                index='Kod',
+                columns='Tarih_Str',
+                values='Fiyat',
+                aggfunc='last'
+            )
+
+            # Eksik günleri önceki günden tamamla (FFILL)
+            pivot = pivot.ffill(axis=1).bfill(axis=1).reset_index()
+
+            # --- BİRLEŞTİRME VE ANALİZ ---
+            # Konfigürasyon dosyası ile Fiyatları birleştir
             df_analiz = pd.merge(df_s, pivot, on='Kod', how='left').dropna(subset=['Agirlik_2025'])
 
-            # Tarih kolonlarını bul
-            gunler = sorted([c for c in pivot.columns if
-                             isinstance(c, (datetime, pd.Timestamp)) or (isinstance(c, str) and c.startswith('20'))])
+            # Tarih kolonlarını bul (Sadece '20' ile başlayan kolonları al - YYYY...)
+            gunler = sorted([c for c in df_analiz.columns if str(c).startswith('20')])
 
-            if not gunler:
-                st.warning("Henüz tarihli fiyat verisi yok.")
+            if len(gunler) < 1:
+                st.error("⚠️ Veri var ama tarih sütunları oluşturulamadı. Tarih formatını kontrol edin.")
+                st.write("Görünen Sütunlar:", df_analiz.columns.tolist())  # Hata ayıklama için
                 return
 
-            baz, son = gunler[0], gunler[-1]
+            baz_tarih = gunler[0]
+            son_tarih = gunler[-1]
 
-            trend = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])['Agirlik_2025'] * (
-                        df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
-                                              'Agirlik_2025'].sum() * 100} for g in gunler]
-            df_trend = pd.DataFrame(trend)
-            genel_enf = (df_trend['TÜFE'].iloc[-1] / 100 - 1) * 100
+            # Trend Hesapla
+            trend_data = []
+            for g in gunler:
+                temp = df_analiz.dropna(subset=[g, baz_tarih])
+                if not temp.empty:
+                    # Endeks Formülü: (Ağırlık * (YeniFiyat / EskiFiyat)) / ToplamAğırlık
+                    endeks = (temp['Agirlik_2025'] * (temp[g] / temp[baz_tarih])).sum() / temp[
+                        'Agirlik_2025'].sum() * 100
+                    trend_data.append({"Tarih": g, "TÜFE": endeks})
 
-            # FARK HESABI (Kontrollü)
-            if son in df_analiz.columns and baz in df_analiz.columns:
-                df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
+            df_trend = pd.DataFrame(trend_data)
+            son_endeks = df_trend['TÜFE'].iloc[-1]
+            genel_enf = (son_endeks / 100 - 1) * 100
+
+            # Ürün Bazlı Değişim
+            df_analiz['Fark'] = (df_analiz[son_tarih] / df_analiz[baz_tarih]) - 1
+            top_artis = df_analiz.sort_values('Fark', ascending=False).iloc[0]
+
+            # Gıda Enflasyonu
+            gida_df = df_analiz[df_analiz['Kod'].str.startswith("01")]
+            if not gida_df.empty:
+                gida_enf = ((gida_df[son_tarih] / gida_df[baz_tarih] * gida_df['Agirlik_2025']).sum() / gida_df[
+                    'Agirlik_2025'].sum() - 1) * 100
             else:
-                df_analiz['Fark'] = 0
+                gida_enf = 0
 
-            top = df_analiz.sort_values('Fark', ascending=False).iloc[0]
-            gida = df_analiz[df_analiz['Kod'].str.startswith("01")].copy()
-            gida_enf = ((gida[son] / gida[baz] * gida['Agirlik_2025']).sum() / gida[
-                'Agirlik_2025'].sum() - 1) * 100 if not gida.empty else 0
-
-            # GÖRSELLEŞTİRME
+            # --- ARAYÜZ ---
+            # 1. TICKER
+            ticker_text = " &nbsp;•&nbsp; ".join([
+                                                     f"<span style='color:{'#dc2626' if r['Fark'] > 0 else '#16a34a'}'>{r['Madde adı']} %{r['Fark'] * 100:.1f}</span>"
+                                                     for _, r in df_analiz.sort_values("Fark", ascending=False).head(
+                    15).iterrows()])
             st.markdown(
-                f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;•&nbsp; ".join([f"<span style=\'color:{'#dc2626' if r['Fark'] > 0 else '#16a34a'}\'>{r['Madde adı']} %{r['Fark'] * 100:.1f}</span>" for _, r in df_analiz.sort_values("Fark", ascending=False).head(15).iterrows()])}</div></div></div>',
+                f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{ticker_text}</div></div></div>',
                 unsafe_allow_html=True)
 
+            # 2. METRİKLER
             c1, c2, c3, c4 = st.columns(4)
 
             def card(c, t, v, s, m="neu"):
@@ -326,16 +359,19 @@ def dashboard_modu():
                     f'<div class="metric-card"><div class="metric-label">{t}</div><div class="metric-value">{v}</div><div class="metric-delta {"delta-pos" if m == "pos" else "delta-neg" if m == "neg" else "delta-neu"}">{s}</div></div>',
                     unsafe_allow_html=True)
 
-            card(c1, "Genel Endeks", f"{df_trend['TÜFE'].iloc[-1]:.2f}", "Baz: 100", "neu")
+            card(c1, "Genel Endeks", f"{son_endeks:.2f}", "Baz: 100", "neu")
             card(c2, "Genel Enflasyon", f"%{genel_enf:.2f}", "Kümülatif", "pos")
             card(c3, "Gıda Enflasyonu", f"%{gida_enf:.2f}", "Mutfak", "pos")
-            card(c4, "En Yüksek Risk", f"{top['Madde adı'][:12]}..", f"%{top['Fark'] * 100:.1f} Artış", "pos")
+            card(c4, "En Yüksek Risk", f"{top_artis['Madde adı'][:12]}..", f"%{top_artis['Fark'] * 100:.1f} Artış",
+                 "pos")
             st.markdown("<br>", unsafe_allow_html=True)
 
-            grp_max = df_analiz.groupby('Grup')['Fark'].mean().idxmax();
+            # 3. ANALİZ METNİ & TREEMAP
+            grp_max = df_analiz.groupby('Grup')['Fark'].mean().idxmax()
             grp_val = df_analiz.groupby('Grup')['Fark'].mean().max() * 100
+
             st.markdown(
-                f'<div class="analysis-box"><div class="analysis-title">📊 Piyasa Raporu ({str(son)})</div><p>Piyasa genelinde <span class="trend-up">YÜKSELİŞ</span> hakim. Enflasyon sepeti <span class="highlight">%{genel_enf:.2f}</span> artış gösterdi. En yüksek baskı <span class="trend-up">%{grp_val:.2f}</span> ile <span class="highlight">{grp_max}</span> grubundan geliyor.</p></div>',
+                f'<div class="analysis-box"><div class="analysis-title">📊 Piyasa Raporu ({son_tarih})</div><p>Piyasa genelinde <span class="trend-up">YÜKSELİŞ</span> hakim. Enflasyon sepeti <span class="highlight">%{genel_enf:.2f}</span> artış gösterdi. En yüksek baskı <span class="trend-up">%{grp_val:.2f}</span> ile <span class="highlight">{grp_max}</span> grubundan geliyor.</p></div>',
                 unsafe_allow_html=True)
 
             c_txt, c_chart = st.columns([2, 3])
@@ -343,10 +379,19 @@ def dashboard_modu():
                 fig = px.treemap(df_analiz, path=[px.Constant("Piyasa Geneli"), 'Grup', 'Madde adı'],
                                  values='Agirlik_2025', color='Fark', color_continuous_scale='RdYlGn_r',
                                  title="Enflasyon Sıcaklık Haritası")
-                fig.update_layout(margin=dict(t=30, l=0, r=0, b=0), height=350);
+                fig.update_layout(margin=dict(t=30, l=0, r=0, b=0), height=350)
                 st.plotly_chart(fig, use_container_width=True)
 
+            # 4. GRAFİK
+            fig_area = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Trendi",
+                               color_discrete_sequence=['#2563eb'])
+            fig_area.update_layout(plot_bgcolor='white', paper_bgcolor='white', margin=dict(t=40, b=0, l=0, r=0),
+                                   yaxis=dict(showgrid=True, gridcolor='#f1f5f9'))
+            st.plotly_chart(fig_area, use_container_width=True)
+
+            # 5. TABS
             t1, t2, t3, t4, t5 = st.tabs(["🤖 ASİSTAN", "🫧 DAĞILIM", "🚀 ZİRVE", "📉 FIRSATLAR", "📑 LİSTE"])
+
             with t1:
                 st.markdown("##### 🤖 Asistan")
                 with st.container():
@@ -364,7 +409,7 @@ def dashboard_modu():
                             "c": "#16a34a", "b": "#f0fdf4", "i": "🎉", "t": "İNDİRİMDE"} if fark < 0 else {
                             "c": "#475569", "b": "#f8fafc", "i": "➖", "t": "SABİT"}
                         st.markdown(
-                            f'<div style="background:{style["b"]}; border-left:5px solid {style["c"]}; padding:20px; border-radius:8px; margin-top:20px;"><div style="color:{style["c"]}; font-weight:800; font-size:20px;">{style["i"]} {style["t"]} (%{fark:.2f})</div><b>{t["Madde adı"]}</b><br>Başlangıç: {t[baz]:.2f} TL ➜ Son: {t[son]:.2f} TL</div>',
+                            f'<div style="background:{style["b"]}; border-left:5px solid {style["c"]}; padding:20px; border-radius:8px; margin-top:20px;"><div style="color:{style["c"]}; font-weight:800; font-size:20px;">{style["i"]} {style["t"]} (%{fark:.2f})</div><b>{t["Madde adı"]}</b><br>Başlangıç: {t[baz_tarih]:.2f} TL ➜ Son: {t[son_tarih]:.2f} TL</div>',
                             unsafe_allow_html=True)
                     else:
                         st.warning("Bulunamadı")
@@ -383,13 +428,19 @@ def dashboard_modu():
                 else:
                     st.info("İndirim yok.")
             with t5:
-                st.dataframe(
-                    df_analiz[['Grup', 'Madde adı', 'Fark', baz, son]].rename(columns={baz: str(baz), son: str(son)}),
-                    use_container_width=True)
+                # Dataframe gösterirken kolon isimleri string olmalı
+                cols = ['Grup', 'Madde adı', 'Fark', baz_tarih, son_tarih]
+                st.dataframe(df_analiz[cols].rename(columns={baz_tarih: str(baz_tarih), son_tarih: str(son_tarih)}),
+                             use_container_width=True)
+
+        except Exception as e:
+            st.error(f"Veri İşleme Hatası: {str(e)}")
+            st.write("Lütfen Fiyat_Veritabani.xlsx dosyasının sütunlarını kontrol edin.")
 
     else:
-        st.warning("Veri bekleniyor... Lütfen ZIP dosyalarınızı yükleyin ve butona basın.")
+        st.warning("Veritabanı boş veya okunamadı. İlk verileri yüklemek için ZIP dosyası yükleyip butona basın.")
 
+    # AKSİYON BUTONU
     st.markdown('<div class="action-container"><div class="action-btn">', unsafe_allow_html=True)
     if st.button("VERİTABANINI GÜNCELLE (ZIP & MANUEL)", type="primary", use_container_width=True):
         log_ph = st.empty()
