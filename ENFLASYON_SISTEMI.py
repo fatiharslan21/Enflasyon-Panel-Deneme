@@ -26,7 +26,7 @@ st.set_page_config(
 # --- ADMIN AYARI ---
 ADMIN_USER = "fatiharslan"
 
-# --- 2. GITHUB & VERİ MOTORU ---
+# --- 2. GITHUB & VERİ MOTORU (SABİT) ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 USERS_DOSYASI = "kullanicilar.json"
@@ -280,23 +280,21 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # --- SIDEBAR ---
+    # --- SIDEBAR (Light Tema + Siyah Yazı) ---
     with st.sidebar:
         user_upper = st.session_state['username'].upper()
         role_title = "SYSTEM ADMIN" if st.session_state['username'] == ADMIN_USER else "VERİ ANALİSTİ"
         st.markdown(f"""
-            <div class="profile-card">
+            <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:15px; text-align:center; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
                 <div style="font-size:32px; margin-bottom:5px;">👤</div>
-                <div class="profile-name">{user_upper}</div>
-                <div class="profile-role">{role_title}</div>
+                <div style="font-family:'Poppins'; font-weight:700; font-size:18px; color:#1e293b;">{user_upper}</div>
+                <div style="font-size:11px; text-transform:uppercase; color:#64748b; margin-top:4px;">{role_title}</div>
             </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("### ⚙️ Ayarlar")
-        dark_mode = st.toggle("🌙 Karanlık Mod", value=False)
-
+        st.markdown("<h3 style='color:#1e293b;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
         st.divider()
-        st.markdown("### 🟢 Çevrimiçi Ekip")
+        st.markdown("<h3 style='color:#1e293b;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
 
         users_db = github_json_oku(USERS_DOSYASI)
         activity_db = github_json_oku(ACTIVITY_DOSYASI)
@@ -319,10 +317,11 @@ def dashboard_modu():
         for u in sorted_users:
             status_class = "online" if u['online'] else "offline"
             role_icon = "🛡️" if u['name'] == ADMIN_USER else ""
+            # Sidebar user items style: White bg, Black text
             st.markdown(f"""
-                <div class="user-row-dark">
-                    <span style="display:flex; align-items:center; color:white; font-size:13px; font-weight:500;">
-                        <span class="status-dot {status_class}"></span>
+                <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
+                        <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
                         {u['name']} {role_icon}
                     </span>
                 </div>
@@ -333,61 +332,44 @@ def dashboard_modu():
             st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- DYNAMIC CSS (DARK/LIGHT TRANSITION) ---
-    transition_css = """
-        /* Smooth Transition for Dark Mode */
-        .stApp, .header-container, .metric-card, .bot-bubble, .update-btn-container button {
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        }
-    """
-
-    if dark_mode:
-        theme_css = """
-            :root { --bg-color: #0f172a; --card-bg: #1e293b; --text-color: #f8fafc; --sub-text: #94a3b8; }
-            .stApp { background-color: var(--bg-color); color: var(--text-color); }
-            .header-container, .metric-card { background: var(--card-bg) !important; color: var(--text-color) !important; border-color: #334155 !important; }
-            .app-title { -webkit-text-fill-color: #f8fafc !important; }
-            .metric-val { color: #f8fafc !important; }
-            .bot-bubble { background: #1e293b !important; color: #e2e8f0 !important; border-left-color: #3b82f6 !important; }
-        """
-    else:
-        theme_css = """
-            :root { --bg-color: #f8fafc; --card-bg: white; --text-color: #0f172a; --sub-text: #64748b; }
-            .stApp { background-color: var(--bg-color); color: var(--text-color); }
-            .header-container, .metric-card { background: var(--card-bg) !important; color: var(--text-color) !important; }
-        """
-
-    st.markdown(f"""
+    # --- CSS: LIGHT MODE ONLY & IMPRESSIVE UI ---
+    st.markdown("""
     <style>
-        {transition_css}
-        {theme_css}
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
 
-        .header-container {{ display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border-bottom: 4px solid #3b82f6; }}
-        .app-title {{ font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: -webkit-linear-gradient(#0f172a, #334155); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+        /* Force Light Mode Background */
+        .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
 
-        .metric-card {{ padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transform: translateZ(0); }}
-        .metric-card:hover {{ transform: translateY(-5px); }}
-        .metric-card::before {{ content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }}
-        .card-blue::before {{ background: #3b82f6; }} .card-purple::before {{ background: #8b5cf6; }} .card-emerald::before {{ background: #10b981; }} .card-orange::before {{ background: #f59e0b; }}
-        .metric-label {{ font-size: 13px; font-weight: 600; text-transform: uppercase; opacity: 0.8; margin-bottom: 5px; }}
-        .metric-val {{ font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }}
-        .metric-val.long-text {{ font-size: 24px !important; line-height: 1.2; }}
+        /* Sidebar Styling (Light) */
+        section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
+        section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
-        .update-btn-container button {{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); }}
-        .update-btn-container button:hover {{ transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); }}
+        /* Header */
+        .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
+        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: -webkit-linear-gradient(#0f172a, #334155); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
-        .ticker-wrap {{ width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }}
-        .ticker {{ display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }}
-        .ticker-item {{ display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }}
-        @keyframes ticker {{ 0% {{ transform: translateX(100%); }} 100% {{ transform: translateX(-100%); }} }}
+        /* Cards */
+        .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: transform 0.3s; }
+        .metric-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.1); }
+        .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
+        .card-blue::before { background: #3b82f6; } .card-purple::before { background: #8b5cf6; } .card-emerald::before { background: #10b981; } .card-orange::before { background: #f59e0b; }
+        .metric-label { color: #64748b; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
+        .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
+        .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
-        .user-row-dark {{ background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); padding: 10px; margin-bottom: 6px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }}
-        .status-dot {{ height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 10px; }}
-        .online {{ background-color: #4ade80; box-shadow: 0 0 8px #4ade80; }}
-        .offline {{ background-color: #64748b; }}
-        .bot-bubble {{ background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }}
-        .bot-log {{ background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }}
+        /* Update Button */
+        .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; }
+        .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); }
+
+        /* Ticker */
+        .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
+        .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
+        .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
+        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+
+        /* Bot & Bubble */
+        .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
+        .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -398,8 +380,8 @@ def dashboard_modu():
         <div class="header-container">
             <div class="app-title">Enflasyon Monitörü</div>
             <div style="text-align:right;">
-                <div style="opacity:0.7; font-size:12px; font-weight:600;">İSTANBUL, TR</div>
-                <div style="font-size:14px; font-weight:bold;">{tr_time.strftime('%d %B %Y, %H:%M')}</div>
+                <div style="color:#64748b; font-size:12px; font-weight:600;">İSTANBUL, TR</div>
+                <div style="color:#0f172a; font-size:14px; font-weight:bold;">{tr_time.strftime('%d %B %Y, %H:%M')}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -541,7 +523,6 @@ def dashboard_modu():
                     fig_main.update_layout(template="plotly_white", height=400, hovermode="x unified",
                                            yaxis=dict(range=[95, 105]), plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
-                    if dark_mode: fig_main.update_layout(font=dict(color="white"))
                     col_trend.plotly_chart(fig_main, use_container_width=True)
 
                     with col_comp:
@@ -553,25 +534,25 @@ def dashboard_modu():
                         color_diff = "#ef4444" if diff_24 > 0 else "#22c55e"
                         arrow = "▲" if diff_24 > 0 else "▼"
 
-                        # DÜZELTİLMİŞ HTML BLOĞU (unsafe_allow_html=True EKLENDİ)
+                        # DÜZELTİLMİŞ HTML BLOĞU (SENİN İSTEDİĞİN RENKLER VE YAPI)
                         st.markdown(f"""
-                        <div style="background:{'#1e293b' if dark_mode else 'white'}; padding:20px; border-radius:15px; border:1px solid #e2e8f0; height:400px; display:flex; flex-direction:column; justify-content:center;">
-                            <h3 style="color:{'white' if dark_mode else '#334155'}; font-size:16px; text-align:center; margin-bottom:15px; border-bottom:1px solid #334155; padding-bottom:10px;">ENFLASYON KARŞILAŞTIRMASI</h3>
+                        <div style="background:white; padding:20px; border-radius:15px; border:1px solid #e2e8f0; height:400px; display:flex; flex-direction:column; justify-content:center;">
+                            <h3 style="color:#334155; font-size:16px; text-align:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">ENFLASYON KARŞILAŞTIRMASI</h3>
 
                             <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                                <div style="text-align:center; width:48%; background:{'#0f172a' if dark_mode else '#f1f5f9'}; padding:10px; border-radius:8px;">
+                                <div style="text-align:center; width:48%; background:#f1f5f9; padding:10px; border-radius:8px;">
                                     <div style="font-size:10px; color:#94a3b8;">ARALIK 2024</div>
                                     <div style="font-size:18px; font-weight:bold; color:#cbd5e1;">%{REF_ARALIK_2024}</div>
                                 </div>
-                                <div style="text-align:center; width:48%; background:{'#0f172a' if dark_mode else '#f1f5f9'}; padding:10px; border-radius:8px;">
+                                <div style="text-align:center; width:48%; background:#f1f5f9; padding:10px; border-radius:8px;">
                                     <div style="font-size:10px; color:#94a3b8;">KASIM 2025</div>
                                     <div style="font-size:18px; font-weight:bold; color:#cbd5e1;">%{REF_KASIM_2025}</div>
                                 </div>
                             </div>
 
-                            <div style="text-align:center; padding:15px; background:{'rgba(59, 130, 246, 0.1)' if dark_mode else '#eff6ff'}; border: 1px solid #3b82f6; border-radius:12px;">
+                            <div style="text-align:center; padding:15px; background:#eff6ff; border: 1px solid #3b82f6; border-radius:12px;">
                                 <div style="font-size:12px; color:#3b82f6; font-weight:bold;">ŞU ANKİ (SİSTEM)</div>
-                                <div style="font-size:36px; font-weight:900; color:{'white' if dark_mode else '#1e293b'};">
+                                <div style="font-size:36px; font-weight:900; color:#1e293b;">
                                     %{enf_genel:.2f}
                                 </div>
                             </div>
@@ -591,16 +572,15 @@ def dashboard_modu():
                     if q:
                         res = df_analiz[df_analiz[ad_col].str.lower().str.contains(q.lower())]
                         if not res.empty:
+                            target = None
                             if len(res) == 1:
                                 target = res.iloc[0]
-                                show_detail = True
                             else:
                                 st.info(f"🔎 '{q}' ile ilgili {len(res)} sonuç bulundu. Lütfen seçiniz:")
                                 selected_prod = st.selectbox("Ürün Seçin:", res[ad_col].unique())
                                 target = res[res[ad_col] == selected_prod].iloc[0]
-                                show_detail = True
 
-                            if show_detail:
+                            if target is not None:
                                 fark = target['Fark'] * 100
                                 st.markdown(f"""
                                     <div class="bot-bubble">
@@ -627,14 +607,12 @@ def dashboard_modu():
                     fig_hist.update_layout(template="plotly_white", xaxis_title="Artış Oranı (%)",
                                            yaxis_title="Ürün Adedi", plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
-                    if dark_mode: fig_hist.update_layout(font=dict(color="white"))
                     col_hist.plotly_chart(fig_hist, use_container_width=True)
 
                     fig_box = px.box(df_analiz, x="Grup", y="Fark_Yuzde", title="📦 Sektörel Fiyat Dengesizliği",
                                      color="Grup")
                     fig_box.update_layout(template="plotly_white", xaxis_title="Sektör", showlegend=False,
                                           plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-                    if dark_mode: fig_box.update_layout(font=dict(color="white"))
                     col_box.plotly_chart(fig_box, use_container_width=True)
 
                 with t4:
@@ -674,7 +652,6 @@ def dashboard_modu():
                             fig_comp.update_layout(template="plotly_white", height=200, margin=dict(t=0, b=0, l=0, r=0),
                                                    xaxis=dict(showgrid=False), plot_bgcolor='rgba(0,0,0,0)',
                                                    paper_bgcolor='rgba(0,0,0,0)')
-                            if dark_mode: fig_comp.update_layout(font=dict(color="white"))
                             c_ch.plotly_chart(fig_comp, use_container_width=True)
                             st.dataframe(my_df[[ad_col, 'Fark', baz, son]], use_container_width=True)
                     else:
@@ -741,61 +718,73 @@ def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
     if not st.session_state['logged_in']:
-        # Şovlu Login Ekranı CSS
+        # Şovlu Login Ekranı CSS (Hareketli Gradient + Glassmorphism)
         st.markdown("""
         <style>
-        .login-bg {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            padding: 50px;
+        .login-wrapper {
+            display: flex; justify-content: center; align-items: center;
+            height: 80vh;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
             border-radius: 20px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            text-align: center;
-            animation: fadeIn 1s ease-in-out;
+        }
+        @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
+
+        .login-box {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 40px; border-radius: 24px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            width: 400px; text-align: center;
+            animation: fadeIn 1s ease-out;
         }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         </style>
         """, unsafe_allow_html=True)
 
+        st.markdown('<div class="login-wrapper"><div class="login-box">', unsafe_allow_html=True)
         st.markdown(
-            "<div style='text-align: center; margin-top:50px; margin-bottom:30px;'><h1 style='color:#0f172a; font-family:Poppins; font-size:48px; font-weight:800; text-shadow: 0 5px 15px rgba(0,0,0,0.1);'>ENFLASYON MONİTÖRÜ</h1></div>",
+            "<h1 style='color:#1e293b; font-family:Poppins; font-weight:800; font-size:32px; margin-bottom:10px;'>GİRİŞ YAP</h1>",
+            unsafe_allow_html=True)
+        st.markdown(
+            "<p style='color:#64748b; font-size:14px; margin-bottom:30px;'>Enflasyon Monitörüne Hoş Geldiniz</p>",
             unsafe_allow_html=True)
 
-        c1, c2, c3 = st.columns([1, 2, 1])
-        with c2:
-            st.markdown('<div class="login-bg">', unsafe_allow_html=True)
-            t_log, t_reg = st.tabs(["🔒 GİRİŞ YAP", "📝 KAYIT OL"])
+        t_log, t_reg = st.tabs(["GİRİŞ", "KAYIT"])
 
-            with t_log:
-                with st.form("login_f"):
-                    l_u = st.text_input("Kullanıcı Adı")
-                    l_p = st.text_input("Şifre", type="password")
-                    if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
-                        ok, msg = github_user_islem("login", l_u, l_p)
+        with t_log:
+            with st.form("login_f"):
+                l_u = st.text_input("Kullanıcı Adı")
+                l_p = st.text_input("Şifre", type="password")
+                if st.form_submit_button("Sisteme Gir", use_container_width=True):
+                    ok, msg = github_user_islem("login", l_u, l_p)
+                    if ok:
+                        st.session_state['logged_in'] = True;
+                        st.session_state['username'] = l_u
+                        st.success("Başarılı!");
+                        time.sleep(1);
+                        st.rerun()
+                    else:
+                        st.error(msg)
+
+        with t_reg:
+            with st.form("reg_f"):
+                r_u = st.text_input("Kullanıcı Adı Belirle")
+                r_p = st.text_input("Şifre Belirle", type="password")
+                if st.form_submit_button("Hesap Oluştur", use_container_width=True):
+                    if r_u and r_p:
+                        ok, msg = github_user_islem("register", r_u, r_p)
                         if ok:
-                            st.session_state['logged_in'] = True;
-                            st.session_state['username'] = l_u
-                            st.success("Giriş Başarılı!");
-                            time.sleep(1);
-                            st.rerun()
+                            st.success(msg)
                         else:
                             st.error(msg)
+                    else:
+                        st.warning("Doldurunuz.")
 
-            with t_reg:
-                with st.form("reg_f"):
-                    r_u = st.text_input("Yeni Kullanıcı Adı")
-                    r_p = st.text_input("Şifre Belirle", type="password")
-                    if st.form_submit_button("HESAP OLUŞTUR", use_container_width=True):
-                        if r_u and r_p:
-                            ok, msg = github_user_islem("register", r_u, r_p)
-                            if ok:
-                                st.success(msg)
-                            else:
-                                st.error(msg)
-                        else:
-                            st.warning("Alanları doldurunuz.")
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div></div>', unsafe_allow_html=True)
 
     else:
         dashboard_modu()
