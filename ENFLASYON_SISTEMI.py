@@ -8,6 +8,7 @@ import re
 from datetime import datetime
 import time
 import json
+import hashlib
 from github import Github
 from io import BytesIO
 import zipfile
@@ -16,12 +17,23 @@ import base64
 # --- 1. AYARLAR ---
 st.set_page_config(page_title="ENFLASYON MONITORU PRO", page_icon="💎", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CSS ---
+# --- CSS (AYNI PRESTİJLİ TASARIM + LOGIN EKRANI) ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap');
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #1e293b; }
         [data-testid="stSidebar"], [data-testid="stToolbar"], footer {display: none !important;}
+
+        /* LOGIN EKRANI STİLİ */
+        .login-container {
+            max-width: 400px; margin: 100px auto; padding: 40px; background: white;
+            border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+        .login-header { font-size: 24px; font-weight: 800; color: #0f172a; margin-bottom: 20px; }
+        .login-sub { color: #64748b; font-size: 14px; margin-bottom: 30px; }
+
+        /* GENEL DASHBOARD STİLLERİ */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 30px; }
         .app-title { font-size: 32px; font-weight: 800; color: #0f172a; }
         .live-indicator { display: flex; align-items: center; font-size: 13px; font-weight: 600; color: #15803d; background: #ffffff; padding: 6px 12px; border-radius: 20px; border: 1px solid #bbf7d0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
@@ -47,13 +59,19 @@ st.markdown("""
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 8px; height: 200px; overflow-y: auto; text-align: left; margin-top: 20px; }
         .bot-bubble { background: #f8fafc; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 0 8px 8px 8px; margin-top: 20px; color: #334155; font-size: 15px; line-height: 1.6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .signature-footer { text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 14px; font-weight: 500; }
+
+        /* Logout Butonu */
+        .logout-btn { position: fixed; top: 20px; right: 20px; z-index: 9999; }
+        .logout-btn button { background-color: #ef4444 !important; color: white; border: none; padding: 5px 15px; border-radius: 5px; font-size: 12px; }
     </style>
 """, unsafe_allow_html=True)
 
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
+USERS_DOSYASI = "kullanicilar.json"  # KULLANICI VERİTABANI
 SAYFA_ADI = "Madde_Sepeti"
+HTML_KLASORU = "HTML_DOSYALARI"
 
 
 def get_github_repo():
@@ -63,6 +81,50 @@ def get_github_repo():
         return None
 
 
+# --- AUTH & USER FUNCTIONS ---
+def hash_password(password):
+    return hashlib.sha256(str.encode(password)).hexdigest()
+
+
+def github_user_islem(action, username=None, password=None):
+    repo = get_github_repo()
+    if not repo: return False, "Repo Hatası"
+
+    try:
+        # Mevcut kullanıcıları çek
+        try:
+            c = repo.get_contents(USERS_DOSYASI, ref=st.secrets["github"]["branch"])
+            users_db = json.loads(c.decoded_content.decode("utf-8"))
+        except:
+            users_db = {}  # Dosya yoksa boş başlat
+            c = None
+
+        if action == "login":
+            if username in users_db and users_db[username] == hash_password(password):
+                return True, "Başarılı"
+            else:
+                return False, "Kullanıcı adı veya şifre hatalı."
+
+        elif action == "register":
+            if username in users_db:
+                return False, "Bu kullanıcı adı zaten alınmış."
+            else:
+                users_db[username] = hash_password(password)
+                # GitHub'a kaydet
+                content = json.dumps(users_db, indent=4)
+                if c:
+                    repo.update_file(c.path, f"User Reg: {username}", content, c.sha,
+                                     branch=st.secrets["github"]["branch"])
+                else:
+                    repo.create_file(USERS_DOSYASI, f"User Create: {username}", content,
+                                     branch=st.secrets["github"]["branch"])
+                return True, "Kayıt Başarılı! Şimdi giriş yapabilirsiniz."
+
+    except Exception as e:
+        return False, f"Sistem Hatası: {e}"
+
+
+# --- GITHUB EXCEL FONKSIYONLARI ---
 def github_excel_oku(dosya_adi, sayfa_adi=None):
     repo = get_github_repo()
     if not repo: return pd.DataFrame()
@@ -104,7 +166,7 @@ def github_excel_guncelle(df_yeni, dosya_adi):
         return str(e)
 
 
-# --- 3. HTML & MANUEL PARSER ---
+# --- BOT & PARSER FUNCTIONS ---
 def temizle_fiyat(t):
     if not t: return None
     t = str(t).replace('TL', '').replace('₺', '').strip()
@@ -123,7 +185,6 @@ def fiyat_bul_siteye_gore(soup, url):
     kaynak = ""
     domain = url.lower() if url else ""
 
-    # MİGROS
     if "migros" in domain:
         try:
             s = soup.find('script', type='application/ld+json');
@@ -142,52 +203,40 @@ def fiyat_bul_siteye_gore(soup, url):
                 if el := get(soup):
                     if v := temizle_fiyat(el.get_text()): fiyat = v; kaynak = "Migros(CSS)"; break
 
-    # --- CİMRİ (SENİN ÖZEL KODUN) ---
     elif "cimri" in domain:
         bulundu = False
         selectors = ["div.rTdMX", ".offer-price", "div.sS0lR", ".min-price-val"]
-
-        # 1. CSS Selector ile Ara
         for sel in selectors:
             try:
                 elements = soup.select(sel)
                 if elements:
                     texts = [e.get_text() for e in elements]
                     prices = [p for p in [temizle_fiyat(t) for t in texts] if p]
-
                     if prices:
-                        # Eğer çok fazla fiyat varsa uç değerleri at (Outlier removal)
-                        if len(prices) > 4:
-                            prices.sort()
-                            prices = prices[1:-1]
-
+                        if len(prices) > 4: prices.sort(); prices = prices[1:-1]
                         fiyat = sum(prices) / len(prices)
                         kaynak = f"Cimri ({len(prices)})"
-                        bulundu = True
+                        bulundu = True;
                         break
             except:
                 pass
-
-        # 2. Regex (Eğer CSS bulamazsa)
         if not bulundu:
             try:
-                body_text = soup.get_text()
+                body_text = soup.get_text()[:10000]
                 bulunanlar = re.findall(r'(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(?:TL|₺)', body_text)
                 fiyatlar = []
                 for ham in bulunanlar:
                     temiz = temizle_fiyat(ham)
-                    if temiz: fiyatlar.append(temiz)
-
+                    if temiz and temiz > 0: fiyatlar.append(temiz)
                 if fiyatlar:
                     fiyatlar.sort()
-                    # En ucuz %50'lik dilimi al ve ortalamasını bul
-                    mantikli = fiyatlar[:max(1, len(fiyatlar) // 2)]
+                    limit = max(1, len(fiyatlar) // 2)
+                    mantikli = fiyatlar[:limit]
                     fiyat = sum(mantikli) / len(mantikli)
-                    kaynak = "Cimri (Regex)"
+                    kaynak = "Cimri (Regex Avg)"
             except:
                 pass
 
-    # GENEL
     else:
         try:
             s = soup.find('script', type='application/ld+json');
@@ -214,7 +263,6 @@ def html_isleyici(log_callback):
     log_callback("📂 Konfigürasyon okunuyor...")
 
     try:
-        # 1. Konfigürasyon
         df_conf = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
         df_conf.columns = df_conf.columns.str.strip()
         kod_col = next((c for c in df_conf.columns if c.lower() == 'kod'), None)
@@ -231,7 +279,6 @@ def html_isleyici(log_callback):
         bugun = datetime.now().strftime("%Y-%m-%d")
         simdi = datetime.now().strftime("%H:%M")
 
-        # --- A. MANUEL FİYATLAR ---
         log_callback("✍️ Manuel fiyatlar kontrol ediliyor...")
         manuel_col = next((c for c in df_conf.columns if 'manuel' in c.lower()), None)
         manuel_sayac = 0
@@ -249,7 +296,6 @@ def html_isleyici(log_callback):
                         pass
         if manuel_sayac > 0: log_callback(f"✅ {manuel_sayac} manuel fiyat eklendi.")
 
-        # --- B. ZIP ARŞİVLERİ ---
         log_callback("📦 ZIP dosyaları taranıyor...")
         contents = repo.get_contents("", ref=st.secrets["github"]["branch"])
         zip_files = [c for c in contents if c.name.endswith(".zip")]
@@ -258,27 +304,21 @@ def html_isleyici(log_callback):
         for zip_file in zip_files:
             log_callback(f"📂 Arşiv okunuyor: {zip_file.name}")
             try:
-                # BLOB OKUMA (Büyük Dosya Fix)
                 blob = repo.get_git_blob(zip_file.sha)
                 zip_data = base64.b64decode(blob.content)
-
                 with zipfile.ZipFile(BytesIO(zip_data)) as z:
                     for file_name in z.namelist():
                         if not file_name.endswith(('.html', '.htm')): continue
-
                         with z.open(file_name) as f:
                             raw = f.read().decode("utf-8", errors="ignore")
                             soup = BeautifulSoup(raw, 'html.parser')
-
                             found_url = None
                             if c := soup.find("link", rel="canonical"): found_url = c.get("href")
                             if not found_url and (m := soup.find("meta", property="og:url")): found_url = m.get(
                                 "content")
-
                             if found_url and str(found_url).strip() in url_map:
                                 target = url_map[str(found_url).strip()]
                                 if target['Kod'] in islenen_kodlar: continue
-
                                 fiyat, kaynak = fiyat_bul_siteye_gore(soup, target[url_col])
                                 if fiyat > 0:
                                     veriler.append({"Tarih": bugun, "Zaman": simdi, "Kod": target['Kod'],
@@ -294,18 +334,32 @@ def html_isleyici(log_callback):
             return github_excel_guncelle(pd.DataFrame(veriler), FIYAT_DOSYASI)
         else:
             return "Veri bulunamadı."
-
     except Exception as e:
         return f"Hata: {str(e)}"
 
 
-# --- 4. DASHBOARD MODU ---
+# --- 4. DASHBOARD (ENFLASYON SİSTEMİ) ---
 def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
+    # ÇIKIŞ BUTONU
+    st.markdown("""
+        <div class="logout-btn">
+            <form action="">
+                <button type="submit" name="logout_btn" value="true">ÇIKIŞ YAP</button>
+            </form>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # URL params ile logout kontrolü (Streamlit hilesi)
+    if st.query_params.get("logout_btn"):
+        st.session_state['logged_in'] = False
+        st.query_params.clear()
+        st.rerun()
+
     st.markdown(
-        '<div class="header-container"><div class="app-title">Enflasyon Monitörü <span style="font-weight:300; color:#64748b;">Analist</span></div><div class="live-indicator"><div class="pulse"></div>SİSTEM AKTİF</div></div>',
+        f'<div class="header-container"><div class="app-title">Enflasyon Monitörü <span style="font-weight:300; color:#64748b;">Analist</span></div><div class="live-indicator"><div class="pulse"></div>HOŞGELDİN {st.session_state.get("username", "USER").upper()}</div></div>',
         unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
@@ -337,12 +391,10 @@ def dashboard_modu():
                     df_s['Grup'] = df_s['Kod'].str[:2].map(grup_map).fillna("Diğer")
 
                 df_analiz = pd.merge(df_s, pivot, on='Kod', how='left')
-
                 if agirlik_col in df_analiz.columns:
                     df_analiz[agirlik_col] = pd.to_numeric(df_analiz[agirlik_col], errors='coerce').fillna(1)
                 else:
-                    df_analiz['Agirlik_2025'] = 1;
-                    agirlik_col = 'Agirlik_2025'
+                    df_analiz['Agirlik_2025'] = 1; agirlik_col = 'Agirlik_2025'
 
                 gunler = [c for c in pivot.columns if c != 'Kod']
                 if len(gunler) < 1: st.warning("Yeterli tarih verisi yok."); return
@@ -442,10 +494,8 @@ def dashboard_modu():
                     cols = ['Grup', ad_col, 'Fark', baz, son]
                     st.dataframe(df_analiz[cols].rename(columns={baz: str(baz), son: str(son)}),
                                  use_container_width=True)
-
         except Exception as e:
             st.error(f"Hata: {e}")
-
     else:
         st.warning("Veri bekleniyor... Lütfen ZIP dosyalarınızı yükleyin ve butona basın.")
 
@@ -467,5 +517,56 @@ def dashboard_modu():
     st.markdown('<div class="signature-footer">Designed by Fatih Arslan © 2025</div>', unsafe_allow_html=True)
 
 
+# --- 5. ANA GİRİŞ KONTROLÜ ---
+def main():
+    # Session state kontrolü
+    if 'logged_in' not in st.session_state:
+        st.session_state['logged_in'] = False
+
+    if not st.session_state['logged_in']:
+        # LOGO veya BAŞLIK
+        st.markdown("<h1 style='text-align: center; color: #0f172a;'>ENFLASYON MONİTÖRÜ</h1>", unsafe_allow_html=True)
+
+        # LOGIN KUTUSU
+        st.markdown(
+            '<div class="login-container"><div class="login-header">Giriş Yap</div><div class="login-sub">Devam etmek için lütfen giriş yapın veya kayıt olun.</div>',
+            unsafe_allow_html=True)
+
+        tab1, tab2 = st.tabs(["GİRİŞ YAP", "KAYIT OL"])
+
+        with tab1:
+            l_user = st.text_input("Kullanıcı Adı", key="l_u")
+            l_pass = st.text_input("Şifre", type="password", key="l_p")
+            if st.button("Giriş Yap", use_container_width=True):
+                ok, msg = github_user_islem("login", l_user, l_pass)
+                if ok:
+                    st.session_state['logged_in'] = True
+                    st.session_state['username'] = l_user
+                    st.success("Giriş Başarılı!")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(msg)
+
+        with tab2:
+            r_user = st.text_input("Kullanıcı Adı Seçin", key="r_u")
+            r_pass = st.text_input("Şifre Belirleyin", type="password", key="r_p")
+            if st.button("Kayıt Ol", use_container_width=True):
+                if r_user and r_pass:
+                    ok, msg = github_user_islem("register", r_user, r_pass)
+                    if ok:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
+                else:
+                    st.warning("Lütfen tüm alanları doldurun.")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    else:
+        # GİRİŞ YAPILDIYSA DASHBOARD'U ÇAĞIR
+        dashboard_modu()
+
+
 if __name__ == "__main__":
-    dashboard_modu()
+    main()
