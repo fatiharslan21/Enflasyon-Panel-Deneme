@@ -16,14 +16,14 @@ import base64
 
 # --- 1. AYARLAR ---
 st.set_page_config(
-    page_title="ENFLASYON MONITORU PRO X",
+    page_title="ENFLASYON MONITORU",
     page_icon="💎",
     layout="wide",
-    initial_sidebar_state="expanded"  # Panelin açık kalmasını zorlar
+    initial_sidebar_state="expanded"
 )
 
 # --- ADMIN AYARI ---
-ADMIN_USER = "fatih"
+ADMIN_USER = "fatiharslan"
 
 # --- CSS (GÜNCELLENMİŞ VE ESTETİK - ŞOV MODU) ---
 st.markdown("""
@@ -99,6 +99,9 @@ st.markdown("""
 
         .metric-label { color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
+        /* Özel override: Uzun isimler için font küçültme */
+        .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
+
         .metric-sub { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 
         /* TICKER (Kayan Yazı) */
@@ -121,7 +124,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. GITHUB & VERİ MOTORU (AYNEN KORUNDU) ---
+# --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 USERS_DOSYASI = "kullanicilar.json"
@@ -389,7 +392,7 @@ def dashboard_modu():
         """, unsafe_allow_html=True)
 
         st.markdown("### ⚙️ Kontrol Paneli")
-        auto_ref = st.checkbox("🟢 Canlı Veri Akışı", value=False, help="Açıkken sayfa her 10s bir yenilenir.")
+        # auto_ref = st.checkbox("🟢 Canlı Veri Akışı", value=False) -> BUTON GİZLENDİ
 
         st.divider()
         st.markdown("### 🟢 Çevrimiçi Ekip")
@@ -428,8 +431,6 @@ def dashboard_modu():
         if st.button("Güvenli Çıkış", use_container_width=True):
             st.session_state['logged_in'] = False
             st.rerun()
-
-    if auto_ref: time.sleep(10); st.rerun()
 
     # --- ANA SAYFA BAŞLIK ---
     st.markdown(f"""
@@ -493,13 +494,17 @@ def dashboard_modu():
 
                 # GELECEK TAHMİNİ (BASİT PROJEKSİYON)
                 dt_son = datetime.strptime(son, '%Y-%m-%d')
+                dt_baz = datetime.strptime(baz, '%Y-%m-%d')
                 days_in_month = calendar.monthrange(dt_son.year, dt_son.month)[1]
                 days_passed = dt_son.day
                 days_left = days_in_month - days_passed
                 daily_rate = enf_genel / max(days_passed, 1)
                 month_end_forecast = enf_genel + (daily_rate * days_left)
 
-                # --- 1. TICKER (KAYAN YAZI - GÖRSEL ŞOV) ---
+                # Gün Farkı Hesabı
+                gun_farki = (dt_son - dt_baz).days
+
+                # --- 1. TICKER (KAYAN YAZI) ---
                 inc = df_analiz.sort_values('Fark', ascending=False).head(5)
                 dec = df_analiz.sort_values('Fark', ascending=True).head(5)
                 items = []
@@ -511,12 +516,13 @@ def dashboard_modu():
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>',
                     unsafe_allow_html=True)
 
-                # --- 2. KARTLAR (ESTETİK GRID) ---
-                def kpi_card(title, val, sub, sub_color, color_class):
+                # --- 2. KARTLAR (DÜZELTİLMİŞ) ---
+                def kpi_card(title, val, sub, sub_color, color_class, is_long_text=False):
+                    val_class = "metric-val long-text" if is_long_text else "metric-val"
                     st.markdown(f"""
                         <div class="metric-card {color_class}">
                             <div class="metric-label">{title}</div>
-                            <div class="metric-val">{val}</div>
+                            <div class="{val_class}">{val}</div>
                             <div class="metric-sub" style="color:{sub_color}">
                                 {sub}
                             </div>
@@ -525,15 +531,17 @@ def dashboard_modu():
 
                 c1, c2, c3, c4 = st.columns(4)
                 with c1:
-                    kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", "Bu Ay Kümülatif", "#ef4444", "card-blue")
+                    kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"{gun_farki} Günlük Değişim", "#ef4444",
+                             "card-blue")
                 with c2:
                     kpi_card("Ay Sonu Tahmini", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#64748b",
                              "card-purple")
                 with c3:
                     kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
+                # İstenilen Değişiklik: Ürün Adı Büyük, Oran Küçük
                 with c4:
-                    kpi_card("En Riskli Ürün", f"%{top['Fark'] * 100:.1f}", f"{top[ad_col][:18]}", "#f59e0b",
-                             "card-orange")
+                    kpi_card("En Yüksek Risk", f"{top[ad_col][:15]}", f"%{top['Fark'] * 100:.1f} Artış", "#f59e0b",
+                             "card-orange", is_long_text=True)
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -547,7 +555,7 @@ def dashboard_modu():
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
 
-                    # Şov Grafik 1: Gradyanlı Alan Grafiği
+                    # Şov Grafik 1: Gradyanlı Alan Grafiği (EKSEN 95-105 SABİTLENDİ)
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
                     fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
                                            line_shape='spline')
@@ -558,7 +566,8 @@ def dashboard_modu():
                         plot_bgcolor='white',
                         paper_bgcolor='white',
                         font=dict(family="Inter", size=12, color="#334155"),
-                        title_font=dict(size=20, family="Poppins", weight=800)
+                        title_font=dict(size=20, family="Poppins", weight=800),
+                        yaxis=dict(range=[95, 105])  # Eksen sabitlendi
                     )
                     st.plotly_chart(fig_main, use_container_width=True)
 
@@ -602,9 +611,8 @@ def dashboard_modu():
                                                    xaxis=dict(showgrid=False))
                             c_ch.plotly_chart(fig_comp, use_container_width=True)
 
-                            st.dataframe(my_df[[ad_col, 'Fark', baz, son]].style.background_gradient(cmap='Reds',
-                                                                                                     subset=['Fark']),
-                                         use_container_width=True)
+                            # DÜZELTME: background_gradient KALDIRILDI (HATA ÇÖZÜMÜ)
+                            st.dataframe(my_df[[ad_col, 'Fark', baz, son]], use_container_width=True)
                     else:
                         st.warning("Henüz bir sepet oluşturmadın.")
 
@@ -647,7 +655,7 @@ def dashboard_modu():
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
 
-    # GÜNCELLEME BUTONU (Floating Action Style)
+    # GÜNCELLEME BUTONU
     st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
     if st.button("SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
         log_ph = st.empty();
