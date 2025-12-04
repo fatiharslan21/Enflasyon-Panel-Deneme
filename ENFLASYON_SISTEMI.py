@@ -26,7 +26,7 @@ st.set_page_config(
 # --- ADMIN AYARI ---
 ADMIN_USER = "fatiharslan"
 
-# --- 2. GITHUB & VERİ MOTORU (DOKUNULMADI) ---
+# --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 USERS_DOSYASI = "kullanicilar.json"
@@ -553,6 +553,7 @@ def dashboard_modu():
                         color_diff = "#ef4444" if diff_24 > 0 else "#22c55e"
                         arrow = "▲" if diff_24 > 0 else "▼"
 
+                        # DÜZELTİLMİŞ HTML BLOĞU (unsafe_allow_html=True EKLENDİ)
                         st.markdown(f"""
                         <div style="background:{'#1e293b' if dark_mode else 'white'}; padding:20px; border-radius:15px; border:1px solid #e2e8f0; height:400px; display:flex; flex-direction:column; justify-content:center;">
                             <h3 style="color:{'white' if dark_mode else '#334155'}; font-size:16px; text-align:center; margin-bottom:15px; border-bottom:1px solid #334155; padding-bottom:10px;">ENFLASYON KARŞILAŞTIRMASI</h3>
