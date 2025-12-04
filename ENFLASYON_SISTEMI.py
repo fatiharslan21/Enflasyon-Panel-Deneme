@@ -278,6 +278,7 @@ def veri_toplayici(log_callback):
 
 
 # --- 4. DASHBOARD MODU (ANA EKRAN) ---
+# --- 4. DASHBOARD MODU ---
 def dashboard_modu():
     # AÇILIŞTA MEVCUT VERİTABANINI OKU (HIZLI AÇILIŞ)
     df_f = github_excel_oku(FIYAT_DOSYASI)
@@ -291,31 +292,75 @@ def dashboard_modu():
         # Veri İşleme
         df_f['Tarih'] = pd.to_datetime(df_f['Tarih']);
         df_f['Fiyat'] = pd.to_numeric(df_f['Fiyat'], errors='coerce')
+
+        # Kod sütununu garanti string yapıyoruz (Çakışma olmasın)
+        df_f['Kod'] = df_f['Kod'].astype(str).apply(kod_standartlastir)
+
         if 'Zaman' in df_f.columns:
             df_f['Tam_Zaman'] = pd.to_datetime(df_f['Tarih'].astype(str) + ' ' + df_f['Zaman'].astype(str),
                                                errors='coerce')
         else:
             df_f['Tam_Zaman'] = df_f['Tarih']
 
-        # PIVOT ve ANALİZ
+        # PIVOT İŞLEMİ
         pivot = df_f.sort_values('Tam_Zaman').pivot_table(index='Kod', columns=df_f['Tarih'].dt.date, values='Fiyat',
-                                                          aggfunc='last').ffill(axis=1).bfill(axis=1)
+                                                          aggfunc='last')
+        pivot = pivot.ffill(axis=1).bfill(axis=1)
+
+        # !!! DÜZELTME BURADA: İndeksi sütuna çeviriyoruz !!!
+        pivot = pivot.reset_index()
 
         if not pivot.empty:
+            # Konfigürasyon dosyasındaki kodları da standartlaştır
+            df_s['Kod'] = df_s['Kod'].astype(str).apply(kod_standartlastir)
+            df_s['Grup'] = df_s['Kod'].str[:2].map(
+                {"01": "Gıda", "02": "Alkol", "03": "Giyim", "04": "Konut", "05": "Ev", "06": "Sağlık", "07": "Ulaşım",
+                 "08": "İletişim", "09": "Eğlence", "10": "Eğitim", "11": "Lokanta", "12": "Çeşitli"})
+
+            # MERGE İŞLEMİ (Artık hata vermez)
             df_analiz = pd.merge(df_s, pivot, on='Kod', how='left').dropna(subset=['Agirlik_2025'])
-            gunler = sorted(pivot.columns);
+
+            # Tarih sütunlarını al (İlk sütunlar metin olduğu için onları atlıyoruz)
+            tarih_kolonlari = [col for col in df_analiz.columns if
+                               isinstance(col, (datetime, pd.Timestamp)) or str(col).startswith('20')]
+            tarih_kolonlari = sorted(tarih_kolonlari)  # Sırala
+
+            if len(tarih_kolonlari) < 1:
+                st.warning("Yeterli tarih verisi yok.")
+                return
+
+            gunler = tarih_kolonlari
             baz, son = gunler[0], gunler[-1]
 
-            trend = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])['Agirlik_2025'] * (
-                        df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
-                                              'Agirlik_2025'].sum() * 100} for g in gunler]
+            # Trend Hesaplama
+            trend = []
+            for g in gunler:
+                temp = df_analiz.dropna(subset=[g, baz])
+                if not temp.empty:
+                    val = (temp['Agirlik_2025'] * (temp[g] / temp[baz])).sum() / temp['Agirlik_2025'].sum() * 100
+                    trend.append({"Tarih": g, "TÜFE": val})
+
             df_trend = pd.DataFrame(trend)
-            genel_enf = (df_trend['TÜFE'].iloc[-1] / 100 - 1) * 100
-            df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
+
+            # Son Değerler
+            son_tufe = df_trend['TÜFE'].iloc[-1] if not df_trend.empty else 100
+            genel_enf = (son_tufe / 100 - 1) * 100
+
+            # Fark sütunu (Hata vermemesi için kontrol)
+            if son in df_analiz.columns and baz in df_analiz.columns:
+                df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
+            else:
+                df_analiz['Fark'] = 0
+
             top = df_analiz.sort_values('Fark', ascending=False).iloc[0]
+
             gida = df_analiz[df_analiz['Kod'].str.startswith("01")].copy()
-            gida_enf = ((gida[son] / gida[baz] * gida['Agirlik_2025']).sum() / gida[
-                'Agirlik_2025'].sum() - 1) * 100 if not gida.empty else 0
+            if not gida.empty:
+                gida_enf = ((gida[son] / gida[baz] * gida['Agirlik_2025']).sum() / gida['Agirlik_2025'].sum() - 1) * 100
+            else:
+                gida_enf = 0
+
+            # --- ARAYÜZ (GÖRSELLEŞTİRME) ---
 
             # 1. TICKER
             st.markdown(
@@ -330,19 +375,20 @@ def dashboard_modu():
                     f'<div class="metric-card"><div class="metric-label">{t}</div><div class="metric-value">{v}</div><div class="metric-delta {"delta-pos" if m == "pos" else "delta-neg" if m == "neg" else "delta-neu"}">{s}</div></div>',
                     unsafe_allow_html=True)
 
-            card(c1, "Genel Endeks", f"{df_trend['TÜFE'].iloc[-1]:.2f}", "Baz: 100", "neu")
+            card(c1, "Genel Endeks", f"{son_tufe:.2f}", "Baz: 100", "neu")
             card(c2, "Genel Enflasyon", f"%{genel_enf:.2f}", "Kümülatif", "pos")
             card(c3, "Gıda Enflasyonu", f"%{gida_enf:.2f}", "Mutfak", "pos")
             card(c4, "En Yüksek Risk", f"{top['Madde adı'][:12]}..", f"%{top['Fark'] * 100:.1f} Artış", "pos")
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # 3. ANALİZ
+            # 3. ANALİZ METNİ
             grp_max = df_analiz.groupby('Grup')['Fark'].mean().idxmax();
             grp_val = df_analiz.groupby('Grup')['Fark'].mean().max() * 100
             st.markdown(
-                f'<div class="analysis-box"><div class="analysis-title">📊 Piyasa Raporu ({son})</div><p>Piyasa genelinde <span class="trend-up">YÜKSELİŞ</span> hakim. Enflasyon sepeti <span class="highlight">%{genel_enf:.2f}</span> artış gösterdi. En yüksek baskı <span class="trend-up">%{grp_val:.2f}</span> ile <span class="highlight">{grp_max}</span> grubundan geliyor.</p></div>',
+                f'<div class="analysis-box"><div class="analysis-title">📊 Piyasa Raporu ({str(son)})</div><p>Piyasa genelinde <span class="trend-up">YÜKSELİŞ</span> hakim. Enflasyon sepeti <span class="highlight">%{genel_enf:.2f}</span> artış gösterdi. En yüksek baskı <span class="trend-up">%{grp_val:.2f}</span> ile <span class="highlight">{grp_max}</span> grubundan geliyor.</p></div>',
                 unsafe_allow_html=True)
 
+            # 4. TREEMAP
             c_txt, c_chart = st.columns([2, 3])
             with c_chart:
                 fig = px.treemap(df_analiz, path=[px.Constant("Piyasa Geneli"), 'Grup', 'Madde adı'],
@@ -351,7 +397,7 @@ def dashboard_modu():
                 fig.update_layout(margin=dict(t=30, l=0, r=0, b=0), height=350);
                 st.plotly_chart(fig, use_container_width=True)
 
-            # 4. TABS
+            # 5. TABS
             t1, t2, t3, t4, t5 = st.tabs(["🤖 ASİSTAN", "🫧 DAĞILIM", "🚀 ZİRVE", "📉 FIRSATLAR", "📑 LİSTE"])
             with t1:
                 st.markdown("##### 🤖 Asistan")
@@ -389,12 +435,13 @@ def dashboard_modu():
                 else:
                     st.info("İndirim yok.")
             with t5:
-                st.dataframe(df_analiz[['Grup', 'Madde adı', 'Fark', baz, son]], use_container_width=True)
+                st.dataframe(
+                    df_analiz[['Grup', 'Madde adı', 'Fark', baz, son]].rename(columns={baz: str(baz), son: str(son)}),
+                    use_container_width=True)
 
     else:
-        st.warning("Veritabanı boş veya okunamadı. İlk verileri yüklemek için aşağıdaki butonu kullanın.")
+        st.warning("Veri bekleniyor... Lütfen ZIP dosyalarınızı yükleyin ve butona basın.")
 
-    # 5. AKSİYON BUTONU (GÜNCELLEME)
     st.markdown('<div class="action-container"><div class="action-btn">', unsafe_allow_html=True)
     if st.button("VERİTABANINI GÜNCELLE (ZIP & MANUEL)", type="primary", use_container_width=True):
         log_ph = st.empty()
@@ -404,14 +451,13 @@ def dashboard_modu():
             log_msgs.append(f"> {m}")
             log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
 
-        res = veri_toplayici(logger)
+        res = html_isleyici(logger)
         if "OK" in res:
-            st.success("✅ Güncelleme Tamamlandı! Sayfa Yenileniyor..."); time.sleep(2); st.rerun()
+            st.success("✅ Veritabanı Güncellendi!"); time.sleep(2); st.rerun()
         else:
             st.error(res)
     st.markdown('</div></div>', unsafe_allow_html=True)
     st.markdown('<div class="signature-footer">Designed by Fatih Arslan © 2025</div>', unsafe_allow_html=True)
-
 
 if __name__ == "__main__":
     dashboard_modu()
