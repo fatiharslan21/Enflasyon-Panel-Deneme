@@ -15,28 +15,30 @@ import zipfile
 import base64
 
 # --- 1. AYARLAR ---
-st.set_page_config(page_title="ENFLASYON MONITORU ENTERPRISE", page_icon="💎", layout="wide",
-                   initial_sidebar_state="expanded")
+st.set_page_config(page_title="ENFLASYON MONITORU PRO", page_icon="💎", layout="wide", initial_sidebar_state="expanded")
 
-# --- ADMIN AYARI (BURAYA KENDİ KULLANICI ADINI YAZ) ---
-ADMIN_USER = "fatiharslan"  # Buraya üye olurken kullandığın kullanıcı adını yaz
+# --- ADMIN AYARI ---
+ADMIN_USER = "fatiharslan"
 
-# --- CSS (FORM VE YENİ STİLLER EKLENDİ) ---
+# --- CSS ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap');
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #1e293b; }
-        [data-testid="stSidebar"], [data-testid="stToolbar"], footer {display: none !important;}
+
+        /* GİZLİ ELEMENTLER */
+        [data-testid="stToolbar"], footer {display: none !important;}
 
         /* HEADER */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; }
         .app-title { font-size: 32px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
         .live-indicator { display: flex; align-items: center; font-size: 13px; font-weight: 600; color: #15803d; background: #ffffff; padding: 6px 12px; border-radius: 20px; border: 1px solid #bbf7d0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .pulse { width: 8px; height: 8px; background-color: #22c55e; border-radius: 50%; margin-right: 8px; box-shadow: 0 0 0 rgba(34, 197, 94, 0.4); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
 
         /* TICKER */
         .ticker-wrap { width: 100%; overflow: hidden; background: #ffffff; border-bottom: 2px solid #3b82f6; white-space: nowrap; padding: 12px 0; margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
-        .ticker { display: inline-block; animation: ticker 60s linear infinite; }
+        .ticker { display: inline-block; animation: ticker 40s linear infinite; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 600; font-size: 14px; color: #334155; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
@@ -48,11 +50,18 @@ st.markdown("""
         .metric-delta { font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
         .delta-pos { background: #fee2e2; color: #ef4444; } .delta-neg { background: #dcfce7; color: #16a34a; } .delta-neu { background: #f1f5f9; color: #475569; }
 
-        /* LOGIN KUTUSU */
-        .login-container { max-width: 400px; margin: 80px auto; padding: 40px; background: white; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+        /* LOGIN EKRANI (DÜZELTİLDİ) */
+        .login-wrapper {
+            display: flex; justify-content: center; align-items: center; height: 70vh;
+        }
+        .login-box {
+            background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0; width: 100%; max-width: 450px; text-align: center;
+        }
 
-        /* SIDEBAR USER LIST */
-        .user-stat { padding: 8px 12px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        /* SIDEBAR */
+        section[data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #e2e8f0; }
+        .user-stat { padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
         .dot-online { background-color: #22c55e; box-shadow: 0 0 5px #22c55e; }
         .dot-offline { background-color: #cbd5e1; }
@@ -68,6 +77,7 @@ st.markdown("""
         .action-btn button:hover { background: #334155 !important; transform: translateY(-2px); }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 8px; height: 150px; overflow-y: auto; text-align: left; margin-top: 20px; }
 
+        .bot-bubble { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 20px; border-radius: 8px; margin-top: 15px; color: #0c4a6e; }
         .signature-footer { text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px; font-weight: 500; }
     </style>
 """, unsafe_allow_html=True)
@@ -76,7 +86,7 @@ st.markdown("""
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 USERS_DOSYASI = "kullanicilar.json"
-ACTIVITY_DOSYASI = "user_activity.json"  # KULLANICI AKTİVİTESİ İÇİN
+ACTIVITY_DOSYASI = "user_activity.json"
 SEPETLER_DOSYASI = "user_baskets.json"
 SAYFA_ADI = "Madde_Sepeti"
 HTML_KLASORU = "HTML_DOSYALARI"
@@ -89,7 +99,7 @@ def get_github_repo():
         return None
 
 
-# --- AUTH, JSON & ACTIVITY FUNCTIONS ---
+# --- AUTH & JSON ---
 def hash_password(password):
     return hashlib.sha256(str.encode(password)).hexdigest()
 
@@ -120,13 +130,9 @@ def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
 
 
 def update_user_status(username):
-    """Kullanıcının son görülme zamanını günceller"""
     try:
         activity = github_json_oku(ACTIVITY_DOSYASI)
         activity[username] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        # Github'a her saniye yazmak yavaşlatır, sadece session'da tutuyoruz
-        # Gerçek zamanlı olması için normalde DB lazım ama burada hile yapıyoruz:
-        # Sadece Login/Logout ve önemli işlemlerde GitHub'a yazıyoruz.
         github_json_yaz(ACTIVITY_DOSYASI, activity, f"Activity: {username}")
     except:
         pass
@@ -134,18 +140,16 @@ def update_user_status(username):
 
 def github_user_islem(action, username=None, password=None):
     users_db = github_json_oku(USERS_DOSYASI)
-
     if action == "login":
         if username in users_db and users_db[username] == hash_password(password):
-            update_user_status(username)  # GİRİŞTE ONLİNE YAP
+            update_user_status(username)
             return True, "Başarılı"
         return False, "Hatalı Kullanıcı Adı veya Şifre"
-
     elif action == "register":
         if username in users_db: return False, "Bu kullanıcı adı zaten alınmış."
         users_db[username] = hash_password(password)
         if github_json_yaz(USERS_DOSYASI, users_db, f"New User: {username}"):
-            update_user_status(username)  # KAYITTA DA ONLİNE YAP
+            update_user_status(username)
             return True, "Kayıt Başarılı"
         return False, "Kayıt hatası"
 
@@ -182,7 +186,7 @@ def github_excel_guncelle(df_yeni, dosya_adi):
         with pd.ExcelWriter(out, engine='openpyxl') as w:
             final.to_excel(w, index=False, sheet_name='Fiyat_Log')
 
-        msg = f"Data Update: {len(df_yeni)} items"
+        msg = f"Data Update"
         if c:
             repo.update_file(c.path, msg, out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
         else:
@@ -192,7 +196,7 @@ def github_excel_guncelle(df_yeni, dosya_adi):
         return str(e)
 
 
-# --- PARSER ---
+# --- BOT PARSERS ---
 def temizle_fiyat(t):
     if not t: return None
     t = str(t).replace('TL', '').replace('₺', '').strip()
@@ -337,52 +341,42 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # --- YAN MENÜ (KULLANICILAR & ADMIN) ---
+    # --- YAN MENÜ (USER LIST) ---
     with st.sidebar:
-        # Kullanıcı Bilgisi
-        user = st.session_state['username']
-        role_badge = '<span class="admin-badge">ADMIN</span>' if user == ADMIN_USER else ''
-        st.markdown(f"### 👤 {user.upper()} {role_badge}", unsafe_allow_html=True)
-
-        # Çıkış
-        if st.button("Çıkış Yap", use_container_width=True):
+        st.markdown(f"### 👤 {st.session_state['username'].upper()}")
+        if st.button("Çıkış Yap"):
             st.session_state['logged_in'] = False
             st.rerun()
 
         st.divider()
-
-        # Online Kullanıcılar
-        st.markdown("### 🟢 Canlı Durum")
+        st.markdown("### 🟢 Kullanıcılar")
         users_db = github_json_oku(USERS_DOSYASI)
         activity_db = github_json_oku(ACTIVITY_DOSYASI)
 
-        # Kendimizi güncelle
-        # activity_db[user] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        online_count = 0
+        # Kullanıcıları Sırala (Önce Online, Sonra Admin, Sonra Diğerleri)
+        user_list = []
         for u in users_db.keys():
             last_seen_str = activity_db.get(u, "2000-01-01 00:00:00")
             try:
                 last_seen = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
             except:
                 last_seen = datetime(2000, 1, 1)
-
-            # 10 dakika içinde aktifse online say
             is_online = (datetime.now() - last_seen).total_seconds() < 600
-            if is_online: online_count += 1
+            user_list.append({"name": u, "online": is_online})
 
-            # Sadece Admin veya Kendisi detayları görsün
-            if user == ADMIN_USER or u == user:
-                status_html = f"<span class='status-dot dot-online'></span>Online" if is_online else "<span class='status-dot dot-offline'></span>Offline"
-                st.markdown(f"<div class='user-stat'><div>{u}</div><div>{status_html}</div></div>",
-                            unsafe_allow_html=True)
+        # Sıralama: Online > Admin > Alfabetik
+        sorted_users = sorted(user_list, key=lambda x: (not x['online'], x['name'] != ADMIN_USER, x['name']))
 
-        if user != ADMIN_USER:
-            st.caption(f"Toplam {len(users_db)} üye, {online_count} online.")
+        st.metric("Toplam Üye", len(users_db), f"{sum(1 for u in user_list if u['online'])} Online")
 
-    # HEADER
+        for u in sorted_users:
+            role = '<span class="admin-badge">ADMIN</span>' if u['name'] == ADMIN_USER else ''
+            status = f"<span class='status-dot dot-online'></span>" if u[
+                'online'] else "<span class='status-dot dot-offline'></span>"
+            st.markdown(f"<div class='user-stat'><div>{status} {u['name']} {role}</div></div>", unsafe_allow_html=True)
+
     st.markdown(
-        f'<div class="header-container"><div class="app-title">Enflasyon Monitörü <span style="font-weight:300; color:#64748b;">Enterprise</span></div><div class="live-indicator"><div class="pulse"></div>{user.upper()}</div></div>',
+        f'<div class="header-container"><div class="app-title">Enflasyon Monitörü <span style="font-weight:300; color:#64748b;">Enterprise</span></div><div class="live-indicator"><div class="pulse"></div>{st.session_state["username"].upper()}</div></div>',
         unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
@@ -399,7 +393,6 @@ def dashboard_modu():
             df_f['Tarih_DT'] = pd.to_datetime(df_f['Tarih'], errors='coerce')
             df_f = df_f.dropna(subset=['Tarih_DT']).sort_values('Tarih_DT')
             df_f['Tarih_Str'] = df_f['Tarih_DT'].dt.strftime('%Y-%m-%d')
-
             df_f['Fiyat'] = pd.to_numeric(df_f['Fiyat'], errors='coerce')
             df_f = df_f[df_f['Fiyat'] > 0]
 
@@ -435,13 +428,16 @@ def dashboard_modu():
                 enf_gida = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[
                     agirlik_col].sum() - 1) * 100 if not gida.empty else 0
 
-                # TICKER (GERİ GELDİ)
+                # TICKER (İLK 5 ZAM - İLK 5 İNDİRİM)
+                zamanlar = df_analiz.sort_values('Fark', ascending=False).head(5)
+                indirimler = df_analiz.sort_values('Fark', ascending=True).head(5)
                 items = []
-                for _, r in df_analiz.sort_values('Fark', ascending=False).head(20).iterrows():
-                    clr = "#dc2626" if r['Fark'] > 0 else "#16a34a"
-                    items.append(f"<span style='color:{clr}'>{r[ad_col]} %{r['Fark'] * 100:.1f}</span>")
+                for _, r in zamanlar.iterrows(): items.append(
+                    f"<span style='color:#dc2626'>▲ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>")
+                for _, r in indirimler.iterrows(): items.append(
+                    f"<span style='color:#16a34a'>▼ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>")
                 st.markdown(
-                    f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;•&nbsp; ".join(items)}</div></div></div>',
+                    f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp;&nbsp; ".join(items)}</div></div></div>',
                     unsafe_allow_html=True)
 
                 # UI METRİKLER
@@ -452,13 +448,12 @@ def dashboard_modu():
                         f'<div class="metric-card"><div class="metric-label">{t}</div><div class="metric-value">{v}</div><div class="metric-delta {"delta-pos" if m == "pos" else "delta-neg" if m == "neg" else "delta-neu"}">{s}</div></div>',
                         unsafe_allow_html=True)
 
-                card(c1, "Genel Enflasyon", f"%{enf_genel:.2f}", "Kümülatif", "pos")
+                card(c1, "Genel Enflasyon", f"%{enf_genel:.2f}", "Piyasa Ortalaması", "pos")
                 card(c2, "Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak", "pos")
                 card(c3, "En Yüksek Risk", f"{top[ad_col][:12]}..", f"%{top['Fark'] * 100:.1f} Artış", "pos")
                 card(c4, "Veri Tarihi", str(son), f"{len(gunler)} Günlük", "neu")
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # ANALİZ METNİ
                 grp_max = df_analiz.groupby('Grup')['Fark'].mean().idxmax();
                 grp_val = df_analiz.groupby('Grup')['Fark'].mean().max() * 100
                 st.markdown(
@@ -466,11 +461,11 @@ def dashboard_modu():
                     unsafe_allow_html=True)
 
                 # SEKMELER
-                tabs = st.tabs(
-                    ["📊 GENEL BAKIŞ", "🛒 KENDİ SEPETİM", "🗺️ SEKTÖREL", "🤖 ASİSTAN", "📉 FIRSATLAR", "🎲 SİMÜLASYON",
-                     "📑 LİSTE"])
+                t1, t2, t3, t4, t5, t6, t7 = st.tabs(
+                    ["📊 GENEL BAKIŞ", "🛒 KENDİ SEPETİM", "🗺️ SEKTÖREL", "🤖 ASİSTAN", "📉 FIRSATLAR", "📑 LİSTE",
+                     "🎲 SİMÜLASYON"])
 
-                with tabs[0]:  # GENEL
+                with t1:  # GENEL
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                                 df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
@@ -480,7 +475,7 @@ def dashboard_modu():
                                            yaxis=dict(showgrid=True, gridcolor='#f1f5f9'))
                     st.plotly_chart(fig_main, use_container_width=True)
 
-                with tabs[1]:  # KİŞİSEL SEPET
+                with t2:  # KİŞİSEL SEPET
                     st.markdown("### 🛒 Kişisel Enflasyonun")
                     baskets = github_json_oku(SEPETLER_DOSYASI)
                     user_codes = baskets.get(st.session_state['username'], [])
@@ -504,7 +499,7 @@ def dashboard_modu():
                             my_enf = ((my_df[son] / my_df[baz] * my_df[agirlik_col]).sum() / my_df[
                                 agirlik_col].sum() - 1) * 100
                             col_my, col_ch = st.columns([1, 2])
-                            col_my.metric("SENİN ENFLASYONUN", f"%{my_enf:.2f}", f"Piyasa: %{enf_genel:.2f}",
+                            col_my.metric("SENİN ENFLASYONUN", f"%{my_enf:.2f}", f"Genel: %{enf_genel:.2f}",
                                           delta_color="inverse")
                             col_ch.plotly_chart(go.Figure(go.Bar(x=['Genel', 'Senin'], y=[enf_genel, my_enf],
                                                                  marker_color=['#94a3b8', '#3b82f6'])).update_layout(
@@ -513,7 +508,7 @@ def dashboard_modu():
                     else:
                         st.info("Sepetin boş.")
 
-                with tabs[2]:  # SEKTÖREL & TREEMAP
+                with t3:  # SEKTÖREL & TREEMAP
                     c1, c2 = st.columns(2)
                     c1.plotly_chart(
                         px.treemap(df_analiz, path=[px.Constant("Piyasa"), 'Grup', ad_col], values=agirlik_col,
@@ -525,21 +520,33 @@ def dashboard_modu():
                         px.pie(sect_data, values='Fark', names='Grup', title="Sektörel Artış Dağılımı", hole=0.4),
                         use_container_width=True)
 
-                with tabs[3]:  # ASİSTAN
-                    with st.form("ask_form"):
-                        q = st.text_input("Ürün Ara:", placeholder="Örn: Süt")
-                        if st.form_submit_button("Analiz Et") and q:
-                            res = df_analiz[df_analiz[ad_col].str.lower().str.contains(q.lower())]
-                            if not res.empty:
-                                t = res.iloc[0]
-                                fark = t['Fark'] * 100
-                                st.markdown(
-                                    f'<div class="bot-bubble"><b>{t[ad_col]}</b><br>Değişim: <span style="color:{"#dc2626" if fark > 0 else "#16a34a"}">%{fark:.2f}</span><br>Fiyat: {t[baz]:.2f} ➜ {t[son]:.2f} TL</div>',
-                                    unsafe_allow_html=True)
-                            else:
-                                st.warning("Bulunamadı")
+                with t4:  # ASİSTAN (DÜZELTİLDİ)
+                    st.markdown("##### 🤖 Asistan")
+                    # Session state kullanarak selectbox durumunu koruyoruz
+                    if "asistan_sorgu" not in st.session_state: st.session_state.asistan_sorgu = ""
 
-                with tabs[4]:  # FIRSATLAR
+                    sorgu = st.text_input("Ürün Ara:", key="asistan_input")
+
+                    if sorgu:
+                        res = df_analiz[df_analiz[ad_col].str.lower().str.contains(sorgu.lower())]
+                        if not res.empty:
+                            # Eğer birden fazla varsa seçtir, yoksa ilkini al
+                            target = None
+                            if len(res) > 1:
+                                secilen = st.selectbox("Birden fazla ürün bulundu:", res[ad_col].unique())
+                                target = df_analiz[df_analiz[ad_col] == secilen].iloc[0]
+                            else:
+                                target = res.iloc[0]
+
+                            if target is not None:
+                                fark = target['Fark'] * 100
+                                st.markdown(
+                                    f'<div class="bot-bubble"><b>{target[ad_col]}</b><br>Değişim: <span style="color:{"#dc2626" if fark > 0 else "#16a34a"}">%{fark:.2f}</span><br>Fiyat: {target[baz]:.2f} ➜ {target[son]:.2f} TL</div>',
+                                    unsafe_allow_html=True)
+                        else:
+                            st.warning("Bulunamadı")
+
+                with t5:  # FIRSATLAR (İLK 10)
                     low = df_analiz[df_analiz['Fark'] < 0].sort_values('Fark').head(10)
                     if not low.empty:
                         st.table(low[[ad_col, 'Grup', 'Fark']].assign(
@@ -547,7 +554,18 @@ def dashboard_modu():
                     else:
                         st.info("Şu an indirimde ürün yok.")
 
-                with tabs[5]:  # SİMÜLASYON
+                with t6:  # LİSTE & EXCEL
+                    # Excel İndir Butonu
+                    output = BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        df_analiz.to_excel(writer, index=False, sheet_name='Analiz')
+                    st.download_button("📥 Excel Raporunu İndir", data=output.getvalue(),
+                                       file_name=f"Enflasyon_Raporu_{son}.xlsx",
+                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                    st.dataframe(df_analiz[['Grup', ad_col, 'Fark', baz, son]], use_container_width=True)
+
+                with t7:  # SİMÜLASYON
                     c = st.columns(4)
                     inps = {g: c[i % 4].number_input(f"{g} (%)", -50., 100., 0.) for i, g in
                             enumerate(sorted(df_analiz['Grup'].unique()))}
@@ -555,9 +573,6 @@ def dashboard_modu():
                         [(df_analiz[df_analiz['Grup'] == g]['Agirlik_2025'].sum() / df_analiz['Agirlik_2025'].sum()) * v
                          for g, v in inps.items()])
                     st.success(f"Yeni Tahmin: %{(enf_genel + etki):.2f}")
-
-                with tabs[6]:  # LİSTE
-                    st.dataframe(df_analiz[['Grup', ad_col, 'Fark', baz, son]], use_container_width=True)
 
         except Exception as e:
             st.error(f"Hata: {e}")
@@ -586,39 +601,47 @@ def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
     if not st.session_state['logged_in']:
+        # Başlık ve Logo
         st.markdown("<h1 style='text-align: center; color: #0f172a; margin-top:50px;'>ENFLASYON MONİTÖRÜ PRO</h1>",
                     unsafe_allow_html=True)
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
 
-        tab1, tab2 = st.tabs(["GİRİŞ YAP", "KAYIT OL"])
-        with tab1:
-            with st.form("login_form"):
-                l_user = st.text_input("Kullanıcı Adı")
-                l_pass = st.text_input("Şifre", type="password")
-                if st.form_submit_button("Giriş Yap", use_container_width=True):
-                    ok, msg = github_user_islem("login", l_user, l_pass)
-                    if ok:
-                        st.session_state['logged_in'] = True;
-                        st.session_state['username'] = l_user
-                        st.success("Giriş Başarılı!");
-                        time.sleep(1);
-                        st.rerun()
-                    else:
-                        st.error(msg)
-        with tab2:
-            with st.form("register_form"):
-                r_user = st.text_input("Kullanıcı Adı Seçin")
-                r_pass = st.text_input("Şifre Belirleyin", type="password")
-                if st.form_submit_button("Kayıt Ol", use_container_width=True):
-                    if r_user and r_pass:
-                        ok, msg = github_user_islem("register", r_user, r_pass)
+        # Giriş Formu (Ortalanmış ve Temiz)
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown('<div class="login-wrapper"><div class="login-box">', unsafe_allow_html=True)
+            st.markdown("### Giriş Yap")
+
+            tab1, tab2 = st.tabs(["GİRİŞ YAP", "KAYIT OL"])
+            with tab1:
+                with st.form("login_form"):
+                    l_user = st.text_input("Kullanıcı Adı")
+                    l_pass = st.text_input("Şifre", type="password")
+                    if st.form_submit_button("Giriş Yap", use_container_width=True):
+                        ok, msg = github_user_islem("login", l_user, l_pass)
                         if ok:
-                            st.success(msg)
+                            st.session_state['logged_in'] = True;
+                            st.session_state['username'] = l_user
+                            st.success("Giriş Başarılı!");
+                            time.sleep(1);
+                            st.rerun()
                         else:
                             st.error(msg)
-                    else:
-                        st.warning("Alanları doldurun.")
-        st.markdown('</div>', unsafe_allow_html=True)
+            with tab2:
+                with st.form("register_form"):
+                    r_user = st.text_input("Kullanıcı Adı Seçin")
+                    r_pass = st.text_input("Şifre Belirleyin", type="password")
+                    if st.form_submit_button("Kayıt Ol", use_container_width=True):
+                        if r_user and r_pass:
+                            ok, msg = github_user_islem("register", r_user, r_pass)
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
+                        else:
+                            st.warning("Alanları doldurun.")
+
+            st.markdown('</div></div>', unsafe_allow_html=True)
+
     else:
         dashboard_modu()
 
