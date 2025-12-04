@@ -280,7 +280,7 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # --- SIDEBAR (SADE, BEYAZ, SİYAH YAZILAR) ---
+    # --- SIDEBAR (BEYAZ, SADE) ---
     with st.sidebar:
         user_upper = st.session_state['username'].upper()
         role_title = "SYSTEM ADMIN" if st.session_state['username'] == ADMIN_USER else "VERİ ANALİSTİ"
@@ -300,17 +300,27 @@ def dashboard_modu():
         activity_db = github_json_oku(ACTIVITY_DOSYASI)
         update_user_status(st.session_state['username'])
 
-        sorted_users = sorted(users_db.keys(), key=lambda x: (x != ADMIN_USER, x))
+        online_count = 0
+        user_list = []
+        for u in users_db.keys():
+            last_seen_str = activity_db.get(u, "2000-01-01 00:00:00")
+            try:
+                last_seen = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
+            except:
+                last_seen = datetime(2000, 1, 1)
+            is_online = (datetime.now() - last_seen).total_seconds() < 300
+            user_list.append({"name": u, "online": is_online})
+            if is_online: online_count += 1
+
+        sorted_users = sorted(user_list, key=lambda x: (not x['online'], x['name'] != ADMIN_USER, x['name']))
 
         for u in sorted_users:
-            # Check online status logic here if needed or simplify
-            online = True  # Simplified for display
-            role_icon = "🛡️" if u == ADMIN_USER else ""
+            role_icon = "🛡️" if u['name'] == ADMIN_USER else ""
             st.markdown(f"""
                 <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
-                        <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e' if online else '#cbd5e1'};"></span>
-                        {u} {role_icon}
+                        <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
+                        {u['name']} {role_icon}
                     </span>
                 </div>
             """, unsafe_allow_html=True)
@@ -320,16 +330,17 @@ def dashboard_modu():
             st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- CSS: LIGHT MODE GLOBAL ---
+    # --- CSS: GLOBAL STYLES (Light Mode Only) ---
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
 
-        /* Force Light Mode Background */
+        /* Global Reset */
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
 
-        /* Sidebar Styling Fix */
+        /* Sidebar Styling */
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
+        section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
         /* Header */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
@@ -513,45 +524,28 @@ def dashboard_modu():
                     col_trend.plotly_chart(fig_main, use_container_width=True)
 
                     with col_comp:
+                        # MANUEL REFERANS DEĞERLERİ
                         REF_ARALIK_2024 = 1.03
                         REF_KASIM_2025 = 0.87
-
                         diff_24 = enf_genel - REF_ARALIK_2024
-                        color_diff = "#ef4444" if diff_24 > 0 else "#22c55e"
-                        arrow = "▲" if diff_24 > 0 else "▼"
 
-                        # --- DÜZELTİLMİŞ PANEL (KESİN ÇÖZÜM) ---
-                        html_content = f"""
-                        <div style="background:white; padding:20px; border-radius:15px; border:1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                            <h3 style="color:#1e293b; font-size:16px; text-align:center; margin-bottom:20px; font-weight:800; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">ENFLASYON KARŞILAŞTIRMASI</h3>
+                        # --- HTML YERİNE NATIVE STREAMLIT BLOKLARI (KESİN ÇÖZÜM) ---
+                        st.markdown("#### ⚖️ ENFLASYON KARŞILAŞTIRMASI")
 
-                            <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-                                <div style="text-align:center; width:48%; background:#f8fafc; padding:15px 5px; border-radius:10px; border:1px solid #e2e8f0;">
-                                    <div style="font-size:11px; color:#64748b; font-weight:700; margin-bottom:5px;">ARALIK 2024</div>
-                                    <div style="font-size:20px; font-weight:800; color:#1e293b;">%{REF_ARALIK_2024}</div>
-                                </div>
-                                <div style="text-align:center; width:48%; background:#f8fafc; padding:15px 5px; border-radius:10px; border:1px solid #e2e8f0;">
-                                    <div style="font-size:11px; color:#64748b; font-weight:700; margin-bottom:5px;">KASIM 2025</div>
-                                    <div style="font-size:20px; font-weight:800; color:#1e293b;">%{REF_KASIM_2025}</div>
-                                </div>
-                            </div>
+                        # Üstteki iki referans
+                        c_ref1, c_ref2 = st.columns(2)
+                        c_ref1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
+                        c_ref2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
 
-                            <div style="text-align:center; padding:25px; background:#eff6ff; border: 2px solid #3b82f6; border-radius:16px; margin-bottom:20px;">
-                                <div style="font-size:13px; color:#3b82f6; font-weight:800; letter-spacing:0.5px; margin-bottom:5px;">ŞU ANKİ (SİSTEM)</div>
-                                <div style="font-size:48px; font-weight:900; color:#1e293b; line-height:1;">
-                                    %{enf_genel:.2f}
-                                </div>
-                            </div>
+                        st.divider()
 
-                            <div style="text-align:center;">
-                                <div style="font-size:12px; color:#64748b; font-weight:600; margin-bottom:5px;">ARALIK 2024'e GÖRE FARK</div>
-                                <div style="font-size:24px; font-weight:800; color:{color_diff};">
-                                    {arrow} {abs(diff_24):.2f} Puan
-                                </div>
-                            </div>
-                        </div>
-                        """
-                        st.markdown(html_content, unsafe_allow_html=True)
+                        # Büyük Sistem Verisi ve Fark
+                        st.metric(
+                            label="ŞU ANKİ (SİSTEM)",
+                            value=f"%{enf_genel:.2f}",
+                            delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
+                            delta_color="inverse" if diff_24 > 0 else "normal"  # Düşmesi iyi (Yeşil)
+                        )
 
                 with t2:
                     st.markdown("##### 🤖 Fiyat Asistanı")
@@ -705,7 +699,7 @@ def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
     if not st.session_state['logged_in']:
-        # Şovlu Login Ekranı CSS (Animasyon Arkada, Form Önde)
+        # Şovlu Login Ekranı CSS (Animasyon Arkada, Form Önde - Z-INDEX FIXED)
         st.markdown("""
         <style>
         .stApp {
@@ -715,7 +709,7 @@ def main():
         }
         @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
 
-        /* Form Container'ı (Buzlu Cam) */
+        /* Form Container'ı (Buzlu Cam) - Z-INDEX 9999 ile öne alındı */
         [data-testid="stForm"] {
             background: rgba(255, 255, 255, 0.95);
             padding: 40px;
