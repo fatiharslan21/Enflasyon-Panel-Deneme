@@ -11,11 +11,12 @@ import json
 from github import Github
 from io import BytesIO
 import zipfile
+import base64  # <--- BU KRİTİK, ZIP'İ ÇÖZMEK İÇİN
 
 # --- 1. AYARLAR ---
 st.set_page_config(page_title="ENFLASYON MONITORU PRO", page_icon="💎", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CSS ---
+# --- CSS (AYNI PRESTİJLİ TASARIM) ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -53,7 +54,6 @@ st.markdown("""
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 SAYFA_ADI = "Madde_Sepeti"
-HTML_KLASORU = "HTML_DOSYALARI"
 
 
 def get_github_repo():
@@ -68,7 +68,6 @@ def github_excel_oku(dosya_adi, sayfa_adi=None):
     if not repo: return pd.DataFrame()
     try:
         c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
-        # String olarak oku, tip hatası olmasın
         if sayfa_adi:
             df = pd.read_excel(BytesIO(c.decoded_content), sheet_name=sayfa_adi, dtype=str)
         else:
@@ -85,22 +84,18 @@ def github_excel_guncelle(df_yeni, dosya_adi):
         try:
             c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
             old = pd.read_excel(BytesIO(c.decoded_content), dtype=str)
-
-            # Sadece bugünün verilerini temizle (üstüne yazma mantığı)
             yeni_tarih = str(df_yeni['Tarih'].iloc[0])
             old = old[~((old['Tarih'].astype(str) == yeni_tarih) & (old['Kod'].isin(df_yeni['Kod'])))]
-
             final = pd.concat([old, df_yeni], ignore_index=True)
         except:
-            # Dosya yoksa veya okunamadıysa sıfırdan oluştur
-            final = df_yeni
+            c = None; final = df_yeni
 
         out = BytesIO()
         with pd.ExcelWriter(out, engine='openpyxl') as w:
             final.to_excel(w, index=False, sheet_name='Fiyat_Log')
 
-        msg = f"Update: {len(df_yeni)} items"
-        if 'c' in locals():
+        msg = f"Data Update"
+        if c:
             repo.update_file(c.path, msg, out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
         else:
             repo.create_file(dosya_adi, msg, out.getvalue(), branch=st.secrets["github"]["branch"])
@@ -181,27 +176,18 @@ def html_isleyici(log_callback):
     try:
         # 1. Konfigürasyonu Oku
         df_conf = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
-        # Sütun isimlerini düzelt (boşlukları sil, küçük harf yap)
         df_conf.columns = df_conf.columns.str.strip()
-
-        # Kod ve URL sütunlarını bul (Büyük/Küçük harf duyarsız)
         kod_col = next((c for c in df_conf.columns if c.lower() == 'kod'), None)
         url_col = next((c for c in df_conf.columns if c.lower() == 'url'), None)
         ad_col = next((c for c in df_conf.columns if 'ad' in c.lower()), 'Madde adı')
 
-        if not kod_col or not url_col:
-            return "Hata: Excel'de 'Kod' veya 'URL' sütunu bulunamadı."
+        if not kod_col or not url_col: return "Hata: Excel'de sütun bulunamadı."
 
         df_conf['Kod'] = df_conf[kod_col].astype(str).apply(kod_standartlastir)
-        # URL Map oluştur
-        url_map = {}
-        for _, row in df_conf.iterrows():
-            if pd.notna(row[url_col]):
-                url_map[str(row[url_col]).strip()] = row
+        url_map = {str(row[url_col]).strip(): row for _, row in df_conf.iterrows() if pd.notna(row[url_col])}
 
         veriler = []
         islenen_kodlar = set()
-
         bugun = datetime.now().strftime("%Y-%m-%d")
         simdi = datetime.now().strftime("%H:%M")
 
@@ -216,18 +202,15 @@ def html_isleyici(log_callback):
                     try:
                         fiyat_man = float(row[manuel_col])
                         if fiyat_man > 0:
-                            veriler.append({
-                                "Tarih": bugun, "Zaman": simdi,
-                                "Kod": row['Kod'], "Madde_Adi": row[ad_col],
-                                "Fiyat": fiyat_man, "Kaynak": "Manuel Giriş", "URL": row[url_col]
-                            })
+                            veriler.append({"Tarih": bugun, "Zaman": simdi, "Kod": row['Kod'], "Madde_Adi": row[ad_col],
+                                            "Fiyat": fiyat_man, "Kaynak": "Manuel Giriş", "URL": row[url_col]})
                             islenen_kodlar.add(row['Kod'])
                             manuel_sayac += 1
                     except:
                         pass
         if manuel_sayac > 0: log_callback(f"✅ {manuel_sayac} adet manuel fiyat eklendi.")
 
-        # --- B. ZIP ARŞİVLERİ ---
+        # --- B. ZIP ARŞİVLERİ (BLOB METODU İLE) ---
         log_callback("📦 ZIP dosyaları taranıyor...")
         contents = repo.get_contents("", ref=st.secrets["github"]["branch"])
         zip_files = [c for c in contents if c.name.endswith(".zip")]
@@ -236,7 +219,11 @@ def html_isleyici(log_callback):
         for zip_file in zip_files:
             log_callback(f"📂 Arşiv okunuyor: {zip_file.name}")
             try:
-                with zipfile.ZipFile(BytesIO(zip_file.decoded_content)) as z:
+                # !!! BURASI DÜZELTİLDİ: BLOB API KULLANIMI !!!
+                blob = repo.get_git_blob(zip_file.sha)
+                zip_data = base64.b64decode(blob.content)
+
+                with zipfile.ZipFile(BytesIO(zip_data)) as z:
                     for file_name in z.namelist():
                         if not file_name.endswith(('.html', '.htm')): continue
 
@@ -255,11 +242,9 @@ def html_isleyici(log_callback):
 
                                 fiyat, kaynak = fiyat_bul_siteye_gore(soup, target[url_col])
                                 if fiyat > 0:
-                                    veriler.append({
-                                        "Tarih": bugun, "Zaman": simdi,
-                                        "Kod": target['Kod'], "Madde_Adi": target[ad_col],
-                                        "Fiyat": fiyat, "Kaynak": kaynak, "URL": target[url_col]
-                                    })
+                                    veriler.append({"Tarih": bugun, "Zaman": simdi, "Kod": target['Kod'],
+                                                    "Madde_Adi": target[ad_col], "Fiyat": fiyat, "Kaynak": kaynak,
+                                                    "URL": target[url_col]})
                                     islenen_kodlar.add(target['Kod'])
                                     html_sayac += 1
             except Exception as zip_e:
@@ -269,7 +254,7 @@ def html_isleyici(log_callback):
             log_callback(f"💾 Toplam {len(veriler)} veri kaydediliyor...")
             return github_excel_guncelle(pd.DataFrame(veriler), FIYAT_DOSYASI)
         else:
-            return "Hiçbir veri bulunamadı."
+            return "Veri bulunamadı."
 
     except Exception as e:
         return f"Hata: {str(e)}"
@@ -286,62 +271,47 @@ def dashboard_modu():
 
     if not df_f.empty and not df_s.empty:
         try:
-            # Sütun İsimlerini Temizle
             df_s.columns = df_s.columns.str.strip()
-            # Kolon isimlerini bul (Esnek)
             kod_col = next((c for c in df_s.columns if c.lower() == 'kod'), 'Kod')
             ad_col = next((c for c in df_s.columns if 'ad' in c.lower()), 'Madde adı')
             agirlik_col = next((c for c in df_s.columns if 'agirlik' in c.lower().replace('ğ', 'g').replace('ı', 'i')),
                                'Agirlik_2025')
 
-            # Veri İşleme
             df_f['Kod'] = df_f['Kod'].astype(str).apply(kod_standartlastir)
             df_s['Kod'] = df_s[kod_col].astype(str).apply(kod_standartlastir)
 
-            # Tarihi Datetime'a çevir, sonra sıralama için kullan
             df_f['Tarih_DT'] = pd.to_datetime(df_f['Tarih'], errors='coerce')
             df_f = df_f.dropna(subset=['Tarih_DT']).sort_values('Tarih_DT')
-
-            # Tarihi String'e çevir (Pivot sütunları düzgün olsun diye)
             df_f['Tarih_Str'] = df_f['Tarih_DT'].dt.strftime('%Y-%m-%d')
 
             df_f['Fiyat'] = pd.to_numeric(df_f['Fiyat'], errors='coerce')
             df_f = df_f[df_f['Fiyat'] > 0]
 
-            # Pivot
-            pivot = df_f.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat', aggfunc='last')
-            pivot = pivot.ffill(axis=1).bfill(axis=1).reset_index()
+            pivot = df_f.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat', aggfunc='last').ffill(
+                axis=1).bfill(axis=1).reset_index()
 
             if not pivot.empty:
-                # Grup sütunu yoksa oluştur
                 if 'Grup' not in df_s.columns:
                     grup_map = {"01": "Gıda", "02": "Alkol", "03": "Giyim", "04": "Konut", "05": "Ev", "06": "Sağlık",
                                 "07": "Ulaşım", "08": "İletişim", "09": "Eğlence", "10": "Eğitim", "11": "Lokanta",
                                 "12": "Çeşitli"}
                     df_s['Grup'] = df_s['Kod'].str[:2].map(grup_map).fillna("Diğer")
 
-                # Birleştir
                 df_analiz = pd.merge(df_s, pivot, on='Kod', how='left')
 
-                # Ağırlık yoksa 1 ver
                 if agirlik_col in df_analiz.columns:
                     df_analiz[agirlik_col] = pd.to_numeric(df_analiz[agirlik_col], errors='coerce').fillna(1)
                 else:
-                    df_analiz['Agirlik_2025'] = 1
+                    df_analiz['Agirlik_2025'] = 1;
                     agirlik_col = 'Agirlik_2025'
 
-                # Tarih sütunlarını al (Kod, Grup vb. dışındakiler)
-                meta_cols = list(df_s.columns) + ['Tarih_DT', 'Tarih_Str', 'Fiyat']
                 gunler = [c for c in pivot.columns if c != 'Kod']
-
                 if len(gunler) < 1: st.warning("Yeterli tarih verisi yok."); return
 
                 baz, son = gunler[0], gunler[-1]
 
-                # Trend Hesapla
                 trend = []
                 for g in gunler:
-                    # NaN olmayanları al
                     temp = df_analiz.dropna(subset=[g, baz])
                     if not temp.empty:
                         endeks = (temp[agirlik_col] * (temp[g] / temp[baz])).sum() / temp[agirlik_col].sum() * 100
@@ -350,16 +320,14 @@ def dashboard_modu():
                 df_trend = pd.DataFrame(trend)
                 son_endeks = df_trend['TÜFE'].iloc[-1] if not df_trend.empty else 100
                 genel_enf = (son_endeks / 100 - 1) * 100
-
                 df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
                 top = df_analiz.sort_values('Fark', ascending=False).iloc[0]
 
                 gida = df_analiz[df_analiz['Kod'].str.startswith("01")].copy()
                 gida_enf = 0
-                if not gida.empty:
-                    gida_enf = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[agirlik_col].sum() - 1) * 100
+                if not gida.empty: gida_enf = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[
+                    agirlik_col].sum() - 1) * 100
 
-                # --- UI ---
                 st.markdown(
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;•&nbsp; ".join([f"<span style=\'color:{'#dc2626' if r['Fark'] > 0 else '#16a34a'}\'>{r[ad_col]} %{r['Fark'] * 100:.1f}</span>" for _, r in df_analiz.sort_values("Fark", ascending=False).head(15).iterrows()])}</div></div></div>',
                     unsafe_allow_html=True)
@@ -437,8 +405,7 @@ def dashboard_modu():
                                  use_container_width=True)
 
         except Exception as e:
-            st.error(f"Hata Oluştu: {e}")
-            st.write("Lütfen Excel'deki sütun isimlerini kontrol edin.")
+            st.error(f"Hata: {e}")
 
     else:
         st.warning("Veri bekleniyor... Lütfen ZIP dosyalarınızı yükleyin ve butona basın.")
