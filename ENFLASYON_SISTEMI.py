@@ -11,38 +11,44 @@ import json
 from github import Github
 from io import BytesIO
 
-# --- 1. AYARLAR ---
+# --- 1. SAYFA YAPILANDIRMASI ---
 st.set_page_config(page_title="ENFLASYON MONITORU PRO", page_icon="💎", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CSS (AYNI KALDI) ---
+# --- 🎨 ULTRA PREMIUM UI CSS ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap');
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #1e293b; }
         [data-testid="stSidebar"], [data-testid="stToolbar"], footer {display: none !important;}
+
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 30px; }
-        .app-title { font-size: 32px; font-weight: 800; color: #0f172a; }
+        .app-title { font-size: 32px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
         .live-indicator { display: flex; align-items: center; font-size: 13px; font-weight: 600; color: #15803d; background: #ffffff; padding: 6px 12px; border-radius: 20px; border: 1px solid #bbf7d0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .pulse { width: 8px; height: 8px; background-color: #22c55e; border-radius: 50%; margin-right: 8px; box-shadow: 0 0 0 rgba(34, 197, 94, 0.4); animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+
         .metric-card { background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; transition: all 0.3s ease; }
         .metric-card:hover { transform: translateY(-2px); border-color: #94a3b8; }
         .metric-label { font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; }
         .metric-value { font-size: 28px; font-weight: 800; color: #0f172a; margin: 8px 0; }
         .metric-delta { font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
         .delta-pos { background: #fee2e2; color: #ef4444; } .delta-neg { background: #dcfce7; color: #16a34a; } .delta-neu { background: #f1f5f9; color: #475569; }
+
         .ticker-wrap { width: 100%; overflow: hidden; background: #ffffff; border-bottom: 1px solid #cbd5e1; white-space: nowrap; padding: 10px 0; margin-bottom: 25px; }
         .ticker { display: inline-block; animation: ticker 50s linear infinite; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 600; font-size: 14px; color: #475569; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+
         .analysis-box { background: #ffffff; border-left: 6px solid #3b82f6; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); font-size: 16px; line-height: 1.7; color: #334155; }
         .analysis-title { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 15px; }
         .highlight { font-weight: 700; color: #1e293b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
         .trend-up { color: #dc2626; font-weight: 700; } .trend-down { color: #16a34a; font-weight: 700; }
+
         .action-container { margin-top: 40px; text-align: center; }
         .action-btn button { background: #0f172a !important; color: white !important; height: 60px; font-size: 18px !important; font-weight: 600 !important; border-radius: 8px !important; width: 100%; border: none !important; transition: all 0.2s ease; }
         .action-btn button:hover { background: #334155 !important; transform: translateY(-1px); }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 8px; height: 200px; overflow-y: auto; text-align: left; margin-top: 20px; }
+
         .bot-bubble { background: #f8fafc; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 0 8px 8px 8px; margin-top: 20px; color: #334155; font-size: 15px; line-height: 1.6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .signature-footer { text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 14px; font-weight: 500; }
     </style>
@@ -73,28 +79,47 @@ def github_excel_oku(dosya_adi, sayfa_adi=None):
         return pd.DataFrame()
 
 
-def github_excel_guncelle(df_yeni, dosya_adi):
+# --- KRİTİK GÜNCELLEME: EKLEME (APPEND) MANTIĞI ---
+def github_excel_guncelle(df_yeni, dosya_adi, log_cb=None):
     repo = get_github_repo()
     if not repo: return "Repo Yok"
     try:
+        # 1. Mevcut Veritabanını İndir
         try:
             c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
-            old = pd.read_excel(BytesIO(c.decoded_content))
-            yeni_tarih = df_yeni['Tarih'].iloc[0]
-            # Sadece o güne ait, aynı ürün kodlu kayıtları siler (Duplicate önleme)
-            old = old[~((old['Tarih'].astype(str) == str(yeni_tarih)) & (old['Kod'].isin(df_yeni['Kod'])))]
-            final = pd.concat([old, df_yeni], ignore_index=True)
-        except:
-            c = None; final = df_yeni
+            df_eski = pd.read_excel(BytesIO(c.decoded_content))
 
+            # Formatlama (Çakışma olmaması için)
+            df_eski['Tarih'] = pd.to_datetime(df_eski['Tarih']).dt.strftime('%Y-%m-%d')
+            df_eski['Kod'] = df_eski['Kod'].astype(str)
+
+            # 2. Bugüne ait verileri temizle (Yenilerini ekleyeceğiz, duplicate olmasın)
+            yeni_tarih = df_yeni['Tarih'].iloc[0]
+            if log_cb: log_cb(f"📅 Veritabanı Tarihi: {yeni_tarih} (Eski kayıtlar korunuyor...)")
+
+            # Eski verilerden, bugüne ait olanları çıkar (sadece güncellenecek olanları)
+            df_eski_filtered = df_eski[df_eski['Tarih'] != yeni_tarih]
+
+            # 3. Eskiler + Yeniler (Append)
+            df_final = pd.concat([df_eski_filtered, df_yeni], ignore_index=True)
+
+        except Exception as e:
+            # Dosya yoksa veya okunamadıysa sıfırdan oluştur
+            df_final = df_yeni
+            if log_cb: log_cb("⚠️ Mevcut veri bulunamadı, yeni dosya oluşturuluyor.")
+
+        # 4. GitHub'a Geri Yükle
         out = BytesIO()
         with pd.ExcelWriter(out, engine='openpyxl') as w:
-            final.to_excel(w, index=False, sheet_name='Fiyat_Log')
+            df_final.to_excel(w, index=False, sheet_name='Fiyat_Log')
 
-        if c:
-            repo.update_file(c.path, "Data Update", out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
+        msg = f"Data Update: {len(df_yeni)} new items added on {datetime.now().strftime('%Y-%m-%d')}"
+
+        if 'c' in locals():
+            repo.update_file(c.path, msg, out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
         else:
-            repo.create_file(dosya_adi, "Data Create", out.getvalue(), branch=st.secrets["github"]["branch"])
+            repo.create_file(dosya_adi, msg, out.getvalue(), branch=st.secrets["github"]["branch"])
+
         return "OK"
     except Exception as e:
         return str(e)
@@ -195,26 +220,24 @@ def html_isleyici(log_callback):
                                 "Kod": row['Kod'], "Madde_Adi": row['Madde adı'],
                                 "Fiyat": fiyat_man, "Kaynak": "Manuel Giriş", "URL": row['URL']
                             })
-                            # Bu ürünü "İşlendi" olarak işaretle ki HTML'den tekrar çekmesin
-                            islenen_kodlar.add(row['Kod'])
+                            islenen_kodlar.add(row['Kod'])  # BU KODU KİLİTLE
                             manuel_sayac += 1
                     except:
                         pass
+
         if manuel_sayac > 0: log_callback(f"✅ {manuel_sayac} adet manuel fiyat eklendi (Öncelikli).")
 
         # --- B. İKİNCİ: HTML İŞLEME ---
         contents = repo.get_contents(HTML_KLASORU, ref=st.secrets["github"]["branch"])
-        log_callback(f"📦 {len(contents)} HTML dosyası işleniyor...")
+        log_callback(f"📦 {len(contents)} HTML dosyası bulundu. İşleniyor...")
 
         html_sayac = 0
         for file_content in contents:
             if not file_content.name.endswith((".html", ".htm")): continue
 
-            # HTML'i sadece Oku, henüz parse etme (Hız için)
             raw = file_content.decoded_content.decode("utf-8", errors="ignore")
             soup = BeautifulSoup(raw, 'html.parser')
 
-            # URL Eşleştirme
             found_url = None
             if c := soup.find("link", rel="canonical"): found_url = c.get("href")
             if not found_url and (m := soup.find("meta", property="og:url")): found_url = m.get("content")
@@ -222,7 +245,7 @@ def html_isleyici(log_callback):
             if found_url and found_url.strip() in url_map:
                 target = url_map[found_url.strip()]
 
-                # !!! KRİTİK KONTROL: Eğer bu ürün manuel olarak eklendiyse, HTML'i ES GEÇ !!!
+                # !!! ÖNCELİK KONTROLÜ: Eğer manuel girildiyse HTML'i atla !!!
                 if target['Kod'] in islenen_kodlar:
                     continue
 
@@ -234,12 +257,12 @@ def html_isleyici(log_callback):
                         "Kod": target['Kod'], "Madde_Adi": target['Madde adı'],
                         "Fiyat": fiyat, "Kaynak": kaynak, "URL": target['URL']
                     })
-                    islenen_kodlar.add(target['Kod'])  # İşlendi olarak işaretle
+                    islenen_kodlar.add(target['Kod'])
                     html_sayac += 1
 
         if veriler:
-            log_callback(f"💾 Toplam {len(veriler)} veri (Manuel + HTML) veritabanına yazılıyor...")
-            return github_excel_guncelle(pd.DataFrame(veriler), FIYAT_DOSYASI)
+            log_callback(f"💾 Toplam {len(veriler)} veri (Manuel: {manuel_sayac}, HTML: {html_sayac}) kaydediliyor...")
+            return github_excel_guncelle(pd.DataFrame(veriler), FIYAT_DOSYASI, log_callback)
         else:
             return "Hiçbir veri bulunamadı."
 
@@ -257,7 +280,6 @@ def dashboard_modu():
         unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
-        # Veri İşleme
         df_f['Tarih'] = pd.to_datetime(df_f['Tarih']);
         df_f['Fiyat'] = pd.to_numeric(df_f['Fiyat'], errors='coerce')
         df_f['Tam_Zaman'] = pd.to_datetime(df_f['Tarih'].astype(str) + ' ' + df_f['Zaman'].astype(str),
