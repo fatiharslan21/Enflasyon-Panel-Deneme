@@ -26,7 +26,7 @@ st.set_page_config(
 # --- ADMIN AYARI ---
 ADMIN_USER = "fatiharslan"
 
-# --- 2. GITHUB & VERİ MOTORU ---
+# --- 2. GITHUB & VERİ MOTORU (DOKUNULMADI) ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 USERS_DOSYASI = "kullanicilar.json"
@@ -280,9 +280,8 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # --- SIDEBAR (PANEL) ---
+    # --- SIDEBAR ---
     with st.sidebar:
-        # Profil Kartı
         user_upper = st.session_state['username'].upper()
         role_title = "SYSTEM ADMIN" if st.session_state['username'] == ADMIN_USER else "VERİ ANALİSTİ"
         st.markdown(f"""
@@ -334,7 +333,14 @@ def dashboard_modu():
             st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- DYNAMIC CSS (DARK/LIGHT) ---
+    # --- DYNAMIC CSS (DARK/LIGHT TRANSITION) ---
+    transition_css = """
+        /* Smooth Transition for Dark Mode */
+        .stApp, .header-container, .metric-card, .bot-bubble, .update-btn-container button {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+    """
+
     if dark_mode:
         theme_css = """
             :root { --bg-color: #0f172a; --card-bg: #1e293b; --text-color: #f8fafc; --sub-text: #94a3b8; }
@@ -353,13 +359,14 @@ def dashboard_modu():
 
     st.markdown(f"""
     <style>
+        {transition_css}
         {theme_css}
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
 
         .header-container {{ display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); border-bottom: 4px solid #3b82f6; }}
         .app-title {{ font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: -webkit-linear-gradient(#0f172a, #334155); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
 
-        .metric-card {{ padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: transform 0.3s; }}
+        .metric-card {{ padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transform: translateZ(0); }}
         .metric-card:hover {{ transform: translateY(-5px); }}
         .metric-card::before {{ content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }}
         .card-blue::before {{ background: #3b82f6; }} .card-purple::before {{ background: #8b5cf6; }} .card-emerald::before {{ background: #10b981; }} .card-orange::before {{ background: #f59e0b; }}
@@ -367,7 +374,7 @@ def dashboard_modu():
         .metric-val {{ font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }}
         .metric-val.long-text {{ font-size: 24px !important; line-height: 1.2; }}
 
-        .update-btn-container button {{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; }}
+        .update-btn-container button {{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); }}
         .update-btn-container button:hover {{ transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); }}
 
         .ticker-wrap {{ width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }}
@@ -528,7 +535,6 @@ def dashboard_modu():
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
 
-                    # Grafik
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
                     fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
                                            line_shape='spline')
@@ -539,7 +545,7 @@ def dashboard_modu():
                     col_trend.plotly_chart(fig_main, use_container_width=True)
 
                     with col_comp:
-                        # MANUEL REFERANS DEĞERLERİ (Burayı değiştirebilirsin)
+                        # MANUEL REFERANS DEĞERLERİ
                         REF_ARALIK_2024 = 1.03
                         REF_KASIM_2025 = 0.87
 
@@ -548,8 +554,8 @@ def dashboard_modu():
                         arrow = "▲" if diff_24 > 0 else "▼"
 
                         st.markdown(f"""
-                        <div style="background:{'#1e293b' if dark_mode else 'white'}; padding:20px; border-radius:15px; border:1px solid #e2e8f0; height:400px; display:flex; flex-direction:column; justify-content:space-between;">
-                            <h3 style="color:{'white' if dark_mode else '#334155'}; font-size:16px; text-align:center; margin-bottom:10px; border-bottom:1px solid #334155; padding-bottom:10px;">ENFLASYON KARŞILAŞTIRMASI</h3>
+                        <div style="background:{'#1e293b' if dark_mode else 'white'}; padding:20px; border-radius:15px; border:1px solid #e2e8f0; height:400px; display:flex; flex-direction:column; justify-content:center;">
+                            <h3 style="color:{'white' if dark_mode else '#334155'}; font-size:16px; text-align:center; margin-bottom:15px; border-bottom:1px solid #334155; padding-bottom:10px;">ENFLASYON KARŞILAŞTIRMASI</h3>
 
                             <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
                                 <div style="text-align:center; width:48%; background:{'#0f172a' if dark_mode else '#f1f5f9'}; padding:10px; border-radius:8px;">
@@ -580,12 +586,20 @@ def dashboard_modu():
 
                 with t2:
                     st.markdown("##### 🤖 Fiyat Asistanı")
-                    q = st.text_input("Merak ettiğin ürünü yaz:", placeholder="Örn: Beyaz Peynir")
+                    q = st.text_input("Merak ettiğin ürünü yaz:", placeholder="Örn: Peynir")
                     if q:
                         res = df_analiz[df_analiz[ad_col].str.lower().str.contains(q.lower())]
                         if not res.empty:
-                            st.info(f"🔎 '{q}' için {len(res)} sonuç bulundu.")
-                            for _, target in res.iterrows():
+                            if len(res) == 1:
+                                target = res.iloc[0]
+                                show_detail = True
+                            else:
+                                st.info(f"🔎 '{q}' ile ilgili {len(res)} sonuç bulundu. Lütfen seçiniz:")
+                                selected_prod = st.selectbox("Ürün Seçin:", res[ad_col].unique())
+                                target = res[res[ad_col] == selected_prod].iloc[0]
+                                show_detail = True
+
+                            if show_detail:
                                 fark = target['Fark'] * 100
                                 st.markdown(f"""
                                     <div class="bot-bubble">
@@ -726,22 +740,37 @@ def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
     if not st.session_state['logged_in']:
+        # Şovlu Login Ekranı CSS
+        st.markdown("""
+        <style>
+        .login-bg {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 50px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            text-align: center;
+            animation: fadeIn 1s ease-in-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        </style>
+        """, unsafe_allow_html=True)
+
         st.markdown(
-            "<div style='text-align: center; margin-top:80px; margin-bottom:30px;'><h1 style='color:#0f172a; font-family:Poppins; font-size:42px;'>ENFLASYON MONİTÖRÜ</h1></div>",
+            "<div style='text-align: center; margin-top:50px; margin-bottom:30px;'><h1 style='color:#0f172a; font-family:Poppins; font-size:48px; font-weight:800; text-shadow: 0 5px 15px rgba(0,0,0,0.1);'>ENFLASYON MONİTÖRÜ</h1></div>",
             unsafe_allow_html=True)
 
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
-            st.markdown(
-                '<div style="background:white; padding:40px; border-radius:24px; box-shadow:0 20px 50px rgba(0,0,0,0.1); border:1px solid #e2e8f0;">',
-                unsafe_allow_html=True)
-            t_log, t_reg = st.tabs(["Giriş Yap", "Kayıt Ol"])
+            st.markdown('<div class="login-bg">', unsafe_allow_html=True)
+            t_log, t_reg = st.tabs(["🔒 GİRİŞ YAP", "📝 KAYIT OL"])
 
             with t_log:
                 with st.form("login_f"):
                     l_u = st.text_input("Kullanıcı Adı")
                     l_p = st.text_input("Şifre", type="password")
-                    if st.form_submit_button("Sisteme Gir", use_container_width=True):
+                    if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
                         ok, msg = github_user_islem("login", l_u, l_p)
                         if ok:
                             st.session_state['logged_in'] = True;
@@ -756,7 +785,7 @@ def main():
                 with st.form("reg_f"):
                     r_u = st.text_input("Yeni Kullanıcı Adı")
                     r_p = st.text_input("Şifre Belirle", type="password")
-                    if st.form_submit_button("Hesap Oluştur", use_container_width=True):
+                    if st.form_submit_button("HESAP OLUŞTUR", use_container_width=True):
                         if r_u and r_p:
                             ok, msg = github_user_islem("register", r_u, r_p)
                             if ok:
