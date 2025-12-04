@@ -24,17 +24,19 @@ st.set_page_config(
 )
 
 # --- ADMIN AYARI ---
-ADMIN_USER = "fatiharslan"
+ADMIN_USER = "fatih"
 
-# --- CSS (ESTETİK VE ŞIK) ---
+# --- CSS (ESTETİK VE ŞIK - DASHBOARD 2.0) ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
 
-        /* GENEL SAYFA ANIMASYONLARI */
+        /* ANIMASYONLAR */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }
+
         .stApp { 
-            background-color: #f1f5f9; 
+            background-color: #f8fafc; 
             font-family: 'Inter', sans-serif; 
             color: #0f172a; 
         }
@@ -49,7 +51,7 @@ st.markdown("""
         section[data-testid="stSidebar"] .stMarkdown { color: #cbd5e1; }
         div[data-testid="stSidebarUserContent"] { padding-top: 2rem; }
 
-        /* PROFİL KARTI (SIDEBAR) */
+        /* PROFİL KARTI */
         .profile-card {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -62,29 +64,16 @@ st.markdown("""
         .profile-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 18px; color: white; letter-spacing: 0.5px; }
         .profile-role { font-size: 11px; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin-top: 4px; }
 
-        /* USER LIST STYLE */
-        .user-row-dark {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px; margin-bottom: 6px; border-radius: 8px;
-            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05);
-            transition: all 0.2s;
-        }
-        .user-row-dark:hover { background: rgba(255, 255, 255, 0.1); transform: translateX(5px); }
-        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 10px; }
-        .online { background-color: #4ade80; box-shadow: 0 0 8px #4ade80; }
-        .offline { background-color: #64748b; }
-
-        /* HEADER (ANA SAYFA) */
+        /* HEADER */
         .header-container { 
             display: flex; justify-content: space-between; align-items: center; 
-            padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 25px;
+            padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.04); border-bottom: 4px solid #3b82f6;
             animation: fadeIn 0.6s ease-out;
         }
         .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; color: #0f172a; letter-spacing: -1px; background: -webkit-linear-gradient(#0f172a, #334155); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
         /* METRİK KARTLARI */
-        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .metric-card { 
             background: white; padding: 24px; border-radius: 20px; 
             box-shadow: 0 10px 30px rgba(0,0,0,0.04); border: 1px solid #f1f5f9;
@@ -101,7 +90,6 @@ st.markdown("""
         .metric-label { color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 5px; }
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
         .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
-
         .metric-sub { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 
         /* TICKER */
@@ -110,21 +98,28 @@ st.markdown("""
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
-        /* BUTONLAR */
-        .stButton button {
+        /* BUTONLAR (UPDATE BUTTON STYLE) */
+        .update-btn-container button {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-            color: white !important; font-weight: 600 !important; border-radius: 10px !important;
-            border: none !important; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+            color: white !important; font-weight: 700 !important; font-size: 16px !important; 
+            border-radius: 12px !important; height: 60px !important;
+            border: none !important; animation: pulse-blue 2s infinite;
             transition: all 0.3s ease !important;
         }
-        .stButton button:hover { transform: scale(1.02); box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4); }
+        .update-btn-container button:hover { transform: scale(1.02); animation: none; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); }
 
         /* LOG KUTUSU */
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; border: 1px solid #334155; box-shadow: inset 0 2px 10px rgba(0,0,0,0.3); }
+
+        /* User List */
+        .user-row-dark { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); padding: 10px; margin-bottom: 6px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 10px; }
+        .online { background-color: #4ade80; box-shadow: 0 0 8px #4ade80; }
+        .offline { background-color: #64748b; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. GITHUB & VERİ MOTORU ---
+# --- 2. GITHUB & VERİ MOTORU (DOKUNULMADI) ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 USERS_DOSYASI = "kullanicilar.json"
@@ -373,7 +368,7 @@ def html_isleyici(log_callback):
         return f"Hata: {str(e)}"
 
 
-# --- 4. DASHBOARD MODU (YENİLENMİŞ ARAYÜZ) ---
+# --- 4. DASHBOARD MODU (YENİLENMİŞ) ---
 def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
@@ -392,7 +387,6 @@ def dashboard_modu():
         """, unsafe_allow_html=True)
 
         st.markdown("### ⚙️ Kontrol Paneli")
-
         st.divider()
         st.markdown("### 🟢 Çevrimiçi Ekip")
 
@@ -431,8 +425,7 @@ def dashboard_modu():
             st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- ANA SAYFA BAŞLIK ---
-    # SAAT AYARI: TR Saati (+3 Saat)
+    # --- ANA SAYFA BAŞLIK & HEADER ---
     tr_time = datetime.now() + timedelta(hours=3)
 
     st.markdown(f"""
@@ -444,6 +437,26 @@ def dashboard_modu():
             </div>
         </div>
     """, unsafe_allow_html=True)
+
+    # --- EN ÜSTTE UPDATE BUTONU (YENİ İSTEK) ---
+    st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
+    if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
+        log_ph = st.empty();
+        log_msgs = []
+
+        def logger(m):
+            log_msgs.append(f"> {m}");
+            log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
+
+        res = html_isleyici(logger)
+        if "OK" in res:
+            st.success("✅ Sistem Başarıyla Senkronize Edildi!");
+            time.sleep(2);
+            st.rerun()
+        else:
+            st.error(res)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
         try:
@@ -494,7 +507,10 @@ def dashboard_modu():
                 enf_gida = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[
                     agirlik_col].sum() - 1) * 100 if not gida.empty else 0
 
-                # GELECEK TAHMİNİ (BASİT PROJEKSİYON)
+                # Volatilite Hesabı (Şov Metriği)
+                volatilite = df_analiz['Fark'].std() * 100
+
+                # GELECEK TAHMİNİ
                 dt_son = datetime.strptime(son, '%Y-%m-%d')
                 dt_baz = datetime.strptime(baz, '%Y-%m-%d')
                 days_in_month = calendar.monthrange(dt_son.year, dt_son.month)[1]
@@ -502,8 +518,6 @@ def dashboard_modu():
                 days_left = days_in_month - days_passed
                 daily_rate = enf_genel / max(days_passed, 1)
                 month_end_forecast = enf_genel + (daily_rate * days_left)
-
-                # Gün Farkı Hesabı
                 gun_farki = (dt_son - dt_baz).days
 
                 # --- 1. TICKER (KAYAN YAZI) ---
@@ -518,7 +532,7 @@ def dashboard_modu():
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>',
                     unsafe_allow_html=True)
 
-                # --- 2. KARTLAR ---
+                # --- 2. KPI KARTLARI (YENİLENMİŞ) ---
                 def kpi_card(title, val, sub, sub_color, color_class, is_long_text=False):
                     val_class = "metric-val long-text" if is_long_text else "metric-val"
                     st.markdown(f"""
@@ -536,66 +550,71 @@ def dashboard_modu():
                     kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"{gun_farki} Günlük Değişim", "#ef4444",
                              "card-blue")
                 with c2:
-                    kpi_card("Ay Sonu Tahmini", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#64748b",
-                             "card-purple")
-                with c3:
                     kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
+                with c3:
+                    kpi_card("Piyasa Oynaklığı", f"{volatilite:.2f}", "Standart Sapma (Risk)", "#8b5cf6", "card-purple")
                 with c4:
                     kpi_card("En Yüksek Risk", f"{top[ad_col][:15]}", f"%{top['Fark'] * 100:.1f} Artış", "#f59e0b",
                              "card-orange", is_long_text=True)
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- 3. SEKMELER VE GRAFİKLER ---
+                # --- 3. SEKMELER VE ŞOV GRAFİKLERİ ---
                 t1, t2, t3, t4, t5, t6 = st.tabs(
-                    ["📊 ANALİZ & TREND", "📈 İSTATİSTİK & DAĞILIM", "🛒 AKILLI SEPET", "🗺️ SEKTÖREL HARİTA",
-                     "📉 FIRSAT RADARI", "📋 VERİ LİSTESİ"])
+                    ["📊 ANALİZ & HIZ GÖSTERGESİ", "📈 İSTATİSTİK & DAĞILIM", "🛒 AKILLI SEPET", "🗺️ SEKTÖREL HARİTA",
+                     "📉 FIRSAT RADARI", "📋 ZENGİN LİSTE"])
 
                 with t1:
+                    col_trend, col_gauge = st.columns([2, 1])
+
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                                 df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
 
-                    # Şov Grafik 1: Gradyanlı Alan Grafiği (EKSEN 95-105 SABİTLENDİ)
+                    # Şov Grafik 1: Alan Grafiği
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
                     fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
                                            line_shape='spline')
-                    fig_main.update_layout(
-                        template="plotly_white",
-                        height=450,
-                        hovermode="x unified",
-                        plot_bgcolor='white',
-                        paper_bgcolor='white',
-                        font=dict(family="Inter", size=12, color="#334155"),
-                        title_font=dict(size=20, family="Poppins", weight=800),
-                        yaxis=dict(range=[95, 105])  # Eksen sabitlendi
-                    )
-                    st.plotly_chart(fig_main, use_container_width=True)
+                    fig_main.update_layout(template="plotly_white", height=400, hovermode="x unified",
+                                           yaxis=dict(range=[95, 105]))
+                    col_trend.plotly_chart(fig_main, use_container_width=True)
 
-                with t2:  # YENİ ŞOV SAYFASI: İSTATİSTİK & DAĞILIM
+                    # Şov Grafik 2: GAUGE CHART (İbre)
+                    fig_gauge = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=enf_genel,
+                        title={'text': "Enflasyon Hızı"},
+                        gauge={
+                            'axis': {'range': [None, 10]},
+                            'bar': {'color': "#2563eb"},
+                            'steps': [
+                                {'range': [0, 2], 'color': "#dcfce7"},
+                                {'range': [2, 5], 'color': "#fef9c3"},
+                                {'range': [5, 10], 'color': "#fee2e2"}],
+                            'threshold': {
+                                'line': {'color': "red", 'width': 4},
+                                'thickness': 0.75,
+                                'value': month_end_forecast}}))
+                    fig_gauge.update_layout(height=400, margin=dict(t=50, b=0, l=20, r=20))
+                    col_gauge.plotly_chart(fig_gauge, use_container_width=True)
+
+                with t2:
                     col_hist, col_box = st.columns(2)
-
-                    # 1. Histogram: Fiyat Artışlarının Dağılımı
                     df_analiz['Fark_Yuzde'] = df_analiz['Fark'] * 100
-                    fig_hist = px.histogram(df_analiz, x="Fark_Yuzde", nbins=40, title="📊 Zam Dağılımı (Histogram)",
+
+                    # Histogram
+                    fig_hist = px.histogram(df_analiz, x="Fark_Yuzde", nbins=40, title="📊 Zam Dağılımı Frekansı",
                                             color_discrete_sequence=['#8b5cf6'])
                     fig_hist.update_layout(template="plotly_white", xaxis_title="Artış Oranı (%)",
-                                           yaxis_title="Ürün Sayısı",
-                                           plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Inter"))
+                                           yaxis_title="Ürün Adedi")
                     col_hist.plotly_chart(fig_hist, use_container_width=True)
 
-                    # 2. Box Plot: Sektörel Fiyat Değişim Aralığı
-                    fig_box = px.box(df_analiz, x="Grup", y="Fark_Yuzde",
-                                     title="📦 Sektörel Fiyat Dengesizliği (Box Plot)",
-                                     color="Grup", points="outliers")
-                    fig_box.update_layout(template="plotly_white", xaxis_title="Sektör", yaxis_title="Değişim (%)",
-                                          plot_bgcolor='white', paper_bgcolor='white', font=dict(family="Inter"),
-                                          showlegend=False)
+                    # Box Plot
+                    fig_box = px.box(df_analiz, x="Grup", y="Fark_Yuzde", title="📦 Sektörel Fiyat Dengesizliği",
+                                     color="Grup")
+                    fig_box.update_layout(template="plotly_white", xaxis_title="Sektör", showlegend=False)
                     col_box.plotly_chart(fig_box, use_container_width=True)
-
-                    st.info(
-                        "ℹ️ **Histogram:** Ürünlerin ne kadarının hangi oranda zamlandığını gösterir. Sağa çarpık grafik yüksek enflasyon işaretidir.\n\nℹ️ **Box Plot:** Hangi sektörde fiyat belirsizliğinin (makasın) daha açık olduğunu gösterir.")
 
                 with t3:
                     st.info(
@@ -622,12 +641,10 @@ def dashboard_modu():
                         if not my_df.empty:
                             my_enf = ((my_df[son] / my_df[baz] * my_df[agirlik_col]).sum() / my_df[
                                 agirlik_col].sum() - 1) * 100
-
                             c_my, c_ch = st.columns([1, 2])
                             c_my.metric("KİŞİSEL ENFLASYON", f"%{my_enf:.2f}", f"Genel: %{enf_genel:.2f}",
                                         delta_color="inverse")
 
-                            # Karşılaştırma Bar Grafiği
                             fig_comp = go.Figure()
                             fig_comp.add_trace(go.Bar(y=['Genel', 'Senin'], x=[enf_genel, my_enf], orientation='h',
                                                       marker_color=['#cbd5e1', '#3b82f6'],
@@ -636,21 +653,17 @@ def dashboard_modu():
                             fig_comp.update_layout(template="plotly_white", height=200, margin=dict(t=0, b=0, l=0, r=0),
                                                    xaxis=dict(showgrid=False))
                             c_ch.plotly_chart(fig_comp, use_container_width=True)
-
                             st.dataframe(my_df[[ad_col, 'Fark', baz, son]], use_container_width=True)
                     else:
                         st.warning("Henüz bir sepet oluşturmadın.")
 
                 with t4:
                     c1, c2 = st.columns([2, 1])
-                    # Treemap Şov
                     fig_tree = px.treemap(df_analiz, path=[px.Constant("Piyasa"), 'Grup', ad_col], values=agirlik_col,
-                                          color='Fark', color_continuous_scale='RdYlGn_r',
-                                          title="🔥 Isı Haritası: Fiyat Değişimleri")
-                    fig_tree.update_layout(margin=dict(t=40, l=0, r=0, b=0), font=dict(family="Inter"))
+                                          color='Fark', color_continuous_scale='RdYlGn_r', title="🔥 Isı Haritası")
+                    fig_tree.update_layout(margin=dict(t=40, l=0, r=0, b=0))
                     c1.plotly_chart(fig_tree, use_container_width=True)
 
-                    # Sektörel Dağılım
                     sect_data = df_analiz.groupby('Grup')['Fark'].mean().reset_index()
                     fig_sun = px.sunburst(df_analiz, path=['Grup', ad_col], values=agirlik_col,
                                           title="Sektörel Ağırlık")
@@ -668,7 +681,23 @@ def dashboard_modu():
                         st.info("Şu an indirimde ürün yok, her şey zamlanmış görünüyor.")
 
                 with t6:
-                    st.dataframe(df_analiz[['Grup', ad_col, 'Fark', baz, son]], use_container_width=True)
+                    # YENİ RICH DATAFRAME (Bar Çubuklu Liste)
+                    st.data_editor(
+                        df_analiz[['Grup', ad_col, 'Fark', baz, son]],
+                        column_config={
+                            "Fark": st.column_config.ProgressColumn(
+                                "Değişim Oranı",
+                                help="Fiyat değişim yüzdesi",
+                                format="%.2f",
+                                min_value=-0.5,
+                                max_value=0.5,
+                            ),
+                            ad_col: "Ürün Adı",
+                            "Grup": "Kategori"
+                        },
+                        hide_index=True,
+                        use_container_width=True
+                    )
 
                     output = BytesIO()
                     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -679,24 +708,6 @@ def dashboard_modu():
 
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
-
-    # GÜNCELLEME BUTONU
-    st.markdown("<div style='height:40px;'></div>", unsafe_allow_html=True)
-    if st.button("SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
-        log_ph = st.empty();
-        log_msgs = []
-
-        def logger(m):
-            log_msgs.append(f"> {m}");
-            log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
-
-        res = html_isleyici(logger)
-        if "OK" in res:
-            st.success("✅ Sistem Başarıyla Senkronize Edildi!");
-            time.sleep(2);
-            st.rerun()
-        else:
-            st.error(res)
 
     st.markdown(
         '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">POWERED BY FATİH ARSLAN AI ENGINE © 2025</div>',
