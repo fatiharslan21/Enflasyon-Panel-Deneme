@@ -1,6 +1,6 @@
+streamlit
+pandas
+plotly
+beautifulsoup4
 PyGithub
 openpyxl
-pandas
-playwright
-streamlit
-plotly
