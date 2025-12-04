@@ -10,45 +10,40 @@ import time
 import json
 from github import Github
 from io import BytesIO
+import zipfile
 
-# --- 1. SAYFA YAPILANDIRMASI ---
+# --- 1. AYARLAR ---
 st.set_page_config(page_title="ENFLASYON MONITORU PRO", page_icon="💎", layout="wide", initial_sidebar_state="collapsed")
 
-# --- 🎨 ULTRA PREMIUM UI CSS ---
+# --- CSS (AYNI ŞOV DEVAM EDİYOR) ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap');
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #1e293b; }
         [data-testid="stSidebar"], [data-testid="stToolbar"], footer {display: none !important;}
-
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 30px; }
-        .app-title { font-size: 32px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+        .app-title { font-size: 32px; font-weight: 800; color: #0f172a; }
         .live-indicator { display: flex; align-items: center; font-size: 13px; font-weight: 600; color: #15803d; background: #ffffff; padding: 6px 12px; border-radius: 20px; border: 1px solid #bbf7d0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .pulse { width: 8px; height: 8px; background-color: #22c55e; border-radius: 50%; margin-right: 8px; box-shadow: 0 0 0 rgba(34, 197, 94, 0.4); animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); } 70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
-
         .metric-card { background: #ffffff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; transition: all 0.3s ease; }
         .metric-card:hover { transform: translateY(-2px); border-color: #94a3b8; }
         .metric-label { font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; }
         .metric-value { font-size: 28px; font-weight: 800; color: #0f172a; margin: 8px 0; }
         .metric-delta { font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
         .delta-pos { background: #fee2e2; color: #ef4444; } .delta-neg { background: #dcfce7; color: #16a34a; } .delta-neu { background: #f1f5f9; color: #475569; }
-
         .ticker-wrap { width: 100%; overflow: hidden; background: #ffffff; border-bottom: 1px solid #cbd5e1; white-space: nowrap; padding: 10px 0; margin-bottom: 25px; }
         .ticker { display: inline-block; animation: ticker 50s linear infinite; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 600; font-size: 14px; color: #475569; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-
         .analysis-box { background: #ffffff; border-left: 6px solid #3b82f6; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); font-size: 16px; line-height: 1.7; color: #334155; }
         .analysis-title { font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 15px; }
         .highlight { font-weight: 700; color: #1e293b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
         .trend-up { color: #dc2626; font-weight: 700; } .trend-down { color: #16a34a; font-weight: 700; }
-
         .action-container { margin-top: 40px; text-align: center; }
         .action-btn button { background: #0f172a !important; color: white !important; height: 60px; font-size: 18px !important; font-weight: 600 !important; border-radius: 8px !important; width: 100%; border: none !important; transition: all 0.2s ease; }
         .action-btn button:hover { background: #334155 !important; transform: translateY(-1px); }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 8px; height: 200px; overflow-y: auto; text-align: left; margin-top: 20px; }
-
         .bot-bubble { background: #f8fafc; border-left: 4px solid #3b82f6; padding: 20px; border-radius: 0 8px 8px 8px; margin-top: 20px; color: #334155; font-size: 15px; line-height: 1.6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .signature-footer { text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 14px; font-weight: 500; }
     </style>
@@ -58,7 +53,6 @@ st.markdown("""
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 SAYFA_ADI = "Madde_Sepeti"
-HTML_KLASORU = "HTML_DOSYALARI"
 
 
 def get_github_repo():
@@ -79,47 +73,28 @@ def github_excel_oku(dosya_adi, sayfa_adi=None):
         return pd.DataFrame()
 
 
-# --- KRİTİK GÜNCELLEME: EKLEME (APPEND) MANTIĞI ---
-def github_excel_guncelle(df_yeni, dosya_adi, log_cb=None):
+def github_excel_guncelle(df_yeni, dosya_adi):
     repo = get_github_repo()
     if not repo: return "Repo Yok"
     try:
-        # 1. Mevcut Veritabanını İndir
         try:
             c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
-            df_eski = pd.read_excel(BytesIO(c.decoded_content))
-
-            # Formatlama (Çakışma olmaması için)
-            df_eski['Tarih'] = pd.to_datetime(df_eski['Tarih']).dt.strftime('%Y-%m-%d')
-            df_eski['Kod'] = df_eski['Kod'].astype(str)
-
-            # 2. Bugüne ait verileri temizle (Yenilerini ekleyeceğiz, duplicate olmasın)
+            old = pd.read_excel(BytesIO(c.decoded_content))
             yeni_tarih = df_yeni['Tarih'].iloc[0]
-            if log_cb: log_cb(f"📅 Veritabanı Tarihi: {yeni_tarih} (Eski kayıtlar korunuyor...)")
+            # Duplicate önleme: Bugünün verisi varsa sil, yenisini ekle
+            old = old[~((old['Tarih'].astype(str) == str(yeni_tarih)) & (old['Kod'].isin(df_yeni['Kod'])))]
+            final = pd.concat([old, df_yeni], ignore_index=True)
+        except:
+            c = None; final = df_yeni
 
-            # Eski verilerden, bugüne ait olanları çıkar (sadece güncellenecek olanları)
-            df_eski_filtered = df_eski[df_eski['Tarih'] != yeni_tarih]
-
-            # 3. Eskiler + Yeniler (Append)
-            df_final = pd.concat([df_eski_filtered, df_yeni], ignore_index=True)
-
-        except Exception as e:
-            # Dosya yoksa veya okunamadıysa sıfırdan oluştur
-            df_final = df_yeni
-            if log_cb: log_cb("⚠️ Mevcut veri bulunamadı, yeni dosya oluşturuluyor.")
-
-        # 4. GitHub'a Geri Yükle
         out = BytesIO()
         with pd.ExcelWriter(out, engine='openpyxl') as w:
-            df_final.to_excel(w, index=False, sheet_name='Fiyat_Log')
+            final.to_excel(w, index=False, sheet_name='Fiyat_Log')
 
-        msg = f"Data Update: {len(df_yeni)} new items added on {datetime.now().strftime('%Y-%m-%d')}"
-
-        if 'c' in locals():
-            repo.update_file(c.path, msg, out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
+        if c:
+            repo.update_file(c.path, "Data Update", out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
         else:
-            repo.create_file(dosya_adi, msg, out.getvalue(), branch=st.secrets["github"]["branch"])
-
+            repo.create_file(dosya_adi, "Data Create", out.getvalue(), branch=st.secrets["github"]["branch"])
         return "OK"
     except Exception as e:
         return str(e)
@@ -201,7 +176,7 @@ def html_isleyici(log_callback):
         url_map = {row['URL'].strip(): row for _, row in df_conf.iterrows() if pd.notna(row['URL'])}
 
         veriler = []
-        islenen_kodlar = set()  # !!! ÖNCELİK TAKİP LİSTESİ !!!
+        islenen_kodlar = set()
 
         bugun = datetime.now().strftime("%Y-%m-%d")
         simdi = datetime.now().strftime("%H:%M")
@@ -220,49 +195,64 @@ def html_isleyici(log_callback):
                                 "Kod": row['Kod'], "Madde_Adi": row['Madde adı'],
                                 "Fiyat": fiyat_man, "Kaynak": "Manuel Giriş", "URL": row['URL']
                             })
-                            islenen_kodlar.add(row['Kod'])  # BU KODU KİLİTLE
+                            islenen_kodlar.add(row['Kod'])
                             manuel_sayac += 1
                     except:
                         pass
 
-        if manuel_sayac > 0: log_callback(f"✅ {manuel_sayac} adet manuel fiyat eklendi (Öncelikli).")
+        if manuel_sayac > 0: log_callback(f"✅ {manuel_sayac} adet manuel fiyat eklendi.")
 
-        # --- B. İKİNCİ: HTML İŞLEME ---
-        contents = repo.get_contents(HTML_KLASORU, ref=st.secrets["github"]["branch"])
-        log_callback(f"📦 {len(contents)} HTML dosyası bulundu. İşleniyor...")
+        # --- B. ZIP ARŞİVLERİNİ İŞLEME ---
+        log_callback("📦 GitHub deposundaki ZIP dosyaları taranıyor...")
+
+        # Repodaki TÜM .zip dosyalarını bul
+        contents = repo.get_contents("", ref=st.secrets["github"]["branch"])
+        zip_files = [c for c in contents if c.name.endswith(".zip")]
+
+        if not zip_files:
+            log_callback("⚠️ Repoda hiç .zip dosyası bulunamadı!")
 
         html_sayac = 0
-        for file_content in contents:
-            if not file_content.name.endswith((".html", ".htm")): continue
+        for zip_file in zip_files:
+            log_callback(f"📂 Arşiv açılıyor: {zip_file.name}")
 
-            raw = file_content.decoded_content.decode("utf-8", errors="ignore")
-            soup = BeautifulSoup(raw, 'html.parser')
+            try:
+                # ZIP'i indir ve hafızada aç
+                with zipfile.ZipFile(BytesIO(zip_file.decoded_content)) as z:
+                    for file_name in z.namelist():
+                        if not file_name.endswith(('.html', '.htm')): continue
 
-            found_url = None
-            if c := soup.find("link", rel="canonical"): found_url = c.get("href")
-            if not found_url and (m := soup.find("meta", property="og:url")): found_url = m.get("content")
+                        # Dosyayı oku
+                        with z.open(file_name) as f:
+                            raw = f.read().decode("utf-8", errors="ignore")
+                            soup = BeautifulSoup(raw, 'html.parser')
 
-            if found_url and found_url.strip() in url_map:
-                target = url_map[found_url.strip()]
+                            found_url = None
+                            if c := soup.find("link", rel="canonical"): found_url = c.get("href")
+                            if not found_url and (m := soup.find("meta", property="og:url")): found_url = m.get(
+                                "content")
 
-                # !!! ÖNCELİK KONTROLÜ: Eğer manuel girildiyse HTML'i atla !!!
-                if target['Kod'] in islenen_kodlar:
-                    continue
+                            if found_url and found_url.strip() in url_map:
+                                target = url_map[found_url.strip()]
+                                if target['Kod'] in islenen_kodlar: continue  # Manuel varsa atla
 
-                fiyat, kaynak = fiyat_bul_siteye_gore(soup, target['URL'])
+                                fiyat, kaynak = fiyat_bul_siteye_gore(soup, target['URL'])
 
-                if fiyat > 0:
-                    veriler.append({
-                        "Tarih": bugun, "Zaman": simdi,
-                        "Kod": target['Kod'], "Madde_Adi": target['Madde adı'],
-                        "Fiyat": fiyat, "Kaynak": kaynak, "URL": target['URL']
-                    })
-                    islenen_kodlar.add(target['Kod'])
-                    html_sayac += 1
+                                if fiyat > 0:
+                                    veriler.append({
+                                        "Tarih": bugun, "Zaman": simdi,
+                                        "Kod": target['Kod'], "Madde_Adi": target['Madde adı'],
+                                        "Fiyat": fiyat, "Kaynak": kaynak, "URL": target['URL']
+                                    })
+                                    islenen_kodlar.add(target['Kod'])
+                                    html_sayac += 1
+            except Exception as zip_e:
+                log_callback(f"⚠️ Hata ({zip_file.name}): {str(zip_e)}")
 
         if veriler:
-            log_callback(f"💾 Toplam {len(veriler)} veri (Manuel: {manuel_sayac}, HTML: {html_sayac}) kaydediliyor...")
-            return github_excel_guncelle(pd.DataFrame(veriler), FIYAT_DOSYASI, log_callback)
+            log_callback(
+                f"💾 Toplam {len(veriler)} veri (Manuel: {manuel_sayac}, HTML: {html_sayac}) veritabanına ekleniyor...")
+            return github_excel_guncelle(pd.DataFrame(veriler), FIYAT_DOSYASI)
         else:
             return "Hiçbir veri bulunamadı."
 
@@ -272,6 +262,7 @@ def html_isleyici(log_callback):
 
 # --- 4. DASHBOARD MODU ---
 def dashboard_modu():
+    # 1. MEVCUT VERİTABANINI OKU VE GÖSTER (BEKLEME YAPMAZ)
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
@@ -280,6 +271,7 @@ def dashboard_modu():
         unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
+        # Veri İşleme
         df_f['Tarih'] = pd.to_datetime(df_f['Tarih']);
         df_f['Fiyat'] = pd.to_numeric(df_f['Fiyat'], errors='coerce')
         df_f['Tam_Zaman'] = pd.to_datetime(df_f['Tarih'].astype(str) + ' ' + df_f['Zaman'].astype(str),
@@ -319,7 +311,6 @@ def dashboard_modu():
             card(c4, "En Yüksek Risk", f"{top['Madde adı'][:12]}..", f"%{top['Fark'] * 100:.1f} Artış", "pos")
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # ANALİZ
             grp_max = df_analiz.groupby('Grup')['Fark'].mean().idxmax();
             grp_val = df_analiz.groupby('Grup')['Fark'].mean().max() * 100
             st.markdown(
@@ -334,7 +325,6 @@ def dashboard_modu():
                 fig.update_layout(margin=dict(t=30, l=0, r=0, b=0), height=350);
                 st.plotly_chart(fig, use_container_width=True)
 
-            # TABS
             t1, t2, t3, t4, t5 = st.tabs(["🤖 ASİSTAN", "🫧 DAĞILIM", "🚀 ZİRVE", "📉 FIRSATLAR", "📑 LİSTE"])
             with t1:
                 st.markdown("##### 🤖 Asistan")
@@ -375,11 +365,10 @@ def dashboard_modu():
                 st.dataframe(df_analiz[['Grup', 'Madde adı', 'Fark', baz, son]], use_container_width=True)
 
     else:
-        st.warning("Veri bekleniyor... Lütfen HTML klasörünü yükleyip butona basın.")
+        st.warning("Veri bekleniyor... Lütfen ZIP dosyalarınızı yükleyin ve butona basın.")
 
-    # ACTION BUTTON
     st.markdown('<div class="action-container"><div class="action-btn">', unsafe_allow_html=True)
-    if st.button("VERİTABANINI GÜNCELLE (HTML & MANUEL)", type="primary", use_container_width=True):
+    if st.button("VERİTABANINI GÜNCELLE (ZIP & MANUEL)", type="primary", use_container_width=True):
         log_ph = st.empty()
         log_msgs = []
 
