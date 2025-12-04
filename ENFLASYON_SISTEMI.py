@@ -280,7 +280,7 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # --- SIDEBAR (SADE, BEYAZ, SİYAH YAZILAR) ---
+    # --- SIDEBAR ---
     with st.sidebar:
         user_upper = st.session_state['username'].upper()
         role_title = "SYSTEM ADMIN" if st.session_state['username'] == ADMIN_USER else "VERİ ANALİSTİ"
@@ -316,7 +316,6 @@ def dashboard_modu():
 
         for u in sorted_users:
             role_icon = "🛡️" if u['name'] == ADMIN_USER else ""
-            # Sidebar user items style: White bg, Black text, very clean
             st.markdown(f"""
                 <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
@@ -331,12 +330,12 @@ def dashboard_modu():
             st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- CSS: GLOBAL STYLES ---
+    # --- CSS: LIGHT MODE GLOBAL ---
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
 
-        /* Global Reset for Light Mode */
+        /* Force Light Mode Background */
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
 
         /* Sidebar Styling Fix */
@@ -532,7 +531,7 @@ def dashboard_modu():
                         color_diff = "#ef4444" if diff_24 > 0 else "#22c55e"
                         arrow = "▲" if diff_24 > 0 else "▼"
 
-                        # --- DÜZELTİLMİŞ HTML BLOĞU (KOYU YAZILAR) ---
+                        # --- BURAYI KESİN DÜZELTTİM: unsafe_allow_html=True EKLENDİ VE HTML DÜZENLENDİ ---
                         st.markdown(f"""
                         <div style="background:white; padding:20px; border-radius:15px; border:1px solid #e2e8f0; height:400px; display:flex; flex-direction:column; justify-content:center;">
                             <h3 style="color:#1e293b; font-size:16px; text-align:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; font-weight:800;">ENFLASYON KARŞILAŞTIRMASI</h3>
@@ -716,7 +715,7 @@ def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
     if not st.session_state['logged_in']:
-        # SADECE LOGIN SAYFASINDA ÇALIŞAN HAREKETLİ ARKA PLAN
+        # Şovlu Login Ekranı CSS (Animasyon Arkada, Form Önde)
         st.markdown("""
         <style>
         .stApp {
@@ -726,17 +725,18 @@ def main():
         }
         @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
 
-        /* Form Container'ı (Buzlu Cam) - En Üste Gelmesi İçin */
+        /* Form Container'ı (Buzlu Cam) */
         [data-testid="stForm"] {
-            background: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.95);
             padding: 40px;
             border-radius: 20px;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            z-index: 100;
         }
         [data-testid="stForm"] input {
-            background: rgba(255, 255, 255, 0.9) !important;
+            background: #f8fafc !important;
             border: 1px solid #e2e8f0 !important;
             color: #1e293b !important;
         }
@@ -744,7 +744,7 @@ def main():
         """, unsafe_allow_html=True)
 
         st.markdown(
-            "<div style='text-align: center; margin-top:80px; margin-bottom:30px;'><h1 style='color:white; font-family:Poppins; font-size:48px; font-weight:800; text-shadow: 0 2px 10px rgba(0,0,0,0.2);'>ENFLASYON MONİTÖRÜ</h1></div>",
+            "<div style='text-align: center; margin-top:80px; margin-bottom:30px; position:relative; z-index:100;'><h1 style='color:white; font-family:Poppins; font-size:48px; font-weight:800; text-shadow: 0 4px 20px rgba(0,0,0,0.3);'>ENFLASYON MONİTÖRÜ</h1></div>",
             unsafe_allow_html=True)
 
         c1, c2, c3 = st.columns([1, 2, 1])
