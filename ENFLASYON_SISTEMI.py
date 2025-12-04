@@ -280,7 +280,7 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # --- SIDEBAR (BEYAZ, SADE) ---
+    # --- SIDEBAR ---
     with st.sidebar:
         user_upper = st.session_state['username'].upper()
         role_title = "SYSTEM ADMIN" if st.session_state['username'] == ADMIN_USER else "VERİ ANALİSTİ"
@@ -342,22 +342,35 @@ def dashboard_modu():
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
         section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
-        /* Header */
+        /* Header & Title Shimmer Effect */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
-        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: -webkit-linear-gradient(#0f172a, #334155); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .app-title { 
+            font-family: 'Poppins', sans-serif; 
+            font-size: 32px; 
+            font-weight: 800; 
+            letter-spacing: -1px; 
+            background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); 
+            background-size: 200% auto;
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            animation: shine 5s linear infinite;
+        }
+        @keyframes shine { to { background-position: 200% center; } }
 
         /* Cards */
-        .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: transform 0.3s; }
-        .metric-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.1); }
+        .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: all 0.3s ease; }
+        .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
         .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
         .card-blue::before { background: #3b82f6; } .card-purple::before { background: #8b5cf6; } .card-emerald::before { background: #10b981; } .card-orange::before { background: #f59e0b; }
         .metric-label { color: #64748b; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
         .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
-        /* Update Button */
-        .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; }
-        .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); }
+        /* Update Button Pulse */
+        .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
+        .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
 
         /* Ticker */
         .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
@@ -368,34 +381,61 @@ def dashboard_modu():
         /* Bot & Bubble */
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
+
+        /* Live Clock Font */
+        #live_clock { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
     </style>
     """, unsafe_allow_html=True)
 
-    # --- ANA SAYFA BAŞLIK & HEADER ---
-    tr_time = datetime.now() + timedelta(hours=3)
+    # --- JAVASCRIPT: LIVE CLOCK (GERÇEK CANLI SAAT) ---
+    st.markdown("""
+    <script>
+    function updateClock() {
+        var now = new Date();
+        // Istanbul Saati (UTC+3)
+        var options = { timeZone: 'Europe/Istanbul', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', day: 'numeric', month: 'long', year: 'numeric' };
+        var timeString = now.toLocaleTimeString('tr-TR', options);
+        document.getElementById('live_clock').innerHTML = timeString;
+    }
+    setInterval(updateClock, 1000);
+    </script>
+    """, unsafe_allow_html=True)
 
+    # --- HEADER ---
     st.markdown(f"""
         <div class="header-container">
-            <div class="app-title">Enflasyon Monitörü</div>
+            <div class="app-title">ENFLASYON MONİTÖRÜ</div>
             <div style="text-align:right;">
-                <div style="color:#64748b; font-size:12px; font-weight:600;">İSTANBUL, TR</div>
-                <div style="color:#0f172a; font-size:14px; font-weight:bold;">{tr_time.strftime('%d %B %Y, %H:%M')}</div>
+                <div style="color:#64748b; font-size:12px; font-weight:600; margin-bottom:4px;">İSTANBUL, TR</div>
+                <div id="live_clock" style="color:#0f172a; font-size:16px; font-weight:800;">Yükleniyor...</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
+    # --- TOAST MESSAGE (ŞOV) ---
+    if 'toast_shown' not in st.session_state:
+        st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
+        st.session_state['toast_shown'] = True
+
     # --- EN ÜSTTE UPDATE BUTONU ---
     st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
     if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
-        log_ph = st.empty();
-        log_msgs = []
+        with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
+            st.write("📡 GitHub bağlantısı kuruluyor...")
+            time.sleep(0.5)
+            st.write("📦 ZIP dosyaları taranıyor...")
+            log_ph = st.empty();
+            log_msgs = []
 
-        def logger(m):
-            log_msgs.append(f"> {m}");
-            log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
+            def logger(m):
+                log_msgs.append(f"> {m}");
+                log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
 
-        res = html_isleyici(logger)
+            res = html_isleyici(logger)
+            status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
+
         if "OK" in res:
+            st.toast('Veritabanı Güncellendi!', icon='🎉')
             st.success("✅ Sistem Başarıyla Senkronize Edildi!");
             time.sleep(2);
             st.rerun()
@@ -529,23 +569,29 @@ def dashboard_modu():
                         REF_KASIM_2025 = 0.87
                         diff_24 = enf_genel - REF_ARALIK_2024
 
-                        # --- HTML YERİNE NATIVE STREAMLIT BLOKLARI (KESİN ÇÖZÜM) ---
-                        st.markdown("#### ⚖️ ENFLASYON KARŞILAŞTIRMASI")
+                        # --- NATIVE STREAMLIT BLOCKS (NO HTML RISK) ---
+                        st.markdown(f"""
+                        <div style="background:white; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:center;">
+                            <h4 style="margin:0; color:#334155;">⚖️ ENFLASYON KARŞILAŞTIRMASI</h4>
+                        </div>
+                        <br>
+                        """, unsafe_allow_html=True)
 
-                        # Üstteki iki referans
-                        c_ref1, c_ref2 = st.columns(2)
-                        c_ref1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
-                        c_ref2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
+                        # Referanslar
+                        c_r1, c_r2 = st.columns(2)
+                        c_r1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
+                        c_r2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
 
                         st.divider()
 
-                        # Büyük Sistem Verisi ve Fark
+                        # Büyük Sistem Verisi (Native Metric ile)
                         st.metric(
                             label="ŞU ANKİ (SİSTEM)",
                             value=f"%{enf_genel:.2f}",
                             delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
-                            delta_color="inverse" if diff_24 > 0 else "normal"  # Düşmesi iyi (Yeşil)
+                            delta_color="inverse" if diff_24 > 0 else "normal"
                         )
+                        st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
                     st.markdown("##### 🤖 Fiyat Asistanı")
