@@ -63,13 +63,26 @@ def get_github_repo():
 
 
 def github_excel_oku(dosya_adi, sayfa_adi=None):
+    # 1. Repo Bağlantısını Dene
     repo = get_github_repo()
-    if not repo: return pd.DataFrame()
+    if not repo:
+        st.error("GitHub Reposuna bağlanılamadı! Token veya Repo Adı yanlış.")
+        return pd.DataFrame()
+
     try:
-        c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
-        return pd.read_excel(BytesIO(c.decoded_content), sheet_name=sayfa_adi,
-                             dtype={'Kod': str}) if sayfa_adi else pd.read_excel(BytesIO(c.decoded_content))
-    except:
+        # 2. Dosyayı Bulmaya Çalış
+        branch = st.secrets["github"]["branch"]
+        c = repo.get_contents(dosya_adi, ref=branch)
+
+        # 3. Excel Olarak Okumayı Dene
+        if sayfa_adi:
+            return pd.read_excel(BytesIO(c.decoded_content), sheet_name=sayfa_adi, dtype={'Kod': str})
+        else:
+            return pd.read_excel(BytesIO(c.decoded_content))
+
+    except Exception as e:
+        # HATA VARSA GİZLEME, GÖSTER!
+        st.error(f"DOSYA OKUMA HATASI ({dosya_adi}): {str(e)}")
         return pd.DataFrame()
 
 
