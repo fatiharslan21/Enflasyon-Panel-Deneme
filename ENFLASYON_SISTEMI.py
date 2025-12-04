@@ -15,7 +15,7 @@ import zipfile
 # --- 1. AYARLAR ---
 st.set_page_config(page_title="ENFLASYON MONITORU PRO", page_icon="💎", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CSS (AYNI PRESTİJLİ TASARIM) ---
+# --- CSS (AYNI) ---
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -53,6 +53,7 @@ st.markdown("""
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 SAYFA_ADI = "Madde_Sepeti"
+HTML_KLASORU = "HTML_DOSYALARI"
 
 
 def get_github_repo():
@@ -67,11 +68,11 @@ def github_excel_oku(dosya_adi, sayfa_adi=None):
     if not repo: return pd.DataFrame()
     try:
         c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
-        # String olarak okumayı zorluyoruz (dtype={'Kod': str})
+        # Tüm veriyi string olarak oku ki tip hatası olmasın
         if sayfa_adi:
-            df = pd.read_excel(BytesIO(c.decoded_content), sheet_name=sayfa_adi, dtype={'Kod': str})
+            df = pd.read_excel(BytesIO(c.decoded_content), sheet_name=sayfa_adi, dtype=str)
         else:
-            df = pd.read_excel(BytesIO(c.decoded_content), dtype={'Kod': str})
+            df = pd.read_excel(BytesIO(c.decoded_content), dtype=str)
         return df
     except:
         return pd.DataFrame()
@@ -83,10 +84,10 @@ def github_excel_guncelle(df_yeni, dosya_adi):
     try:
         try:
             c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
-            old = pd.read_excel(BytesIO(c.decoded_content), dtype={'Kod': str})
-            yeni_tarih = df_yeni['Tarih'].iloc[0]
+            old = pd.read_excel(BytesIO(c.decoded_content), dtype=str)
+            yeni_tarih = str(df_yeni['Tarih'].iloc[0])
             # Duplicate önleme
-            old = old[~((old['Tarih'].astype(str) == str(yeni_tarih)) & (old['Kod'].isin(df_yeni['Kod'])))]
+            old = old[~((old['Tarih'].astype(str) == yeni_tarih) & (old['Kod'].isin(df_yeni['Kod'])))]
             final = pd.concat([old, df_yeni], ignore_index=True)
         except:
             c = None; final = df_yeni
@@ -95,7 +96,7 @@ def github_excel_guncelle(df_yeni, dosya_adi):
         with pd.ExcelWriter(out, engine='openpyxl') as w:
             final.to_excel(w, index=False, sheet_name='Fiyat_Log')
 
-        msg = f"Update: {len(df_yeni)} items"
+        msg = f"Data Update"
         if c:
             repo.update_file(c.path, msg, out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
         else:
@@ -175,36 +176,48 @@ def html_isleyici(log_callback):
     log_callback("📂 Konfigürasyon okunuyor...")
 
     try:
-        # 1. Konfigürasyonu Oku
+        # 1. Konfigürasyonu Oku (Sütun isimlerini normalize et)
         df_conf = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
-        df_conf['Kod'] = df_conf['Kod'].astype(str).apply(kod_standartlastir)
-        url_map = {row['URL'].strip(): row for _, row in df_conf.iterrows() if pd.notna(row['URL'])}
+
+        # Sütun isimlerini temizle (boşlukları sil, ilk harfi büyük yap)
+        df_conf.columns = df_conf.columns.str.strip()
+
+        # 'Kod' ve 'URL' sütunlarını bul (büyük/küçük harf hatasını önle)
+        kod_col = next((c for c in df_conf.columns if c.lower() == 'kod'), None)
+        url_col = next((c for c in df_conf.columns if c.lower() == 'url'), None)
+        ad_col = next((c for c in df_conf.columns if 'ad' in c.lower()), 'Madde adı')
+
+        if not kod_col or not url_col:
+            return "Hata: Excel dosyasında 'Kod' veya 'URL' sütunu bulunamadı."
+
+        df_conf['Kod'] = df_conf[kod_col].astype(str).apply(kod_standartlastir)
+        url_map = {str(row[url_col]).strip(): row for _, row in df_conf.iterrows() if pd.notna(row[url_col])}
 
         veriler = []
         islenen_kodlar = set()
-
         bugun = datetime.now().strftime("%Y-%m-%d")
         simdi = datetime.now().strftime("%H:%M")
 
         # --- A. MANUEL FİYATLAR ---
         log_callback("✍️ Manuel fiyat girişleri taranıyor...")
+        manuel_col = next((c for c in df_conf.columns if 'manuel' in c.lower()), None)
+
         manuel_sayac = 0
-        if 'Manuel_Fiyat' in df_conf.columns:
+        if manuel_col:
             for _, row in df_conf.iterrows():
-                if pd.notna(row['Manuel_Fiyat']) and str(row['Manuel_Fiyat']).strip() != "":
+                if pd.notna(row[manuel_col]) and str(row[manuel_col]).strip() != "":
                     try:
-                        fiyat_man = float(row['Manuel_Fiyat'])
+                        fiyat_man = float(row[manuel_col])
                         if fiyat_man > 0:
                             veriler.append({
                                 "Tarih": bugun, "Zaman": simdi,
-                                "Kod": row['Kod'], "Madde_Adi": row['Madde adı'],
-                                "Fiyat": fiyat_man, "Kaynak": "Manuel Giriş", "URL": row['URL']
+                                "Kod": row['Kod'], "Madde_Adi": row[ad_col],
+                                "Fiyat": fiyat_man, "Kaynak": "Manuel Giriş", "URL": row[url_col]
                             })
                             islenen_kodlar.add(row['Kod'])
                             manuel_sayac += 1
                     except:
                         pass
-
         if manuel_sayac > 0: log_callback(f"✅ {manuel_sayac} adet manuel fiyat eklendi.")
 
         # --- B. ZIP ARŞİVLERİ ---
@@ -229,36 +242,34 @@ def html_isleyici(log_callback):
                             if not found_url and (m := soup.find("meta", property="og:url")): found_url = m.get(
                                 "content")
 
-                            if found_url and found_url.strip() in url_map:
-                                target = url_map[found_url.strip()]
+                            if found_url and str(found_url).strip() in url_map:
+                                target = url_map[str(found_url).strip()]
                                 if target['Kod'] in islenen_kodlar: continue
 
-                                fiyat, kaynak = fiyat_bul_siteye_gore(soup, target['URL'])
+                                fiyat, kaynak = fiyat_bul_siteye_gore(soup, target[url_col])
                                 if fiyat > 0:
                                     veriler.append({
                                         "Tarih": bugun, "Zaman": simdi,
-                                        "Kod": target['Kod'], "Madde_Adi": target['Madde adı'],
-                                        "Fiyat": fiyat, "Kaynak": kaynak, "URL": target['URL']
+                                        "Kod": target['Kod'], "Madde_Adi": target[ad_col],
+                                        "Fiyat": fiyat, "Kaynak": kaynak, "URL": target[url_col]
                                     })
                                     islenen_kodlar.add(target['Kod'])
                                     html_sayac += 1
             except Exception as zip_e:
-                log_callback(f"⚠️ Hata: {str(zip_e)}")
+                log_callback(f"⚠️ Hata ({zip_file.name}): {str(zip_e)}")
 
         if veriler:
-            log_callback(f"💾 {len(veriler)} veri kaydediliyor...")
+            log_callback(f"💾 Toplam {len(veriler)} veri kaydediliyor...")
             return github_excel_guncelle(pd.DataFrame(veriler), FIYAT_DOSYASI)
         else:
-            return "Veri bulunamadı."
+            return "Veri bulunamadı. URL eşleşmesi yapılamadı."
 
     except Exception as e:
         return f"Hata: {str(e)}"
 
 
 # --- 4. DASHBOARD MODU ---
-# --- 4. DASHBOARD MODU (DÜZELTİLMİŞ VERSİYON) ---
 def dashboard_modu():
-    # 1. VERİLERİ OKU
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
@@ -268,179 +279,148 @@ def dashboard_modu():
 
     if not df_f.empty and not df_s.empty:
         try:
-            # --- VERİ TEMİZLEME VE FORMATLAMA (ESKİ SİSTEME DÖNÜŞ) ---
-            # Kodları Standartlaştır (010101 gibi)
-            df_f['Kod'] = df_f['Kod'].astype(str).apply(kod_standartlastir)
-            df_s['Kod'] = df_s['Kod'].astype(str).apply(kod_standartlastir)
+            # Sütun Temizliği ve Eşleştirme (HATA DÜZELTİCİ)
+            df_s.columns = df_s.columns.str.strip()
+            kod_col = next((c for c in df_s.columns if c.lower() == 'kod'), 'Kod')
+            ad_col = next((c for c in df_s.columns if 'ad' in c.lower()), 'Madde adı')
+            agirlik_col = next((c for c in df_s.columns if 'agirlik' in c.lower().replace('ğ', 'g').replace('ı', 'i')),
+                               'Agirlik_2025')
 
-            # Fiyatları Sayı Yap
+            # Veri Tiplerini Düzelt
+            df_f['Tarih'] = pd.to_datetime(df_f['Tarih'], errors='coerce')
             df_f['Fiyat'] = pd.to_numeric(df_f['Fiyat'], errors='coerce')
-            df_f = df_f[df_f['Fiyat'] > 0]  # 0 olanları at
+            df_f = df_f[df_f['Fiyat'] > 0]
 
-            # Tarihleri Zorla Standart Format Yap (YYYY-MM-DD)
-            # dayfirst=True yaptık ki 01.12.2024 gibi tarihleri doğru anlasın
-            df_f['Tarih_Str'] = pd.to_datetime(df_f['Tarih'], dayfirst=True, errors='coerce').dt.strftime('%Y-%m-%d')
+            # Kodları String Yap (Merge hatasını çözer)
+            df_f['Kod'] = df_f['Kod'].astype(str).apply(kod_standartlastir)
+            df_s['Kod'] = df_s[kod_col].astype(str).apply(kod_standartlastir)
 
-            # Zaman sütunu varsa onu kullan, yoksa Tarih'i kullan (Sıralama için)
+            # Grup Sütununu Oluştur (Yoksa)
+            if 'Grup' not in df_s.columns:
+                grup_map = {"01": "Gıda", "02": "Alkol", "03": "Giyim", "04": "Konut", "05": "Ev", "06": "Sağlık",
+                            "07": "Ulaşım", "08": "İletişim", "09": "Eğlence", "10": "Eğitim", "11": "Lokanta",
+                            "12": "Çeşitli"}
+                df_s['Grup'] = df_s['Kod'].str[:2].map(grup_map).fillna("Diğer")
+
+            # Pivot ve Merge
             if 'Zaman' in df_f.columns:
-                df_f['Siralama'] = pd.to_datetime(df_f['Tarih'].astype(str) + ' ' + df_f['Zaman'].astype(str),
-                                                  errors='coerce')
+                df_f['Tam_Zaman'] = pd.to_datetime(df_f['Tarih'].astype(str) + ' ' + df_f['Zaman'].astype(str),
+                                                   errors='coerce')
             else:
-                df_f['Siralama'] = pd.to_datetime(df_f['Tarih'], dayfirst=True)
+                df_f['Tam_Zaman'] = df_f['Tarih']
 
-            # PIVOT TABLO (İndeks: Kod, Sütunlar: Tarih_Str)
-            # En son girilen fiyatı alır (last)
-            pivot = df_f.sort_values('Siralama').pivot_table(
-                index='Kod',
-                columns='Tarih_Str',
-                values='Fiyat',
-                aggfunc='last'
-            )
+            pivot = df_f.sort_values('Tam_Zaman').pivot_table(index='Kod', columns=df_f['Tarih'].dt.date,
+                                                              values='Fiyat', aggfunc='last').ffill(axis=1).bfill(
+                axis=1).reset_index()
 
-            # Eksik günleri önceki günden tamamla (FFILL)
-            pivot = pivot.ffill(axis=1).bfill(axis=1).reset_index()
+            if not pivot.empty:
+                df_analiz = pd.merge(df_s, pivot, left_on='Kod', right_on='Kod', how='left')
 
-            # --- BİRLEŞTİRME VE ANALİZ ---
-            # Konfigürasyon dosyası ile Fiyatları birleştir
-            df_analiz = pd.merge(df_s, pivot, on='Kod', how='left').dropna(subset=['Agirlik_2025'])
+                # Ağırlık sütununu sayıya çevir
+                if agirlik_col in df_analiz.columns:
+                    df_analiz[agirlik_col] = pd.to_numeric(df_analiz[agirlik_col], errors='coerce').fillna(1)
+                else:
+                    df_analiz['Agirlik_2025'] = 1  # Varsayılan ağırlık
+                    agirlik_col = 'Agirlik_2025'
 
-            # Tarih kolonlarını bul (Sadece '20' ile başlayan kolonları al - YYYY...)
-            gunler = sorted([c for c in df_analiz.columns if str(c).startswith('20')])
+                gunler = sorted([c for c in pivot.columns if isinstance(c, (datetime, pd.Timestamp)) or (
+                            isinstance(c, str) and c.startswith('20'))])
 
-            if len(gunler) < 1:
-                st.error("⚠️ Veri var ama tarih sütunları oluşturulamadı. Tarih formatını kontrol edin.")
-                st.write("Görünen Sütunlar:", df_analiz.columns.tolist())  # Hata ayıklama için
-                return
+                if len(gunler) < 1: st.warning("Yeterli tarih verisi yok."); return
+                baz, son = gunler[0], gunler[-1]
 
-            baz_tarih = gunler[0]
-            son_tarih = gunler[-1]
+                trend = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
+                            df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
+                                                  agirlik_col].sum() * 100} for g in gunler]
+                df_trend = pd.DataFrame(trend)
+                genel_enf = (df_trend['TÜFE'].iloc[-1] / 100 - 1) * 100
+                df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
+                top = df_analiz.sort_values('Fark', ascending=False).iloc[0]
 
-            # Trend Hesapla
-            trend_data = []
-            for g in gunler:
-                temp = df_analiz.dropna(subset=[g, baz_tarih])
-                if not temp.empty:
-                    # Endeks Formülü: (Ağırlık * (YeniFiyat / EskiFiyat)) / ToplamAğırlık
-                    endeks = (temp['Agirlik_2025'] * (temp[g] / temp[baz_tarih])).sum() / temp[
-                        'Agirlik_2025'].sum() * 100
-                    trend_data.append({"Tarih": g, "TÜFE": endeks})
-
-            df_trend = pd.DataFrame(trend_data)
-            son_endeks = df_trend['TÜFE'].iloc[-1]
-            genel_enf = (son_endeks / 100 - 1) * 100
-
-            # Ürün Bazlı Değişim
-            df_analiz['Fark'] = (df_analiz[son_tarih] / df_analiz[baz_tarih]) - 1
-            top_artis = df_analiz.sort_values('Fark', ascending=False).iloc[0]
-
-            # Gıda Enflasyonu
-            gida_df = df_analiz[df_analiz['Kod'].str.startswith("01")]
-            if not gida_df.empty:
-                gida_enf = ((gida_df[son_tarih] / gida_df[baz_tarih] * gida_df['Agirlik_2025']).sum() / gida_df[
-                    'Agirlik_2025'].sum() - 1) * 100
-            else:
+                # Gıda Enflasyonu
+                gida = df_analiz[df_analiz['Kod'].str.startswith("01")].copy()
                 gida_enf = 0
+                if not gida.empty:
+                    gida_enf = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[agirlik_col].sum() - 1) * 100
 
-            # --- ARAYÜZ ---
-            # 1. TICKER
-            ticker_text = " &nbsp;•&nbsp; ".join([
-                                                     f"<span style='color:{'#dc2626' if r['Fark'] > 0 else '#16a34a'}'>{r['Madde adı']} %{r['Fark'] * 100:.1f}</span>"
-                                                     for _, r in df_analiz.sort_values("Fark", ascending=False).head(
-                    15).iterrows()])
-            st.markdown(
-                f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{ticker_text}</div></div></div>',
-                unsafe_allow_html=True)
-
-            # 2. METRİKLER
-            c1, c2, c3, c4 = st.columns(4)
-
-            def card(c, t, v, s, m="neu"):
-                c.markdown(
-                    f'<div class="metric-card"><div class="metric-label">{t}</div><div class="metric-value">{v}</div><div class="metric-delta {"delta-pos" if m == "pos" else "delta-neg" if m == "neg" else "delta-neu"}">{s}</div></div>',
+                # --- GÖRSELLEŞTİRME ---
+                st.markdown(
+                    f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;•&nbsp; ".join([f"<span style=\'color:{'#dc2626' if r['Fark'] > 0 else '#16a34a'}\'>{r[ad_col]} %{r['Fark'] * 100:.1f}</span>" for _, r in df_analiz.sort_values("Fark", ascending=False).head(15).iterrows()])}</div></div></div>',
                     unsafe_allow_html=True)
 
-            card(c1, "Genel Endeks", f"{son_endeks:.2f}", "Baz: 100", "neu")
-            card(c2, "Genel Enflasyon", f"%{genel_enf:.2f}", "Kümülatif", "pos")
-            card(c3, "Gıda Enflasyonu", f"%{gida_enf:.2f}", "Mutfak", "pos")
-            card(c4, "En Yüksek Risk", f"{top_artis['Madde adı'][:12]}..", f"%{top_artis['Fark'] * 100:.1f} Artış",
-                 "pos")
-            st.markdown("<br>", unsafe_allow_html=True)
+                c1, c2, c3, c4 = st.columns(4)
 
-            # 3. ANALİZ METNİ & TREEMAP
-            grp_max = df_analiz.groupby('Grup')['Fark'].mean().idxmax()
-            grp_val = df_analiz.groupby('Grup')['Fark'].mean().max() * 100
+                def card(c, t, v, s, m="neu"):
+                    c.markdown(
+                        f'<div class="metric-card"><div class="metric-label">{t}</div><div class="metric-value">{v}</div><div class="metric-delta {"delta-pos" if m == "pos" else "delta-neg" if m == "neg" else "delta-neu"}">{s}</div></div>',
+                        unsafe_allow_html=True)
 
-            st.markdown(
-                f'<div class="analysis-box"><div class="analysis-title">📊 Piyasa Raporu ({son_tarih})</div><p>Piyasa genelinde <span class="trend-up">YÜKSELİŞ</span> hakim. Enflasyon sepeti <span class="highlight">%{genel_enf:.2f}</span> artış gösterdi. En yüksek baskı <span class="trend-up">%{grp_val:.2f}</span> ile <span class="highlight">{grp_max}</span> grubundan geliyor.</p></div>',
-                unsafe_allow_html=True)
+                card(c1, "Genel Endeks", f"{df_trend['TÜFE'].iloc[-1]:.2f}", "Baz: 100", "neu")
+                card(c2, "Genel Enflasyon", f"%{genel_enf:.2f}", "Kümülatif", "pos")
+                card(c3, "Gıda Enflasyonu", f"%{gida_enf:.2f}", "Mutfak", "pos")
+                card(c4, "En Yüksek Risk", f"{top[ad_col][:12]}..", f"%{top['Fark'] * 100:.1f} Artış", "pos")
+                st.markdown("<br>", unsafe_allow_html=True)
 
-            c_txt, c_chart = st.columns([2, 3])
-            with c_chart:
-                fig = px.treemap(df_analiz, path=[px.Constant("Piyasa Geneli"), 'Grup', 'Madde adı'],
-                                 values='Agirlik_2025', color='Fark', color_continuous_scale='RdYlGn_r',
-                                 title="Enflasyon Sıcaklık Haritası")
-                fig.update_layout(margin=dict(t=30, l=0, r=0, b=0), height=350)
-                st.plotly_chart(fig, use_container_width=True)
+                grp_max = df_analiz.groupby('Grup')['Fark'].mean().idxmax();
+                grp_val = df_analiz.groupby('Grup')['Fark'].mean().max() * 100
+                st.markdown(
+                    f'<div class="analysis-box"><div class="analysis-title">📊 Piyasa Raporu ({str(son)})</div><p>Piyasa genelinde <span class="trend-up">YÜKSELİŞ</span> hakim. Enflasyon sepeti <span class="highlight">%{genel_enf:.2f}</span> artış gösterdi. En yüksek baskı <span class="trend-up">%{grp_val:.2f}</span> ile <span class="highlight">{grp_max}</span> grubundan geliyor.</p></div>',
+                    unsafe_allow_html=True)
 
-            # 4. GRAFİK
-            fig_area = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Trendi",
-                               color_discrete_sequence=['#2563eb'])
-            fig_area.update_layout(plot_bgcolor='white', paper_bgcolor='white', margin=dict(t=40, b=0, l=0, r=0),
-                                   yaxis=dict(showgrid=True, gridcolor='#f1f5f9'))
-            st.plotly_chart(fig_area, use_container_width=True)
+                c_txt, c_chart = st.columns([2, 3])
+                with c_chart:
+                    fig = px.treemap(df_analiz, path=[px.Constant("Piyasa Geneli"), 'Grup', ad_col], values=agirlik_col,
+                                     color='Fark', color_continuous_scale='RdYlGn_r',
+                                     title="Enflasyon Sıcaklık Haritası")
+                    fig.update_layout(margin=dict(t=30, l=0, r=0, b=0), height=350);
+                    st.plotly_chart(fig, use_container_width=True)
 
-            # 5. TABS
-            t1, t2, t3, t4, t5 = st.tabs(["🤖 ASİSTAN", "🫧 DAĞILIM", "🚀 ZİRVE", "📉 FIRSATLAR", "📑 LİSTE"])
-
-            with t1:
-                st.markdown("##### 🤖 Asistan")
-                with st.container():
-                    q = st.text_input("", placeholder="Ürün ara...", label_visibility="collapsed")
-                if q:
-                    res = df_analiz[df_analiz['Madde adı'].str.lower().str.contains(q.lower())]
-                    if not res.empty:
-                        if len(res) > 1:
-                            st.info("Birden fazla sonuç:"); t = \
-                            df_analiz[df_analiz['Madde adı'] == st.selectbox("Seç:", res['Madde adı'].unique())].iloc[0]
+                t1, t2, t3, t4, t5 = st.tabs(["🤖 ASİSTAN", "🫧 DAĞILIM", "🚀 ZİRVE", "📉 FIRSATLAR", "📑 LİSTE"])
+                with t1:
+                    st.markdown("##### 🤖 Asistan")
+                    with st.container():
+                        q = st.text_input("", placeholder="Ürün ara...", label_visibility="collapsed")
+                    if q:
+                        res = df_analiz[df_analiz[ad_col].str.lower().str.contains(q.lower())]
+                        if not res.empty:
+                            t = res.iloc[0] if len(res) == 1 else \
+                            df_analiz[df_analiz[ad_col] == st.selectbox("Seç:", res[ad_col].unique())].iloc[0]
+                            fark = t['Fark'] * 100
+                            style = {"c": "#dc2626", "b": "#fef2f2", "i": "📈", "t": "ZAMLANDI"} if fark > 0 else {
+                                "c": "#16a34a", "b": "#f0fdf4", "i": "🎉", "t": "İNDİRİMDE"} if fark < 0 else {
+                                "c": "#475569", "b": "#f8fafc", "i": "➖", "t": "SABİT"}
+                            st.markdown(
+                                f'<div style="background:{style["b"]}; border-left:5px solid {style["c"]}; padding:20px; border-radius:8px; margin-top:20px;"><div style="color:{style["c"]}; font-weight:800; font-size:20px;">{style["i"]} {style["t"]} (%{fark:.2f})</div><b>{t[ad_col]}</b><br>Başlangıç: {t[baz]:.2f} TL ➜ Son: {t[son]:.2f} TL</div>',
+                                unsafe_allow_html=True)
                         else:
-                            t = res.iloc[0]
-                        fark = t['Fark'] * 100
-                        style = {"c": "#dc2626", "b": "#fef2f2", "i": "📈", "t": "ZAMLANDI"} if fark > 0 else {
-                            "c": "#16a34a", "b": "#f0fdf4", "i": "🎉", "t": "İNDİRİMDE"} if fark < 0 else {
-                            "c": "#475569", "b": "#f8fafc", "i": "➖", "t": "SABİT"}
-                        st.markdown(
-                            f'<div style="background:{style["b"]}; border-left:5px solid {style["c"]}; padding:20px; border-radius:8px; margin-top:20px;"><div style="color:{style["c"]}; font-weight:800; font-size:20px;">{style["i"]} {style["t"]} (%{fark:.2f})</div><b>{t["Madde adı"]}</b><br>Başlangıç: {t[baz_tarih]:.2f} TL ➜ Son: {t[son_tarih]:.2f} TL</div>',
-                            unsafe_allow_html=True)
-                    else:
-                        st.warning("Bulunamadı")
+                            st.warning("Bulunamadı")
 
-            with t2:
-                st.plotly_chart(px.scatter(df_analiz, x="Grup", y="Fark", size="Agirlik_2025", color="Fark",
-                                           color_continuous_scale="RdYlGn_r", size_max=60), use_container_width=True)
-            with t3:
-                st.table(df_analiz.sort_values('Fark', ascending=False).head(10)[['Madde adı', 'Grup', 'Fark']].assign(
-                    Fark=lambda x: x['Fark'].apply(lambda v: f"%{v * 100:.2f}")))
-            with t4:
-                low = df_analiz[df_analiz['Fark'] < 0].sort_values('Fark').head(10)
-                if not low.empty:
-                    st.table(low[['Madde adı', 'Grup', 'Fark']].assign(
+                with t2:
+                    st.plotly_chart(px.scatter(df_analiz, x="Grup", y="Fark", size=agirlik_col, color="Fark",
+                                               color_continuous_scale="RdYlGn_r", size_max=60),
+                                    use_container_width=True)
+                with t3:
+                    st.table(df_analiz.sort_values('Fark', ascending=False).head(10)[[ad_col, 'Grup', 'Fark']].assign(
                         Fark=lambda x: x['Fark'].apply(lambda v: f"%{v * 100:.2f}")))
-                else:
-                    st.info("İndirim yok.")
-            with t5:
-                # Dataframe gösterirken kolon isimleri string olmalı
-                cols = ['Grup', 'Madde adı', 'Fark', baz_tarih, son_tarih]
-                st.dataframe(df_analiz[cols].rename(columns={baz_tarih: str(baz_tarih), son_tarih: str(son_tarih)}),
-                             use_container_width=True)
+                with t4:
+                    low = df_analiz[df_analiz['Fark'] < 0].sort_values('Fark').head(10)
+                    if not low.empty:
+                        st.table(low[[ad_col, 'Grup', 'Fark']].assign(
+                            Fark=lambda x: x['Fark'].apply(lambda v: f"%{v * 100:.2f}")))
+                    else:
+                        st.info("İndirim yok.")
+                with t5:
+                    cols = ['Grup', ad_col, 'Fark', baz, son]
+                    st.dataframe(df_analiz[cols].rename(columns={baz: str(baz), son: str(son)}),
+                                 use_container_width=True)
 
         except Exception as e:
-            st.error(f"Veri İşleme Hatası: {str(e)}")
-            st.write("Lütfen Fiyat_Veritabani.xlsx dosyasının sütunlarını kontrol edin.")
+            st.error(f"Veri Hatası: {e}")
+            st.write("Lütfen Excel sütun isimlerini kontrol edin (Kod, Madde adı, Agirlik_2025).")
 
     else:
-        st.warning("Veritabanı boş veya okunamadı. İlk verileri yüklemek için ZIP dosyası yükleyip butona basın.")
+        st.warning("Veri bekleniyor... Lütfen ZIP dosyalarınızı yükleyin ve butona basın.")
 
-    # AKSİYON BUTONU
     st.markdown('<div class="action-container"><div class="action-btn">', unsafe_allow_html=True)
     if st.button("VERİTABANINI GÜNCELLE (ZIP & MANUEL)", type="primary", use_container_width=True):
         log_ph = st.empty()
