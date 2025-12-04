@@ -330,7 +330,7 @@ def dashboard_modu():
             st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- CSS: GLOBAL STYLES (Light Mode Only) ---
+    # --- CSS: LIGHT MODE GLOBAL ---
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -383,34 +383,53 @@ def dashboard_modu():
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
 
         /* Live Clock Font */
-        #live_clock { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
+        #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
     </style>
     """, unsafe_allow_html=True)
 
-    # --- JAVASCRIPT: LIVE CLOCK (GERÇEK CANLI SAAT) ---
-    st.markdown("""
-    <script>
-    function updateClock() {
-        var now = new Date();
-        // Istanbul Saati (UTC+3)
-        var options = { timeZone: 'Europe/Istanbul', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', day: 'numeric', month: 'long', year: 'numeric' };
-        var timeString = now.toLocaleTimeString('tr-TR', options);
-        document.getElementById('live_clock').innerHTML = timeString;
-    }
-    setInterval(updateClock, 1000);
-    </script>
-    """, unsafe_allow_html=True)
+    # --- HEADER & LIVE CLOCK (BİRLEŞTİRİLMİŞ VE GARANTİ ÇÖZÜM) ---
+    tr_time_start = datetime.now() + timedelta(hours=3)
 
-    # --- HEADER ---
-    st.markdown(f"""
-        <div class="header-container">
-            <div class="app-title">ENFLASYON MONİTÖRÜ</div>
-            <div style="text-align:right;">
-                <div style="color:#64748b; font-size:12px; font-weight:600; margin-bottom:4px;">İSTANBUL, TR</div>
-                <div id="live_clock" style="color:#0f172a; font-size:16px; font-weight:800;">Yükleniyor...</div>
+    # HTML + JS tek blokta (birbirlerini görmeleri için)
+    header_html = f"""
+    <div class="header-container">
+        <div class="app-title">Enflasyon Monitörü</div>
+        <div style="text-align:right;">
+            <div style="color:#64748b; font-size:12px; font-weight:600; margin-bottom:4px;">İSTANBUL, TR</div>
+            <div id="live_clock_js" style="color:#0f172a; font-size:16px; font-weight:800; font-family:'JetBrains Mono', monospace;">
+                {tr_time_start.strftime('%d %B %Y, %H:%M:%S')}
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    </div>
+
+    <script>
+    function startClock() {{
+        var clockElement = document.getElementById('live_clock_js');
+
+        function update() {{
+            var now = new Date();
+            var options = {{ 
+                timeZone: 'Europe/Istanbul', 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric',
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            }};
+
+            if (clockElement) {{
+                clockElement.innerHTML = now.toLocaleTimeString('tr-TR', options);
+            }}
+        }}
+
+        setInterval(update, 1000);
+        update(); 
+    }}
+    startClock();
+    </script>
+    """
+    st.markdown(header_html, unsafe_allow_html=True)
 
     # --- TOAST MESSAGE (ŞOV) ---
     if 'toast_shown' not in st.session_state:
