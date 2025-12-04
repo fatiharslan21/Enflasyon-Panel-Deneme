@@ -26,7 +26,7 @@ st.set_page_config(
 # --- ADMIN AYARI ---
 ADMIN_USER = "fatiharslan"
 
-# --- 2. GITHUB & VERİ MOTORU (SABİT) ---
+# --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 USERS_DOSYASI = "kullanicilar.json"
@@ -280,7 +280,7 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # --- SIDEBAR (Light Tema + Siyah Yazı) ---
+    # --- SIDEBAR (SADE, BEYAZ, SİYAH YAZILAR) ---
     with st.sidebar:
         user_upper = st.session_state['username'].upper()
         role_title = "SYSTEM ADMIN" if st.session_state['username'] == ADMIN_USER else "VERİ ANALİSTİ"
@@ -292,9 +292,9 @@ def dashboard_modu():
             </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("<h3 style='color:#1e293b;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
         st.divider()
-        st.markdown("<h3 style='color:#1e293b;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
 
         users_db = github_json_oku(USERS_DOSYASI)
         activity_db = github_json_oku(ACTIVITY_DOSYASI)
@@ -315,9 +315,8 @@ def dashboard_modu():
         sorted_users = sorted(user_list, key=lambda x: (not x['online'], x['name'] != ADMIN_USER, x['name']))
 
         for u in sorted_users:
-            status_class = "online" if u['online'] else "offline"
             role_icon = "🛡️" if u['name'] == ADMIN_USER else ""
-            # Sidebar user items style: White bg, Black text
+            # Sidebar user items style: White bg, Black text, very clean
             st.markdown(f"""
                 <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
@@ -332,17 +331,16 @@ def dashboard_modu():
             st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- CSS: LIGHT MODE ONLY & IMPRESSIVE UI ---
+    # --- CSS: GLOBAL STYLES ---
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
 
-        /* Force Light Mode Background */
+        /* Global Reset for Light Mode */
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
 
-        /* Sidebar Styling (Light) */
+        /* Sidebar Styling Fix */
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
-        section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
         /* Header */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
@@ -534,32 +532,32 @@ def dashboard_modu():
                         color_diff = "#ef4444" if diff_24 > 0 else "#22c55e"
                         arrow = "▲" if diff_24 > 0 else "▼"
 
-                        # DÜZELTİLMİŞ HTML BLOĞU (SENİN İSTEDİĞİN RENKLER VE YAPI)
+                        # --- DÜZELTİLMİŞ HTML BLOĞU (KOYU YAZILAR) ---
                         st.markdown(f"""
                         <div style="background:white; padding:20px; border-radius:15px; border:1px solid #e2e8f0; height:400px; display:flex; flex-direction:column; justify-content:center;">
-                            <h3 style="color:#334155; font-size:16px; text-align:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">ENFLASYON KARŞILAŞTIRMASI</h3>
+                            <h3 style="color:#1e293b; font-size:16px; text-align:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; font-weight:800;">ENFLASYON KARŞILAŞTIRMASI</h3>
 
                             <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                                <div style="text-align:center; width:48%; background:#f1f5f9; padding:10px; border-radius:8px;">
-                                    <div style="font-size:10px; color:#94a3b8;">ARALIK 2024</div>
-                                    <div style="font-size:18px; font-weight:bold; color:#cbd5e1;">%{REF_ARALIK_2024}</div>
+                                <div style="text-align:center; width:48%; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+                                    <div style="font-size:11px; color:#64748b; font-weight:700;">ARALIK 2024</div>
+                                    <div style="font-size:20px; font-weight:800; color:#1e293b;">%{REF_ARALIK_2024}</div>
                                 </div>
-                                <div style="text-align:center; width:48%; background:#f1f5f9; padding:10px; border-radius:8px;">
-                                    <div style="font-size:10px; color:#94a3b8;">KASIM 2025</div>
-                                    <div style="font-size:18px; font-weight:bold; color:#cbd5e1;">%{REF_KASIM_2025}</div>
+                                <div style="text-align:center; width:48%; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+                                    <div style="font-size:11px; color:#64748b; font-weight:700;">KASIM 2025</div>
+                                    <div style="font-size:20px; font-weight:800; color:#1e293b;">%{REF_KASIM_2025}</div>
                                 </div>
                             </div>
 
-                            <div style="text-align:center; padding:15px; background:#eff6ff; border: 1px solid #3b82f6; border-radius:12px;">
-                                <div style="font-size:12px; color:#3b82f6; font-weight:bold;">ŞU ANKİ (SİSTEM)</div>
-                                <div style="font-size:36px; font-weight:900; color:#1e293b;">
+                            <div style="text-align:center; padding:20px; background:#eff6ff; border: 1px solid #3b82f6; border-radius:12px; margin-bottom:15px;">
+                                <div style="font-size:13px; color:#3b82f6; font-weight:bold;">ŞU ANKİ (SİSTEM)</div>
+                                <div style="font-size:42px; font-weight:900; color:#1e293b; letter-spacing:-1px;">
                                     %{enf_genel:.2f}
                                 </div>
                             </div>
 
-                            <div style="text-align:center; margin-top:10px;">
-                                <div style="font-size:11px; color:#94a3b8;">ARALIK 2024'e GÖRE FARK</div>
-                                <div style="font-size:20px; font-weight:bold; color:{color_diff};">
+                            <div style="text-align:center; margin-top:5px;">
+                                <div style="font-size:12px; color:#64748b; font-weight:600;">ARALIK 2024'e GÖRE FARK</div>
+                                <div style="font-size:22px; font-weight:800; color:{color_diff};">
                                     {arrow} {abs(diff_24):.2f} Puan
                                 </div>
                             </div>
@@ -718,73 +716,69 @@ def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
     if not st.session_state['logged_in']:
-        # Şovlu Login Ekranı CSS (Hareketli Gradient + Glassmorphism)
+        # SADECE LOGIN SAYFASINDA ÇALIŞAN HAREKETLİ ARKA PLAN
         st.markdown("""
         <style>
-        .login-wrapper {
-            display: flex; justify-content: center; align-items: center;
-            height: 80vh;
+        .stApp {
             background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
             background-size: 400% 400%;
             animation: gradient 15s ease infinite;
-            border-radius: 20px;
         }
         @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
 
-        .login-box {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 40px; border-radius: 24px;
+        /* Form Container'ı (Buzlu Cam) - En Üste Gelmesi İçin */
+        [data-testid="stForm"] {
+            background: rgba(255, 255, 255, 0.85);
+            padding: 40px;
+            border-radius: 20px;
             box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.18);
-            width: 400px; text-align: center;
-            animation: fadeIn 1s ease-out;
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        [data-testid="stForm"] input {
+            background: rgba(255, 255, 255, 0.9) !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #1e293b !important;
+        }
         </style>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="login-wrapper"><div class="login-box">', unsafe_allow_html=True)
         st.markdown(
-            "<h1 style='color:#1e293b; font-family:Poppins; font-weight:800; font-size:32px; margin-bottom:10px;'>GİRİŞ YAP</h1>",
-            unsafe_allow_html=True)
-        st.markdown(
-            "<p style='color:#64748b; font-size:14px; margin-bottom:30px;'>Enflasyon Monitörüne Hoş Geldiniz</p>",
+            "<div style='text-align: center; margin-top:80px; margin-bottom:30px;'><h1 style='color:white; font-family:Poppins; font-size:48px; font-weight:800; text-shadow: 0 2px 10px rgba(0,0,0,0.2);'>ENFLASYON MONİTÖRÜ</h1></div>",
             unsafe_allow_html=True)
 
-        t_log, t_reg = st.tabs(["GİRİŞ", "KAYIT"])
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            t_log, t_reg = st.tabs(["🔒 GİRİŞ YAP", "📝 KAYIT OL"])
 
-        with t_log:
-            with st.form("login_f"):
-                l_u = st.text_input("Kullanıcı Adı")
-                l_p = st.text_input("Şifre", type="password")
-                if st.form_submit_button("Sisteme Gir", use_container_width=True):
-                    ok, msg = github_user_islem("login", l_u, l_p)
-                    if ok:
-                        st.session_state['logged_in'] = True;
-                        st.session_state['username'] = l_u
-                        st.success("Başarılı!");
-                        time.sleep(1);
-                        st.rerun()
-                    else:
-                        st.error(msg)
-
-        with t_reg:
-            with st.form("reg_f"):
-                r_u = st.text_input("Kullanıcı Adı Belirle")
-                r_p = st.text_input("Şifre Belirle", type="password")
-                if st.form_submit_button("Hesap Oluştur", use_container_width=True):
-                    if r_u and r_p:
-                        ok, msg = github_user_islem("register", r_u, r_p)
+            with t_log:
+                with st.form("login_f"):
+                    l_u = st.text_input("Kullanıcı Adı")
+                    l_p = st.text_input("Şifre", type="password")
+                    if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
+                        ok, msg = github_user_islem("login", l_u, l_p)
                         if ok:
-                            st.success(msg)
+                            st.session_state['logged_in'] = True;
+                            st.session_state['username'] = l_u
+                            st.success("Giriş Başarılı!");
+                            time.sleep(1);
+                            st.rerun()
                         else:
                             st.error(msg)
-                    else:
-                        st.warning("Doldurunuz.")
 
-        st.markdown('</div></div>', unsafe_allow_html=True)
+            with t_reg:
+                with st.form("reg_f"):
+                    r_u = st.text_input("Yeni Kullanıcı Adı")
+                    r_p = st.text_input("Şifre Belirle", type="password")
+                    if st.form_submit_button("HESAP OLUŞTUR", use_container_width=True):
+                        if r_u and r_p:
+                            ok, msg = github_user_islem("register", r_u, r_p)
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
+                        else:
+                            st.warning("Doldurunuz.")
 
     else:
         dashboard_modu()
