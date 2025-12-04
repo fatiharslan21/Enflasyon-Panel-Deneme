@@ -387,10 +387,8 @@ def dashboard_modu():
     </style>
     """, unsafe_allow_html=True)
 
-    # --- HEADER & LIVE CLOCK (BİRLEŞTİRİLMİŞ VE GARANTİ ÇÖZÜM) ---
+    # --- HEADER & LIVE CLOCK ---
     tr_time_start = datetime.now() + timedelta(hours=3)
-
-    # HTML + JS tek blokta (birbirlerini görmeleri için)
     header_html = f"""
     <div class="header-container">
         <div class="app-title">Enflasyon Monitörü</div>
@@ -401,37 +399,22 @@ def dashboard_modu():
             </div>
         </div>
     </div>
-
     <script>
     function startClock() {{
         var clockElement = document.getElementById('live_clock_js');
-
         function update() {{
             var now = new Date();
-            var options = {{ 
-                timeZone: 'Europe/Istanbul', 
-                day: 'numeric', 
-                month: 'long', 
-                year: 'numeric',
-                hour: '2-digit', 
-                minute: '2-digit', 
-                second: '2-digit' 
-            }};
-
-            if (clockElement) {{
-                clockElement.innerHTML = now.toLocaleTimeString('tr-TR', options);
-            }}
+            var options = {{ timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }};
+            if (clockElement) {{ clockElement.innerHTML = now.toLocaleTimeString('tr-TR', options); }}
         }}
-
-        setInterval(update, 1000);
-        update(); 
+        setInterval(update, 1000); update(); 
     }}
     startClock();
     </script>
     """
     st.markdown(header_html, unsafe_allow_html=True)
 
-    # --- TOAST MESSAGE (ŞOV) ---
+    # --- TOAST MESSAGE ---
     if 'toast_shown' not in st.session_state:
         st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
         st.session_state['toast_shown'] = True
@@ -562,9 +545,10 @@ def dashboard_modu():
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- 3. SEKMELER ---
-                t1, t2, t3, t4, t5, t6, t7 = st.tabs(
-                    ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
+                # --- 3. SEKMELER (8 SEKME OLDU - ZAMAN MAKİNESİ EKLENDİ) ---
+                t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs(
+                    ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE",
+                     "⏳ ZAMAN MAKİNESİ"])
 
                 with t1:
                     col_trend, col_comp = st.columns([2, 1])
@@ -583,12 +567,10 @@ def dashboard_modu():
                     col_trend.plotly_chart(fig_main, use_container_width=True)
 
                     with col_comp:
-                        # MANUEL REFERANS DEĞERLERİ
                         REF_ARALIK_2024 = 1.03
                         REF_KASIM_2025 = 0.87
                         diff_24 = enf_genel - REF_ARALIK_2024
 
-                        # --- NATIVE STREAMLIT BLOCKS (NO HTML RISK) ---
                         st.markdown(f"""
                         <div style="background:white; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:center;">
                             <h4 style="margin:0; color:#334155;">⚖️ ENFLASYON KARŞILAŞTIRMASI</h4>
@@ -596,20 +578,14 @@ def dashboard_modu():
                         <br>
                         """, unsafe_allow_html=True)
 
-                        # Referanslar
                         c_r1, c_r2 = st.columns(2)
                         c_r1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
                         c_r2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
 
                         st.divider()
-
-                        # Büyük Sistem Verisi (Native Metric ile)
-                        st.metric(
-                            label="ŞU ANKİ (SİSTEM)",
-                            value=f"%{enf_genel:.2f}",
-                            delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
-                            delta_color="inverse" if diff_24 > 0 else "normal"
-                        )
+                        st.metric(label="ŞU ANKİ (SİSTEM)", value=f"%{enf_genel:.2f}",
+                                  delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
+                                  delta_color="inverse" if diff_24 > 0 else "normal")
                         st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
@@ -647,14 +623,12 @@ def dashboard_modu():
                 with t3:
                     col_hist, col_box = st.columns(2)
                     df_analiz['Fark_Yuzde'] = df_analiz['Fark'] * 100
-
                     fig_hist = px.histogram(df_analiz, x="Fark_Yuzde", nbins=40, title="📊 Zam Dağılımı Frekansı",
                                             color_discrete_sequence=['#8b5cf6'])
                     fig_hist.update_layout(template="plotly_white", xaxis_title="Artış Oranı (%)",
                                            yaxis_title="Ürün Adedi", plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
                     col_hist.plotly_chart(fig_hist, use_container_width=True)
-
                     fig_box = px.box(df_analiz, x="Grup", y="Fark_Yuzde", title="📦 Sektörel Fiyat Dengesizliği",
                                      color="Grup")
                     fig_box.update_layout(template="plotly_white", xaxis_title="Sektör", showlegend=False,
@@ -668,7 +642,6 @@ def dashboard_modu():
                     user_codes = baskets.get(st.session_state['username'], [])
                     all_products = df_analiz[ad_col].unique()
                     default_names = df_analiz[df_analiz['Kod'].isin(user_codes)][ad_col].tolist()
-
                     with st.expander("📝 Sepet İçeriğini Düzenle", expanded=False):
                         with st.form("basket_form"):
                             selected_names = st.multiselect("Takip Ettiğin Ürünler:", all_products,
@@ -680,7 +653,6 @@ def dashboard_modu():
                                 st.success("Sepet güncellendi!");
                                 time.sleep(1);
                                 st.rerun()
-
                     if selected_names:
                         my_df = df_analiz[df_analiz[ad_col].isin(selected_names)]
                         if not my_df.empty:
@@ -689,7 +661,6 @@ def dashboard_modu():
                             c_my, c_ch = st.columns([1, 2])
                             c_my.metric("KİŞİSEL ENFLASYON", f"%{my_enf:.2f}", f"Genel: %{enf_genel:.2f}",
                                         delta_color="inverse")
-
                             fig_comp = go.Figure()
                             fig_comp.add_trace(go.Bar(y=['Genel', 'Senin'], x=[enf_genel, my_enf], orientation='h',
                                                       marker_color=['#cbd5e1', '#3b82f6'],
@@ -709,7 +680,6 @@ def dashboard_modu():
                                           color='Fark', color_continuous_scale='RdYlGn_r', title="🔥 Isı Haritası")
                     fig_tree.update_layout(margin=dict(t=40, l=0, r=0, b=0))
                     c1.plotly_chart(fig_tree, use_container_width=True)
-
                     sect_data = df_analiz.groupby('Grup')['Fark'].mean().reset_index()
                     fig_sun = px.sunburst(df_analiz, path=['Grup', ad_col], values=agirlik_col,
                                           title="Sektörel Ağırlık")
@@ -750,6 +720,72 @@ def dashboard_modu():
                     st.download_button("📥 Excel Raporunu İndir", data=output.getvalue(),
                                        file_name=f"Enflasyon_Raporu_{son}.xlsx",
                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+                # --- 8. SEKME: ZAMAN MAKİNESİ (YENİ ŞOV) ---
+                with t8:
+                    st.markdown("#### ⏳ FİYAT ZAMAN MAKİNESİ")
+                    st.caption("Paranın zamana yenik düşüşünü canlı canlı gör.")
+
+                    # Kullanıcı Girdileri
+                    col_input1, col_input2, col_input3 = st.columns(3)
+                    money = col_input1.number_input("Cebindeki Para (TL)", min_value=100, value=1000, step=100)
+                    product_tm = col_input2.selectbox("Karşılaştırılacak Ürün", df_analiz[ad_col].unique(), index=0)
+
+                    # Tarih Listesi (Pivot tablosunun sütunlarından alınıyor)
+                    available_dates = [c for c in pivot.columns if c != 'Kod']
+                    # Sadece geçmiş tarihleri (son tarih hariç) göster
+                    past_dates = available_dates[:-1] if len(available_dates) > 1 else available_dates
+                    past_date = col_input3.selectbox("Hangi Tarihe Dönelim?", past_dates, index=0)
+
+                    current_date_tm = available_dates[-1]  # En son tarih
+
+                    # Hesaplama Mantığı
+                    if st.button("HESAPLA VE ŞOK OL", type="primary", use_container_width=True):
+                        try:
+                            # Fiyatları Bul
+                            row = df_analiz[df_analiz[ad_col] == product_tm].iloc[0]
+                            price_old = float(row[past_date])
+                            price_new = float(row[current_date_tm])
+
+                            # Adet Hesapla
+                            qty_old = money / price_old
+                            qty_new = money / price_new
+                            loss = qty_old - qty_new
+
+                            # Görselleştirme
+                            col_res1, col_res2 = st.columns(2)
+
+                            # Sol Taraf: Nostalji
+                            with col_res1:
+                                st.markdown(f"""
+                                <div style="background:#f1f5f9; padding:20px; border-radius:15px; text-align:center; border:1px solid #e2e8f0;">
+                                    <div style="font-size:14px; color:#64748b; font-weight:bold;">GEÇMİŞ ({past_date})</div>
+                                    <div style="font-size:28px; font-weight:800; color:#475569;">{qty_old:.2f} Adet</div>
+                                    <div style="font-size:12px; color:#94a3b8;">Fiyat: {price_old:.2f} TL</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            # Sağ Taraf: Gerçekler
+                            with col_res2:
+                                st.markdown(f"""
+                                <div style="background:#eff6ff; padding:20px; border-radius:15px; text-align:center; border:1px solid #3b82f6;">
+                                    <div style="font-size:14px; color:#3b82f6; font-weight:bold;">BUGÜN ({current_date_tm})</div>
+                                    <div style="font-size:28px; font-weight:800; color:#1e40af;">{qty_new:.2f} Adet</div>
+                                    <div style="font-size:12px; color:#93c5fd;">Fiyat: {price_new:.2f} TL</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            st.markdown("<br>", unsafe_allow_html=True)
+
+                            # SONUÇ KARTI (ŞOV)
+                            if loss > 0:
+                                st.error(f"😱 KAYIP: Cebinden {loss:.2f} adet {product_tm} çalındı!", icon="💸")
+                            else:
+                                st.success(f"🎉 KAZANÇ: {abs(loss):.2f} adet fazladan alabiliyorsun! (İlginç...)",
+                                           icon="🍀")
+
+                        except Exception as e:
+                            st.error(f"Veri hatası: {e}")
 
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
