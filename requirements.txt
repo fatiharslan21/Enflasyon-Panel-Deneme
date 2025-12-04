@@ -1,0 +1,6 @@
+PyGithub
+openpyxl
+pandas
+playwright
+streamlit
+plotly
