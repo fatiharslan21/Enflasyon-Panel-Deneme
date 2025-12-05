@@ -17,6 +17,8 @@ import numpy as np
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import google_auth_oauthlib.flow
+from googleapiclient.discovery import build
 
 # --- 1. AYARLAR ---
 st.set_page_config(
@@ -159,7 +161,7 @@ def github_user_islem(action, username=None, password=None, email=None):
             user_data["password"] = hash_password(password)
             users_db[username] = user_data
             if github_json_yaz(USERS_DOSYASI, users_db, f"Password Reset: {username}"):
-                return True, "Şifreniz güncellendi! Giriş yapabilirsiniz."
+                return True, "Şifreniz başarıyla güncellendi! Giriş yapabilirsiniz."
         return False, "Kullanıcı bulunamadı."
 
     return False, "Hata"
@@ -221,25 +223,40 @@ def temizle_fiyat(t):
 def kod_standartlastir(k): return str(k).replace('.0', '').strip().zfill(7)
 
 
+# --- FİYAT BULUCU (MİGROS GÜNCELLENDİ) ---
 def fiyat_bul_siteye_gore(soup, url):
     fiyat = 0;
     kaynak = ""
     domain = url.lower() if url else ""
+
     if "migros" in domain:
-        try:
-            s = soup.find('script', type='application/ld+json');
-            d = json.loads(s.string)
-            if isinstance(d, list): d = d[0]
-            if "offers" in d and "price" in d["offers"]: fiyat = float(d["offers"]["price"]); kaynak = "Migros(JSON)"
-        except:
-            pass
+        # 1. ÖNCELİK: Senin istediğin yapı <div class="price subtitle-1">...
+        # Bu divin içindeki texti alıp temizliyoruz (Örn: "430,50 TL")
+        priority_el = soup.select_one("div.price.subtitle-1")
+        if priority_el:
+            if val := temizle_fiyat(priority_el.get_text()):
+                fiyat = val;
+                kaynak = "Migros(V1)"
+
+        # 2. ÖNCELİK: İndirimli yapı <div id="sale-price">...
         if fiyat == 0:
-            selectors = [
-                lambda s: s.find("span", class_="currency").parent if s.find("span", class_="currency") else None,
-                lambda s: s.select_one("fe-product-price .amount"), lambda s: s.select_one(".product-price")]
-            for get in selectors:
-                if el := get(soup):
-                    if v := temizle_fiyat(el.get_text()): fiyat = v; kaynak = "Migros(CSS)"; break
+            fallback_el = soup.select_one("#sale-price")
+            if fallback_el:
+                if val := temizle_fiyat(fallback_el.get_text()):
+                    fiyat = val;
+                    kaynak = "Migros(V2)"
+
+        # 3. YEDEK: JSON verisi
+        if fiyat == 0:
+            try:
+                s = soup.find('script', type='application/ld+json');
+                d = json.loads(s.string)
+                if isinstance(d, list): d = d[0]
+                if "offers" in d and "price" in d["offers"]: fiyat = float(
+                    d["offers"]["price"]); kaynak = "Migros(JSON)"
+            except:
+                pass
+
     elif "cimri" in domain:
         for sel in ["div.rTdMX", ".offer-price", "div.sS0lR", ".min-price-val"]:
             if els := soup.select(sel):
@@ -308,6 +325,7 @@ def html_isleyici(log_callback):
 
         log_callback("📦 ZIP dosyaları taranıyor...")
         contents = repo.get_contents("", ref=st.secrets["github"]["branch"])
+        # Sadece 'Bolum' ile başlayan zip dosyaları
         zip_files = [c for c in contents if c.name.endswith(".zip") and c.name.startswith("Bolum")]
         hs = 0
         for zip_file in zip_files:
@@ -406,31 +424,14 @@ def dashboard_modu():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
-
-        /* Global Reset */
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
-
-        /* Sidebar Styling */
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
         section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
-        /* Header & Title Shimmer Effect */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
-
-        .app-title { 
-            font-family: 'Poppins', sans-serif; 
-            font-size: 32px; 
-            font-weight: 800; 
-            letter-spacing: -1px; 
-            background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); 
-            background-size: 200% auto;
-            -webkit-background-clip: text; 
-            -webkit-text-fill-color: transparent; 
-            animation: shine 5s linear infinite;
-        }
+        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
         @keyframes shine { to { background-position: 200% center; } }
 
-        /* Cards */
         .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: all 0.3s ease; }
         .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
         .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
@@ -439,18 +440,15 @@ def dashboard_modu():
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
         .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
-        /* Update Button Pulse */
         .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
         .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
 
-        /* Ticker */
         .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
         .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
-        /* Bot & Bubble */
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
 
@@ -557,7 +555,7 @@ def dashboard_modu():
 
                 # Hesaplamalar
                 endeks_genel = (df_analiz.dropna(subset=[son, baz])[agirlik_col] * (
-                            df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[
+                        df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[
                                    agirlik_col].sum() * 100
                 enf_genel = (endeks_genel / 100 - 1) * 100
                 df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
@@ -621,50 +619,40 @@ def dashboard_modu():
                     ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
 
                 with t1:
-                    col_trend, col_comp = st.columns([2, 1])
-
+                    # GRAFİK TAM EKRAN (NİHAİ)
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
-                                df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
+                            df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
 
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
                     fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
                                            line_shape='spline')
-                    fig_main.update_layout(template="plotly_white", height=400, hovermode="x unified",
+                    fig_main.update_layout(template="plotly_white", height=450, hovermode="x unified",
                                            yaxis=dict(range=[95, 105]), plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
-                    col_trend.plotly_chart(fig_main, use_container_width=True)
+                    st.plotly_chart(fig_main, use_container_width=True)
 
-                    with col_comp:
-                        # MANUEL REFERANS DEĞERLERİ
-                        REF_ARALIK_2024 = 1.03
-                        REF_KASIM_2025 = 0.87
-                        diff_24 = enf_genel - REF_ARALIK_2024
+                    # --- NATIVE METRIC BLOCKS (HTML SORUNSUZ) ---
+                    REF_ARALIK_2024 = 1.03
+                    REF_KASIM_2025 = 0.87
+                    diff_24 = enf_genel - REF_ARALIK_2024
 
-                        # --- NATIVE STREAMLIT BLOCKS (NO HTML RISK) ---
-                        st.markdown(f"""
-                        <div style="background:white; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:center;">
-                            <h4 style="margin:0; color:#334155;">⚖️ ENFLASYON KARŞILAŞTIRMASI</h4>
-                        </div>
-                        <br>
-                        """, unsafe_allow_html=True)
+                    # st.markdown("#### ⚖️ ENFLASYON KARŞILAŞTIRMASI")
+                    # c_ref1, c_ref2 = st.columns(2)
+                    # c_ref1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
+                    # c_ref2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
 
-                        # Referanslar
-                        c_r1, c_r2 = st.columns(2)
-                        c_r1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
-                        c_r2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
+                    # st.divider()
 
-                        st.divider()
-
-                        # Büyük Sistem Verisi (Native Metric ile)
-                        st.metric(
-                            label="ŞU ANKİ (SİSTEM)",
-                            value=f"%{enf_genel:.2f}",
-                            delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
-                            delta_color="inverse" if diff_24 > 0 else "normal"
-                        )
-                        st.caption("Veriler veritabanından anlık hesaplanmıştır.")
+                    # Büyük Sistem Verisi (Native Metric ile)
+                    # st.metric(
+                    #    label="ŞU ANKİ (SİSTEM)",
+                    #    value=f"%{enf_genel:.2f}",
+                    #    delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
+                    #    delta_color="inverse" if diff_24 > 0 else "normal"
+                    # )
+                    # st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
                     st.markdown("##### 🤖 Fiyat Asistanı")
@@ -870,6 +858,13 @@ def main():
             background: #f8fafc !important;
             border: 1px solid #e2e8f0 !important;
             color: #1e293b !important;
+        }
+
+        /* Google Button Style */
+        .google-btn {
+            background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: not-allowed; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none; opacity: 0.8;
         }
         </style>
         """, unsafe_allow_html=True)
