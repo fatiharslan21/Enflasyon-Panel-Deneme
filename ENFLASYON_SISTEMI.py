@@ -17,8 +17,6 @@ import numpy as np
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import google_auth_oauthlib.flow
-from googleapiclient.discovery import build
 
 # --- 1. AYARLAR ---
 st.set_page_config(
