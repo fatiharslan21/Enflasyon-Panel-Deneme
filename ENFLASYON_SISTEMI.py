@@ -65,12 +65,17 @@ def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
     try:
         content = json.dumps(data, indent=4)
         try:
+            # Dosya varsa güncelle
             c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
             repo.update_file(c.path, mesaj, content, c.sha, branch=st.secrets["github"]["branch"])
-        except:
+        except Exception as e:
+            # Dosya yoksa oluştur (Hata 'Not Found' ise)
+            print(f"Dosya güncelleme hatası (muhtemelen dosya yok, oluşturuluyor): {e}")
             repo.create_file(dosya_adi, mesaj, content, branch=st.secrets["github"]["branch"])
         return True
-    except:
+    except Exception as e:
+        # Hata detayını Streamlit arayüzüne veya loglara yazdır
+        st.error(f"GitHub Yazma Hatası: {str(e)}")
         return False
 
 
@@ -127,7 +132,12 @@ def send_reset_email(to_email, username):
 
 # --- KULLANICI İŞLEMLERİ (GÜNCELLEME EKLENDİ) ---
 def github_user_islem(action, username=None, password=None, email=None):
+    # Veritabanını oku
     users_db = github_json_oku(USERS_DOSYASI)
+
+    # Okuma başarısızsa boş sözlük başlat (İlk kurulum için)
+    if users_db is None:
+        users_db = {}
 
     if action == "login":
         if username in users_db:
@@ -138,14 +148,23 @@ def github_user_islem(action, username=None, password=None, email=None):
         return False, "Hatalı Kullanıcı Adı veya Şifre"
 
     elif action == "register":
-        if username in users_db: return False, "Kullanıcı adı alınmış."
+        if username in users_db:
+            return False, "Kullanıcı adı alınmış."
+
         users_db[username] = {
             "password": hash_password(password),
             "email": email,
             "created_at": datetime.now().strftime("%Y-%m-%d")
         }
-        github_json_yaz(USERS_DOSYASI, users_db, f"New User: {username}")
-        return True, "Kayıt Başarılı"
+
+        # --- KRİTİK DÜZELTME BURADA ---
+        # Yazma işleminin sonucunu değişkene atıyoruz
+        yazma_sonucu = github_json_yaz(USERS_DOSYASI, users_db, f"New User: {username}")
+
+        if yazma_sonucu:
+            return True, "Kayıt Başarılı"
+        else:
+            return False, "Kayıt Başarısız: Veritabanına yazılamadı! (Token yetkilerini kontrol et)"
 
     elif action == "forgot_password":
         found_user = None
@@ -159,9 +178,8 @@ def github_user_islem(action, username=None, password=None, email=None):
 
     elif action == "update_password":
         if username in users_db:
-            # Mevcut veriyi koru, sadece şifreyi güncelle
             user_data = users_db[username]
-            if isinstance(user_data, str):  # Eski tip veri ise dönüştür
+            if isinstance(user_data, str):
                 user_data = {"email": "", "created_at": ""}
 
             user_data["password"] = hash_password(password)
