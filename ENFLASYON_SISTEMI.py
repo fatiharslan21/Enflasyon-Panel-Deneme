@@ -229,65 +229,70 @@ def fiyat_bul_siteye_gore(soup, url):
 
     # --- 0. TEMİZLİK: YAN ÜRÜNLERİ VE ÖNERİLERİ YOK ET ---
     # Fiyat aramadan önce, kafamızı karıştıracak slider/liste elemanlarını siliyoruz.
+    # Bu blok, senin "horizontal" dediğin ve yanlış fiyatı çeken kısımları HTML'den kazır.
     if "migros" in domain:
-        # Senin attığın "horizontal-list" (yatay liste) bloklarını sil
-        for bad_div in soup.select(".horizontal-list-page-items-container"):
-            bad_div.decompose()  # Bu komut o bloğu HTML'den tamamen kazır/siler.
+        for garbage in soup.select(".horizontal-list-page-items-container, sm-list-page-item"):
+            garbage.decompose()
 
-        # Listelenen yan ürün kartlarını da sil (Garanti olsun)
-        for bad_item in soup.select("sm-list-page-item"):
-            bad_item.decompose()
-
-    # --- 1. MİGROS ÖZEL JSON TARAMASI ---
+    # --- 1. MİGROS ÖZEL TARAMA (ÖNCE NORMAL, SONRA İNDİRİMLİ) ---
     if "migros" in domain:
-        try:
-            scripts = soup.find_all('script', type='application/ld+json')
-            for script in scripts:
-                if not script.string: continue
-                try:
-                    data = json.loads(script.string)
-                    candidates = data if isinstance(data, list) else [data]
 
-                    for item in candidates:
-                        # Sadece "Product" tipinde olan ve detaylı offer içeren ana veriyi al
-                        if item.get("@type") != "Product": continue
-
-                        offers = item.get("offers")
-                        if not offers: continue
-
-                        offer_item = offers[0] if isinstance(offers, list) and len(offers) > 0 else offers
-
-                        if isinstance(offer_item, dict):
-                            # Fiyatı al
-                            fiyat_str = str(offer_item.get("price", ""))
-                            if not fiyat_str: continue
-
-                            fiyat_val = float(fiyat_str)
-                            if fiyat_val > 0:
-                                return fiyat_val, "Migros(Net-JSON)"
-                except:
-                    continue
-        except:
-            pass
-
-        # --- 2. MİGROS HTML FALLBACK (TEMİZLENMİŞ HTML ÜZERİNDEN) ---
-        # Artık sayfada sadece ANA ürün kaldığı için rahatça class arayabiliriz.
+        # ADIM A: ÖNCELİKLE NORMAL FİYATI ARA (#price-no-discount)
+        # Migros'ta ürün indirimsizse bu ID bulunur. İndirimliyse bu ID genelde olmaz.
         if fiyat == 0:
-            targets = [
-                "div#sale-price",
-                "div.sale-price",
-                "span.amount",
-                "div.product-price"
+            normal_targets = [
+                "#price-no-discount .price",  # En net normal fiyat alanı
+                "fe-product-price .subtitle-1"  # Yedek normal fiyat class'ı
             ]
-
-            for selector in targets:
-                # Sildiğimiz alanlar artık olmadığı için sadece ana ürünü bulacak
-                el = soup.select_one(selector)
+            for sel in normal_targets:
+                el = soup.select_one(sel)
                 if el:
                     if val := temizle_fiyat(el.get_text()):
                         fiyat = val
-                        kaynak = "Migros(HTML-Sale)"
+                        kaynak = "Migros(Normal)"
                         break
+
+        # ADIM B: EĞER NORMAL FİYAT BULAMADIYSAK, SALE PRICE'A BAK
+        # Demek ki ürün indirimde veya Money kampanyasında
+        if fiyat == 0:
+            sale_targets = [
+                "#sale-price",  # Standart indirim alanı
+                ".sale-price",  # Class versiyonu
+                ".money-discount .price-content"  # Money indirim alanı
+            ]
+            for sel in sale_targets:
+                el = soup.select_one(sel)
+                if el:
+                    if val := temizle_fiyat(el.get_text()):
+                        fiyat = val
+                        kaynak = "Migros(Sale)"
+                        break
+
+        # ADIM C: HTML'DEN SONUÇ ÇIKMAZSA JSON'A BAK (GÜVENLİK AĞI)
+        # Sadece yukarıdakiler patlarsa burası devreye girer.
+        if fiyat == 0:
+            try:
+                scripts = soup.find_all('script', type='application/ld+json')
+                for script in scripts:
+                    if not script.string: continue
+                    try:
+                        data = json.loads(script.string)
+                        candidates = data if isinstance(data, list) else [data]
+                        for item in candidates:
+                            if item.get("@type") == "Product":
+                                offers = item.get("offers")
+                                if offers:
+                                    offer_item = offers[0] if isinstance(offers, list) else offers
+                                    if isinstance(offer_item, dict):
+                                        fiyat_str = str(offer_item.get("price", ""))
+                                        if fiyat_str and float(fiyat_str) > 0:
+                                            fiyat = float(fiyat_str)
+                                            kaynak = "Migros(JSON-Yedek)"
+                                            break
+                    except:
+                        continue
+            except:
+                pass
 
     # --- DİĞER SİTELER (CİMRİ VE GENEL) ---
     elif "cimri" in domain:
@@ -311,7 +316,7 @@ def fiyat_bul_siteye_gore(soup, url):
                 if v := temizle_fiyat(el.get_text()): fiyat = v; kaynak = "Genel(CSS)"; break
 
     if fiyat == 0 and "cimri" not in domain:
-        # Regex de artık temizlenmiş text üzerinde çalışacak, yan ürün fiyatlarını görmeyecek
+        # Regex de artık temizlenmiş HTML'de çalışacağı için daha güvenli
         if m := re.search(r'(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(?:TL|₺)', soup.get_text()[:5000]):
             if v := temizle_fiyat(m.group(1)): fiyat = v; kaynak = "Regex"
 
