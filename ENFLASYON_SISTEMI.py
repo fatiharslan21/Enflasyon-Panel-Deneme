@@ -80,14 +80,14 @@ def update_user_status(username):
         pass
 
 
-# --- GÜNCELLENMİŞ KULLANICI İŞLEMLERİ (MAIL & ŞİFRE SIFIRLAMA DESTEKLİ) ---
+# --- KULLANICI İŞLEMLERİ (GÜNCELLENDİ) ---
 def github_user_islem(action, username=None, password=None, email=None):
     users_db = github_json_oku(USERS_DOSYASI)
 
     if action == "login":
         if username in users_db:
             stored_data = users_db[username]
-            # Eski veri yapısı (sadece şifre string) ve yeni yapı (dict) desteği
+            # Eski veri yapısı (string) ve yeni yapı (dict) desteği
             stored_pass = stored_data if isinstance(stored_data, str) else stored_data.get("password")
 
             if stored_pass == hash_password(password):
@@ -98,7 +98,6 @@ def github_user_islem(action, username=None, password=None, email=None):
         if username in users_db:
             return False, "Bu kullanıcı adı zaten alınmış."
 
-        # Yeni Kayıt Yapısı: Şifre + Email
         users_db[username] = {
             "password": hash_password(password),
             "email": email,
@@ -108,7 +107,6 @@ def github_user_islem(action, username=None, password=None, email=None):
         return True, "Kayıt Başarılı"
 
     elif action == "forgot_password":
-        # Kullanıcı adını değil, E-maili tarayalım
         found_user = None
         for u, data in users_db.items():
             if isinstance(data, dict) and data.get("email") == email:
@@ -364,55 +362,33 @@ def dashboard_modu():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
-
-        /* Global Reset */
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
-
-        /* Sidebar Styling */
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
         section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
-        /* Header & Title Shimmer Effect */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
-
-        .app-title { 
-            font-family: 'Poppins', sans-serif; 
-            font-size: 32px; 
-            font-weight: 800; 
-            letter-spacing: -1px; 
-            background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); 
-            background-size: 200% auto;
-            -webkit-background-clip: text; 
-            -webkit-text-fill-color: transparent; 
-            animation: shine 5s linear infinite;
-        }
+        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
         @keyframes shine { to { background-position: 200% center; } }
 
-        /* Cards */
         .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: all 0.3s ease; }
         .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
         .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
         .card-blue::before { background: #3b82f6; } .card-purple::before { background: #8b5cf6; } .card-emerald::before { background: #10b981; } .card-orange::before { background: #f59e0b; }
         .metric-label { color: #64748b; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
-        .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
-        /* Update Button Pulse */
         .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
         .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
 
-        /* Ticker */
         .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
         .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
-        /* Bot & Bubble */
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
 
-        /* Live Clock Font */
         #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
     </style>
     """, unsafe_allow_html=True)
@@ -575,7 +551,7 @@ def dashboard_modu():
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- 3. SEKMELER (7 SEKME - ZAMAN MAKİNESİ KALDIRILDI) ---
+                # --- 3. SEKMELER ---
                 t1, t2, t3, t4, t5, t6, t7 = st.tabs(
                     ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
 
@@ -596,6 +572,7 @@ def dashboard_modu():
                     col_trend.plotly_chart(fig_main, use_container_width=True)
 
                     with col_comp:
+                        # MANUEL REFERANS DEĞERLERİ
                         REF_ARALIK_2024 = 1.03
                         REF_KASIM_2025 = 0.87
                         diff_24 = enf_genel - REF_ARALIK_2024
@@ -813,7 +790,7 @@ def main():
 
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
-            t_log, t_reg = st.tabs(["🔒 GİRİŞ YAP", "📝 KAYIT OL", "🔑 ŞİFREMİ UNUTTUM"])
+            t_log, t_reg, t_forgot = st.tabs(["🔒 GİRİŞ YAP", "📝 KAYIT OL", "🔑 ŞİFREMİ UNUTTUM"])
 
             with t_log:
                 with st.form("login_f"):
@@ -846,13 +823,18 @@ def main():
                         else:
                             st.warning("Tüm alanları doldurunuz.")
 
-            with t_log:  # Aslında bu "Forgot Password" için yeni bir sekme olsa daha iyi
-                pass
-
-                # Şifremi Unuttum Tabını Manuel Ekleyelim (yukarıdaki tabs array'ine ekledim)
-            # t_log, t_reg, t_forgot olarak 3'e böldüm
-
-            # (Streamlit yapısı gereği with t_forgot diyemem çünkü yukarıda tanımlamadım, aşağıda fixliyorum)
+            with t_forgot:
+                with st.form("forgot_f"):
+                    f_email = st.text_input("Kayıtlı E-Posta Adresi")
+                    if st.form_submit_button("ŞİFRE SIFIRLAMA LİNKİ GÖNDER", use_container_width=True):
+                        if f_email:
+                            ok, msg = github_user_islem("forgot_password", email=f_email)
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
+                        else:
+                            st.warning("Lütfen e-posta adresinizi girin.")
 
     else:
         dashboard_modu()
