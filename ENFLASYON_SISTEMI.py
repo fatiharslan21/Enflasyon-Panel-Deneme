@@ -17,8 +17,6 @@ import numpy as np
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import google_auth_oauthlib.flow
-from googleapiclient.discovery import build
 
 # --- 1. AYARLAR ---
 st.set_page_config(
@@ -27,20 +25,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# --- 🔑 MANUEL ŞİFRE AYARLARI (BURALARI DOLDUR) ---
-# Google Cloud Console'dan aldıklarını buraya tırnak içine yapıştır.
-GOOGLE_CLIENT_ID = "676671874072-vkciqmohkna4699o5p92sndkl6jd2mni.apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET = "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"
-GOOGLE_REDIRECT_URI = "https://enflasyon-gida.streamlit.app"  # Sonunda / olmasın
-
-# Mail Ayarları (Gmail Uygulama Şifresi)
-MAIL_ADRESI = "21fatiharslan@gmail.com"
-MAIL_SIFRESI = "fpnkbvznmmrriiot"
-
-# GitHub Ayarları
-GITHUB_TOKEN = "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"
-GITHUB_REPO = "fatiharslan21/Enflasyon-Panel-Deneme"  # Örn: fatih/enflasyon-pro
 
 # --- ADMIN AYARI ---
 ADMIN_USER = "fatih"
@@ -56,8 +40,7 @@ SAYFA_ADI = "Madde_Sepeti"
 
 def get_github_repo():
     try:
-        # MANUEL GİRDİĞİN TOKENİ KULLANIYORUZ
-        return Github(GITHUB_TOKEN).get_repo(GITHUB_REPO)
+        return Github(st.secrets["github"]["token"]).get_repo(st.secrets["github"]["repo_name"])
     except:
         return None
 
@@ -100,61 +83,11 @@ def update_user_status(username):
         pass
 
 
-# --- GOOGLE GİRİŞ (MANUEL ŞİFRELİ) ---
-def google_login():
-    # Şifreler boşsa hata vermesin diye kontrol
-    if GOOGLE_CLIENT_ID == "BURAYA_GOOGLE_CLIENT_ID_YAPISTIR":
-        # Henüz şifre girilmemişse butonu gösterme
-        return None
-
-    client_config = {
-        "web": {
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [GOOGLE_REDIRECT_URI],
-        }
-    }
-
-    flow = google_auth_oauthlib.flow.Flow.from_client_config(
-        client_config,
-        scopes=['openid', 'https://www.googleapis.com/auth/userinfo.email',
-                'https://www.googleapis.com/auth/userinfo.profile'],
-        redirect_uri=GOOGLE_REDIRECT_URI
-    )
-
-    try:
-        auth_code = st.query_params.get("code")
-    except:
-        auth_code = None
-
-    if auth_code:
-        try:
-            flow.fetch_token(code=auth_code)
-            credentials = flow.credentials
-            user_info_service = build('oauth2', 'v2', credentials=credentials)
-            user_info = user_info_service.userinfo().get().execute()
-            return user_info
-        except Exception as e:
-            st.error(f"Google Giriş Hatası: {e}")
-            return None
-    else:
-        authorization_url, _ = flow.authorization_url(prompt='consent')
-        st.markdown(f'''
-            <a href="{authorization_url}" target="_self" class="google-btn">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" width="20">
-                Google ile Giriş Yap
-            </a>
-            ''', unsafe_allow_html=True)
-        return None
-
-
-# --- MAİL GÖNDERME (MANUEL ŞİFRELİ) ---
+# --- MAİL GÖNDERME ---
 def send_reset_email(to_email, username):
     try:
-        if MAIL_SIFRESI == "google_dan_aldigin_16_haneli_sifre":
-            return False, "Mail ayarları yapılmamış."
+        sender_email = st.secrets["email"]["sender"]
+        sender_password = st.secrets["email"]["password"]
 
         app_url = "https://enflasyon-gida.streamlit.app/"
         reset_link = f"{app_url}?reset_user={username}"
@@ -166,23 +99,25 @@ def send_reset_email(to_email, username):
         Şifreni sıfırlamak için aşağıdaki bağlantıya tıkla:
         {reset_link}
 
+        Bu işlemi sen yapmadıysan dikkate alma.
+
         Sevgiler,
         Enflasyon Monitörü Ekibi
         """
 
         msg = MIMEMultipart()
-        msg['From'] = MAIL_ADRESI
+        msg['From'] = sender_email
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
 
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
-        server.login(MAIL_ADRESI, MAIL_SIFRESI)
+        server.login(sender_email, sender_password)
         text = msg.as_string()
-        server.sendmail(MAIL_ADRESI, to_email, text)
+        server.sendmail(sender_email, to_email, text)
         server.quit()
-        return True, "Sıfırlama bağlantısı gönderildi."
+        return True, "Sıfırlama bağlantısı e-posta adresine gönderildi."
     except Exception as e:
         return False, f"Mail Hatası: {str(e)}"
 
@@ -375,10 +310,7 @@ def html_isleyici(log_callback):
 
         log_callback("📦 ZIP dosyaları taranıyor...")
         contents = repo.get_contents("", ref="main")
-
-        # SADECE "Bolum" İLE BAŞLAYANLARI AL
         zip_files = [c for c in contents if c.name.endswith(".zip") and c.name.startswith("Bolum")]
-
         hs = 0
         for zip_file in zip_files:
             log_callback(f"📂 Arşiv okunuyor: {zip_file.name}")
@@ -436,7 +368,7 @@ def dashboard_modu():
 
         st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
         st.divider()
-        st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Kullanıcılar</h3>", unsafe_allow_html=True)
 
         users_db = github_json_oku(USERS_DOSYASI)
         activity_db = github_json_oku(ACTIVITY_DOSYASI)
@@ -476,14 +408,31 @@ def dashboard_modu():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
+
+        /* Global Reset */
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
+
+        /* Sidebar Styling */
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
         section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
+        /* Header & Title Shimmer Effect */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
-        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
+
+        .app-title { 
+            font-family: 'Poppins', sans-serif; 
+            font-size: 32px; 
+            font-weight: 800; 
+            letter-spacing: -1px; 
+            background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); 
+            background-size: 200% auto;
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            animation: shine 5s linear infinite;
+        }
         @keyframes shine { to { background-position: 200% center; } }
 
+        /* Cards */
         .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: all 0.3s ease; }
         .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
         .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
@@ -492,28 +441,23 @@ def dashboard_modu():
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
         .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
+        /* Update Button Pulse */
         .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
         .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
 
+        /* Ticker */
         .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
         .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
+        /* Bot & Bubble */
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
 
+        /* Live Clock Font */
         #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
-
-        /* GOOGLE BUTTON STYLE */
-        .google-btn {
-            background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px;
-            padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none;
-        }
-        .google-btn:hover { background-color: #f8fafc; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: translateY(-2px); }
-        .google-icon { width: 20px; height: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -680,7 +624,7 @@ def dashboard_modu():
                     ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
 
                 with t1:
-                    # GRAFİK TAM EKRAN (Comparison Removed)
+                    # GRAFİK TAM EKRAN (NİHAİ)
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                                 df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
@@ -693,6 +637,22 @@ def dashboard_modu():
                                            yaxis=dict(range=[95, 105]), plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
                     st.plotly_chart(fig_main, use_container_width=True)
+
+                    # --- NATIVE METRIC BLOCKS (HTML SORUNSUZ) ---
+                    REF_ARALIK_2024 = 1.03
+                    REF_KASIM_2025 = 0.87
+                    diff_24 = enf_genel - REF_ARALIK_2024
+
+                    st.markdown("#### ⚖️ ENFLASYON KARŞILAŞTIRMASI")
+                    c_ref1, c_ref2 = st.columns(2)
+                    c_ref1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
+                    c_ref2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
+
+                    st.divider()
+                    st.metric(label="ŞU ANKİ (SİSTEM)", value=f"%{enf_genel:.2f}",
+                              delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
+                              delta_color="inverse" if diff_24 > 0 else "normal")
+                    st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
                     st.markdown("##### 🤖 Fiyat Asistanı")
@@ -878,15 +838,27 @@ def main():
         return
 
     if not st.session_state['logged_in']:
-        # NORMAL GİRİŞ EKRANI
+        # Şovlu Login Ekranı CSS (Animasyon Arkada, Form Önde - Z-INDEX FIXED)
         st.markdown("""
         <style>
         .stApp { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
         @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
-        [data-testid="stForm"] { background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid rgba(255, 255, 255, 0.2); position: relative; z-index: 9999; }
-        [data-testid="stForm"] input { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; color: #1e293b !important; }
-        .google-btn { background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none; }
-        .google-btn:hover { background-color: #f8fafc; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: translateY(-2px); }
+
+        /* Form Container'ı (Buzlu Cam) - Z-INDEX 9999 ile öne alındı */
+        [data-testid="stForm"] {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            z-index: 9999;
+        }
+        [data-testid="stForm"] input {
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #1e293b !important;
+        }
         </style>
         """, unsafe_allow_html=True)
 
@@ -903,7 +875,6 @@ def main():
                     l_u = st.text_input("Kullanıcı Adı")
                     l_p = st.text_input("Şifre", type="password")
                     st.checkbox("Beni Hatırla")
-
                     if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
                         ok, msg = github_user_islem("login", l_u, l_p)
                         if ok:
@@ -914,16 +885,6 @@ def main():
                             st.rerun()
                         else:
                             st.error(msg)
-
-                # GOOGLE GİRİŞ BUTONU
-                google_user = google_login()
-                if google_user:
-                    email = google_user["email"]
-                    st.success(f"Hoşgeldin {google_user['name']}!")
-                    st.session_state['logged_in'] = True
-                    st.session_state['username'] = email
-                    time.sleep(1);
-                    st.rerun()
 
             with t_reg:
                 with st.form("reg_f"):
