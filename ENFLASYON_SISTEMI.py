@@ -28,6 +28,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- 🔑 MANUEL ŞİFRE AYARLARI (BURALARI DOLDUR) ---
+# Google Cloud Console'dan aldıklarını buraya tırnak içine yapıştır.
+GOOGLE_CLIENT_ID = "676671874072-vkciqmohkna4699o5p92sndkl6jd2mni.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET = "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"
+GOOGLE_REDIRECT_URI = "https://enflasyon-gida.streamlit.app"  # Sonunda / olmasın
+
+# Mail Ayarları (Gmail Uygulama Şifresi)
+MAIL_ADRESI = "21fatiharslan@gmail.com"
+MAIL_SIFRESI = "fpnkbvznmmrriiot"
+
+# GitHub Ayarları
+GITHUB_TOKEN = "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"
+GITHUB_REPO = "fatiharslan21/Enflasyon-Panel-Deneme"  # Örn: fatih/enflasyon-pro
+
 # --- ADMIN AYARI ---
 ADMIN_USER = "fatih"
 
@@ -42,7 +56,8 @@ SAYFA_ADI = "Madde_Sepeti"
 
 def get_github_repo():
     try:
-        return Github(st.secrets["github"]["token"]).get_repo(st.secrets["github"]["repo_name"])
+        # MANUEL GİRDİĞİN TOKENİ KULLANIYORUZ
+        return Github(GITHUB_TOKEN).get_repo(GITHUB_REPO)
     except:
         return None
 
@@ -55,7 +70,7 @@ def github_json_oku(dosya_adi):
     repo = get_github_repo()
     if not repo: return {}
     try:
-        c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
+        c = repo.get_contents(dosya_adi, ref="main")
         return json.loads(c.decoded_content.decode("utf-8"))
     except:
         return {}
@@ -67,10 +82,10 @@ def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
     try:
         content = json.dumps(data, indent=4)
         try:
-            c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
-            repo.update_file(c.path, mesaj, content, c.sha, branch=st.secrets["github"]["branch"])
+            c = repo.get_contents(dosya_adi, ref="main")
+            repo.update_file(c.path, mesaj, content, c.sha, branch="main")
         except:
-            repo.create_file(dosya_adi, mesaj, content, branch=st.secrets["github"]["branch"])
+            repo.create_file(dosya_adi, mesaj, content, branch="main")
         return True
     except:
         return False
@@ -85,20 +100,20 @@ def update_user_status(username):
         pass
 
 
-# --- GOOGLE GİRİŞ FONKSİYONU ---
+# --- GOOGLE GİRİŞ (MANUEL ŞİFRELİ) ---
 def google_login():
-    # Secrets kontrolü (Çökmemesi için)
-    if "google" not in st.secrets:
-        # Eğer ayar yoksa boş döner, sistem çökmez
+    # Şifreler boşsa hata vermesin diye kontrol
+    if GOOGLE_CLIENT_ID == "BURAYA_GOOGLE_CLIENT_ID_YAPISTIR":
+        # Henüz şifre girilmemişse butonu gösterme
         return None
 
     client_config = {
         "web": {
-            "client_id": st.secrets["google"]["client_id"],
-            "client_secret": st.secrets["google"]["client_secret"],
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [st.secrets["google"]["redirect_uri"]],
+            "redirect_uris": [GOOGLE_REDIRECT_URI],
         }
     }
 
@@ -106,7 +121,7 @@ def google_login():
         client_config,
         scopes=['openid', 'https://www.googleapis.com/auth/userinfo.email',
                 'https://www.googleapis.com/auth/userinfo.profile'],
-        redirect_uri=st.secrets["google"]["redirect_uri"]
+        redirect_uri=GOOGLE_REDIRECT_URI
     )
 
     try:
@@ -135,13 +150,12 @@ def google_login():
         return None
 
 
-# --- MAİL GÖNDERME ---
+# --- MAİL GÖNDERME (MANUEL ŞİFRELİ) ---
 def send_reset_email(to_email, username):
     try:
-        sender_email = st.secrets["email"]["sender"]
-        sender_password = st.secrets["email"]["password"]
+        if MAIL_SIFRESI == "google_dan_aldigin_16_haneli_sifre":
+            return False, "Mail ayarları yapılmamış."
 
-        # KENDİ LİNKİN
         app_url = "https://enflasyon-gida.streamlit.app/"
         reset_link = f"{app_url}?reset_user={username}"
 
@@ -152,23 +166,21 @@ def send_reset_email(to_email, username):
         Şifreni sıfırlamak için aşağıdaki bağlantıya tıkla:
         {reset_link}
 
-        Bu işlemi sen yapmadıysan dikkate alma.
-
         Sevgiler,
         Enflasyon Monitörü Ekibi
         """
 
         msg = MIMEMultipart()
-        msg['From'] = sender_email
+        msg['From'] = MAIL_ADRESI
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
 
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
-        server.login(sender_email, sender_password)
+        server.login(MAIL_ADRESI, MAIL_SIFRESI)
         text = msg.as_string()
-        server.sendmail(sender_email, to_email, text)
+        server.sendmail(MAIL_ADRESI, to_email, text)
         server.quit()
         return True, "Sıfırlama bağlantısı gönderildi."
     except Exception as e:
@@ -224,7 +236,7 @@ def github_excel_oku(dosya_adi, sayfa_adi=None):
     repo = get_github_repo()
     if not repo: return pd.DataFrame()
     try:
-        c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
+        c = repo.get_contents(dosya_adi, ref="main")
         if sayfa_adi:
             df = pd.read_excel(BytesIO(c.decoded_content), sheet_name=sayfa_adi, dtype=str)
         else:
@@ -239,7 +251,7 @@ def github_excel_guncelle(df_yeni, dosya_adi):
     if not repo: return "Repo Yok"
     try:
         try:
-            c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
+            c = repo.get_contents(dosya_adi, ref="main")
             old = pd.read_excel(BytesIO(c.decoded_content), dtype=str)
             yeni_tarih = str(df_yeni['Tarih'].iloc[0])
             old = old[~((old['Tarih'].astype(str) == yeni_tarih) & (old['Kod'].isin(df_yeni['Kod'])))]
@@ -254,9 +266,9 @@ def github_excel_guncelle(df_yeni, dosya_adi):
 
         msg = f"Data Update"
         if c:
-            repo.update_file(c.path, msg, out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
+            repo.update_file(c.path, msg, out.getvalue(), c.sha, branch="main")
         else:
-            repo.create_file(dosya_adi, msg, out.getvalue(), branch=st.secrets["github"]["branch"])
+            repo.create_file(dosya_adi, msg, out.getvalue(), branch="main")
         return "OK"
     except Exception as e:
         return str(e)
@@ -362,8 +374,11 @@ def html_isleyici(log_callback):
         if ms > 0: log_callback(f"✅ {ms} manuel fiyat alındı.")
 
         log_callback("📦 ZIP dosyaları taranıyor...")
-        contents = repo.get_contents("", ref=st.secrets["github"]["branch"])
-        zip_files = [c for c in contents if c.name.endswith(".zip")]
+        contents = repo.get_contents("", ref="main")
+
+        # SADECE "Bolum" İLE BAŞLAYANLARI AL
+        zip_files = [c for c in contents if c.name.endswith(".zip") and c.name.startswith("Bolum")]
+
         hs = 0
         for zip_file in zip_files:
             log_callback(f"📂 Arşiv okunuyor: {zip_file.name}")
@@ -461,31 +476,14 @@ def dashboard_modu():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
-
-        /* Global Reset */
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
-
-        /* Sidebar Styling */
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
         section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
-        /* Header & Title Shimmer Effect */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
-
-        .app-title { 
-            font-family: 'Poppins', sans-serif; 
-            font-size: 32px; 
-            font-weight: 800; 
-            letter-spacing: -1px; 
-            background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); 
-            background-size: 200% auto;
-            -webkit-background-clip: text; 
-            -webkit-text-fill-color: transparent; 
-            animation: shine 5s linear infinite;
-        }
+        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
         @keyframes shine { to { background-position: 200% center; } }
 
-        /* Cards */
         .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: all 0.3s ease; }
         .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
         .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
@@ -494,25 +492,21 @@ def dashboard_modu():
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
         .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
-        /* Update Button Pulse */
         .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
         .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
 
-        /* Ticker */
         .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
         .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
-        /* Bot & Bubble */
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
 
-        /* Live Clock Font */
         #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
 
-        /* GOOGLE BUTTON STYLE (SHOW) */
+        /* GOOGLE BUTTON STYLE */
         .google-btn {
             background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px;
             padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s;
@@ -550,7 +544,7 @@ def dashboard_modu():
     """
     st.markdown(header_html, unsafe_allow_html=True)
 
-    # --- TOAST MESSAGE (ŞOV) ---
+    # --- TOAST MESSAGE ---
     if 'toast_shown' not in st.session_state:
         st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
         st.session_state['toast_shown'] = True
@@ -840,7 +834,7 @@ def dashboard_modu():
         unsafe_allow_html=True)
 
 
-# --- 5. LOGIN (RESET MOD & NORMAL GİRİŞ) ---
+# --- 5. LOGIN ---
 def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
