@@ -53,7 +53,7 @@ def github_json_oku(dosya_adi):
     repo = get_github_repo()
     if not repo: return {}
     try:
-        c = repo.get_contents(dosya_adi, ref="main")
+        c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
         return json.loads(c.decoded_content.decode("utf-8"))
     except:
         return {}
@@ -65,10 +65,10 @@ def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
     try:
         content = json.dumps(data, indent=4)
         try:
-            c = repo.get_contents(dosya_adi, ref="main")
-            repo.update_file(c.path, mesaj, content, c.sha, branch="main")
+            c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
+            repo.update_file(c.path, mesaj, content, c.sha, branch=st.secrets["github"]["branch"])
         except:
-            repo.create_file(dosya_adi, mesaj, content, branch="main")
+            repo.create_file(dosya_adi, mesaj, content, branch=st.secrets["github"]["branch"])
         return True
     except:
         return False
@@ -99,8 +99,6 @@ def send_reset_email(to_email, username):
         Şifreni sıfırlamak için aşağıdaki bağlantıya tıkla:
         {reset_link}
 
-        Bu işlemi sen yapmadıysan dikkate alma.
-
         Sevgiler,
         Enflasyon Monitörü Ekibi
         """
@@ -117,7 +115,7 @@ def send_reset_email(to_email, username):
         text = msg.as_string()
         server.sendmail(sender_email, to_email, text)
         server.quit()
-        return True, "Sıfırlama bağlantısı e-posta adresine gönderildi."
+        return True, "Sıfırlama bağlantısı gönderildi."
     except Exception as e:
         return False, f"Mail Hatası: {str(e)}"
 
@@ -171,7 +169,7 @@ def github_excel_oku(dosya_adi, sayfa_adi=None):
     repo = get_github_repo()
     if not repo: return pd.DataFrame()
     try:
-        c = repo.get_contents(dosya_adi, ref="main")
+        c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
         if sayfa_adi:
             df = pd.read_excel(BytesIO(c.decoded_content), sheet_name=sayfa_adi, dtype=str)
         else:
@@ -186,7 +184,7 @@ def github_excel_guncelle(df_yeni, dosya_adi):
     if not repo: return "Repo Yok"
     try:
         try:
-            c = repo.get_contents(dosya_adi, ref="main")
+            c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
             old = pd.read_excel(BytesIO(c.decoded_content), dtype=str)
             yeni_tarih = str(df_yeni['Tarih'].iloc[0])
             old = old[~((old['Tarih'].astype(str) == yeni_tarih) & (old['Kod'].isin(df_yeni['Kod'])))]
@@ -201,9 +199,9 @@ def github_excel_guncelle(df_yeni, dosya_adi):
 
         msg = f"Data Update"
         if c:
-            repo.update_file(c.path, msg, out.getvalue(), c.sha, branch="main")
+            repo.update_file(c.path, msg, out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
         else:
-            repo.create_file(dosya_adi, msg, out.getvalue(), branch="main")
+            repo.create_file(dosya_adi, msg, out.getvalue(), branch=st.secrets["github"]["branch"])
         return "OK"
     except Exception as e:
         return str(e)
@@ -309,7 +307,7 @@ def html_isleyici(log_callback):
         if ms > 0: log_callback(f"✅ {ms} manuel fiyat alındı.")
 
         log_callback("📦 ZIP dosyaları taranıyor...")
-        contents = repo.get_contents("", ref="main")
+        contents = repo.get_contents("", ref=st.secrets["github"]["branch"])
         zip_files = [c for c in contents if c.name.endswith(".zip") and c.name.startswith("Bolum")]
         hs = 0
         for zip_file in zip_files:
@@ -456,7 +454,6 @@ def dashboard_modu():
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
 
-        /* Live Clock Font */
         #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
     </style>
     """, unsafe_allow_html=True)
@@ -624,7 +621,8 @@ def dashboard_modu():
                     ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
 
                 with t1:
-                    # GRAFİK TAM EKRAN (NİHAİ)
+                    col_trend, col_comp = st.columns([2, 1])
+
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                                 df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
@@ -633,26 +631,40 @@ def dashboard_modu():
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
                     fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
                                            line_shape='spline')
-                    fig_main.update_layout(template="plotly_white", height=450, hovermode="x unified",
+                    fig_main.update_layout(template="plotly_white", height=400, hovermode="x unified",
                                            yaxis=dict(range=[95, 105]), plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
-                    st.plotly_chart(fig_main, use_container_width=True)
+                    col_trend.plotly_chart(fig_main, use_container_width=True)
 
-                    # --- NATIVE METRIC BLOCKS (HTML SORUNSUZ) ---
-                    REF_ARALIK_2024 = 1.03
-                    REF_KASIM_2025 = 0.87
-                    diff_24 = enf_genel - REF_ARALIK_2024
+                    with col_comp:
+                        # MANUEL REFERANS DEĞERLERİ
+                        REF_ARALIK_2024 = 1.03
+                        REF_KASIM_2025 = 0.87
+                        diff_24 = enf_genel - REF_ARALIK_2024
 
-                    st.markdown("#### ⚖️ ENFLASYON KARŞILAŞTIRMASI")
-                    c_ref1, c_ref2 = st.columns(2)
-                    c_ref1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
-                    c_ref2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
+                        # --- NATIVE STREAMLIT BLOCKS (NO HTML RISK) ---
+                        st.markdown(f"""
+                        <div style="background:white; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:center;">
+                            <h4 style="margin:0; color:#334155;">⚖️ ENFLASYON KARŞILAŞTIRMASI</h4>
+                        </div>
+                        <br>
+                        """, unsafe_allow_html=True)
 
-                    st.divider()
-                    st.metric(label="ŞU ANKİ (SİSTEM)", value=f"%{enf_genel:.2f}",
-                              delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
-                              delta_color="inverse" if diff_24 > 0 else "normal")
-                    st.caption("Veriler veritabanından anlık hesaplanmıştır.")
+                        # Referanslar
+                        c_r1, c_r2 = st.columns(2)
+                        c_r1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
+                        c_r2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
+
+                        st.divider()
+
+                        # Büyük Sistem Verisi (Native Metric ile)
+                        st.metric(
+                            label="ŞU ANKİ (SİSTEM)",
+                            value=f"%{enf_genel:.2f}",
+                            delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
+                            delta_color="inverse" if diff_24 > 0 else "normal"
+                        )
+                        st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
                     st.markdown("##### 🤖 Fiyat Asistanı")
@@ -875,6 +887,7 @@ def main():
                     l_u = st.text_input("Kullanıcı Adı")
                     l_p = st.text_input("Şifre", type="password")
                     st.checkbox("Beni Hatırla")
+
                     if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
                         ok, msg = github_user_islem("login", l_u, l_p)
                         if ok:
@@ -895,7 +908,11 @@ def main():
                         if r_u and r_p and r_e:
                             ok, msg = github_user_islem("register", r_u, r_p, r_e)
                             if ok:
-                                st.success(msg)
+                                st.success("Kayıt Başarılı! Otomatik giriş yapılıyor...")
+                                st.session_state['logged_in'] = True
+                                st.session_state['username'] = r_u
+                                time.sleep(2)
+                                st.rerun()
                             else:
                                 st.error(msg)
                         else:
