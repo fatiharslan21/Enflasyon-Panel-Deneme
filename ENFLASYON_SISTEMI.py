@@ -89,7 +89,7 @@ def send_reset_email(to_email, username):
         sender_email = st.secrets["email"]["sender"]
         sender_password = st.secrets["email"]["password"]
 
-        # Linkin sonuna ?reset_user=kullaniciadi ekliyoruz
+        # LİNK GÜNCELLENDİ
         app_url = "https://enflasyon-gida.streamlit.app/"
         reset_link = f"{app_url}?reset_user={username}"
 
@@ -102,7 +102,7 @@ def send_reset_email(to_email, username):
 
         {reset_link}
 
-        Eğer bu talebi sen yapmadıysan, güvenliğin için bu maili silebilirsin.
+        Bu işlemi sen yapmadıysan, lütfen bu maili dikkate alma.
 
         Sevgiler,
         Enflasyon Monitörü Ekibi
@@ -125,7 +125,7 @@ def send_reset_email(to_email, username):
         return False, f"Mail gönderilemedi: {str(e)}"
 
 
-# --- KULLANICI İŞLEMLERİ (GÜNCELLEME EKLENDİ) ---
+# --- KULLANICI İŞLEMLERİ ---
 def github_user_islem(action, username=None, password=None, email=None):
     users_db = github_json_oku(USERS_DOSYASI)
 
@@ -159,14 +159,10 @@ def github_user_islem(action, username=None, password=None, email=None):
 
     elif action == "update_password":
         if username in users_db:
-            # Mevcut veriyi koru, sadece şifreyi güncelle
             user_data = users_db[username]
-            if isinstance(user_data, str):  # Eski tip veri ise dönüştür
-                user_data = {"email": "", "created_at": ""}
-
+            if isinstance(user_data, str): user_data = {"email": "", "created_at": ""}
             user_data["password"] = hash_password(password)
             users_db[username] = user_data
-
             if github_json_yaz(USERS_DOSYASI, users_db, f"Password Reset: {username}"):
                 return True, "Şifreniz başarıyla güncellendi! Giriş yapabilirsiniz."
         return False, "Kullanıcı bulunamadı."
@@ -361,6 +357,7 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
+    # --- SIDEBAR ---
     with st.sidebar:
         user_upper = st.session_state['username'].upper()
         role_title = "SYSTEM ADMIN" if st.session_state['username'] == ADMIN_USER else "VERİ ANALİSTİ"
@@ -371,38 +368,57 @@ def dashboard_modu():
                 <div style="font-size:11px; text-transform:uppercase; color:#64748b; margin-top:4px;">{role_title}</div>
             </div>
         """, unsafe_allow_html=True)
+
         st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
         st.divider()
         st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
+
         users_db = github_json_oku(USERS_DOSYASI)
         activity_db = github_json_oku(ACTIVITY_DOSYASI)
         update_user_status(st.session_state['username'])
-        sorted_users = sorted(user_list := list(users_db.keys()), key=lambda x: (x != ADMIN_USER, x))
+
+        online_count = 0
+        user_list = []
+        for u in users_db.keys():
+            last_seen_str = activity_db.get(u, "2000-01-01 00:00:00")
+            try:
+                last_seen = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
+            except:
+                last_seen = datetime(2000, 1, 1)
+            is_online = (datetime.now() - last_seen).total_seconds() < 300
+            user_list.append({"name": u, "online": is_online})
+            if is_online: online_count += 1
+
+        sorted_users = sorted(user_list, key=lambda x: (not x['online'], x['name'] != ADMIN_USER, x['name']))
+
         for u in sorted_users:
-            role_icon = "🛡️" if u == ADMIN_USER else ""
+            role_icon = "🛡️" if u['name'] == ADMIN_USER else ""
             st.markdown(f"""
                 <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
-                        <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e'}; box-shadow:{'0 0 4px #22c55e'};"></span>
-                        {u} {role_icon}
+                        <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
+                        {u['name']} {role_icon}
                     </span>
                 </div>
             """, unsafe_allow_html=True)
+
         st.divider()
         if st.button("Güvenli Çıkış", use_container_width=True):
-            st.session_state['logged_in'] = False;
+            st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- CSS ---
+    # --- CSS: LIGHT MODE GLOBAL ---
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
         section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
+
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
         .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
         @keyframes shine { to { background-position: 200% center; } }
+
         .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: all 0.3s ease; }
         .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
         .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
@@ -410,19 +426,33 @@ def dashboard_modu():
         .metric-label { color: #64748b; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
         .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
+
         .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
         .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
+
         .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
         .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
+
         #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
+
+        /* GOOGLE BUTTON STYLE (SHOW) */
+        .google-btn {
+            background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none;
+        }
+        .google-btn:hover { background-color: #f8fafc; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .google-icon { width: 20px; height: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
+    # --- HEADER & LIVE CLOCK ---
     tr_time_start = datetime.now() + timedelta(hours=3)
     header_html = f"""
     <div class="header-container">
@@ -438,40 +468,48 @@ def dashboard_modu():
     function startClock() {{
         var clockElement = document.getElementById('live_clock_js');
         function update() {{
-            var now = new Date(); var options = {{ timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }};
+            var now = new Date();
+            var options = {{ timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }};
             if (clockElement) {{ clockElement.innerHTML = now.toLocaleTimeString('tr-TR', options); }}
-        }} setInterval(update, 1000); update(); 
-    }} startClock();
+        }}
+        setInterval(update, 1000); update(); 
+    }}
+    startClock();
     </script>
     """
     st.markdown(header_html, unsafe_allow_html=True)
 
+    # --- TOAST MESSAGE ---
     if 'toast_shown' not in st.session_state:
         st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
         st.session_state['toast_shown'] = True
 
+    # --- EN ÜSTTE UPDATE BUTONU ---
     st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
     if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
         with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
-            st.write("📡 GitHub bağlantısı kuruluyor...");
-            time.sleep(0.5);
+            st.write("📡 GitHub bağlantısı kuruluyor...")
+            time.sleep(0.5)
             st.write("📦 ZIP dosyaları taranıyor...")
             log_ph = st.empty();
             log_msgs = []
 
-            def logger(m): log_msgs.append(f"> {m}"); log_ph.markdown(
-                f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
+            def logger(m):
+                log_msgs.append(f"> {m}");
+                log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
 
             res = html_isleyici(logger)
             status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
+
         if "OK" in res:
-            st.toast('Veritabanı Güncellendi!', icon='🎉');
+            st.toast('Veritabanı Güncellendi!', icon='🎉')
             st.success("✅ Sistem Başarıyla Senkronize Edildi!");
             time.sleep(2);
             st.rerun()
         else:
             st.error(res)
-    st.markdown('</div><br>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
         try:
@@ -480,13 +518,16 @@ def dashboard_modu():
             ad_col = next((c for c in df_s.columns if 'ad' in c.lower()), 'Madde adı')
             agirlik_col = next((c for c in df_s.columns if 'agirlik' in c.lower().replace('ğ', 'g').replace('ı', 'i')),
                                'Agirlik_2025')
+
             df_f['Kod'] = df_f['Kod'].astype(str).apply(kod_standartlastir)
             df_s['Kod'] = df_s[kod_col].astype(str).apply(kod_standartlastir)
+
             df_f['Tarih_DT'] = pd.to_datetime(df_f['Tarih'], errors='coerce')
             df_f = df_f.dropna(subset=['Tarih_DT']).sort_values('Tarih_DT')
             df_f['Tarih_Str'] = df_f['Tarih_DT'].dt.strftime('%Y-%m-%d')
             df_f['Fiyat'] = pd.to_numeric(df_f['Fiyat'], errors='coerce')
             df_f = df_f[df_f['Fiyat'] > 0]
+
             pivot = df_f.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat', aggfunc='last').ffill(
                 axis=1).bfill(axis=1).reset_index()
 
@@ -496,15 +537,19 @@ def dashboard_modu():
                                 "07": "Ulaşım", "08": "İletişim", "09": "Eğlence", "10": "Eğitim", "11": "Lokanta",
                                 "12": "Çeşitli"}
                     df_s['Grup'] = df_s['Kod'].str[:2].map(grup_map).fillna("Diğer")
+
                 df_analiz = pd.merge(df_s, pivot, on='Kod', how='left')
                 if agirlik_col in df_analiz.columns:
                     df_analiz[agirlik_col] = pd.to_numeric(df_analiz[agirlik_col], errors='coerce').fillna(1)
                 else:
-                    df_analiz['Agirlik_2025'] = 1; agirlik_col = 'Agirlik_2025'
+                    df_analiz['Agirlik_2025'] = 1;
+                    agirlik_col = 'Agirlik_2025'
+
                 gunler = [c for c in pivot.columns if c != 'Kod']
                 if len(gunler) < 1: st.warning("Yeterli tarih verisi yok."); return
                 baz, son = gunler[0], gunler[-1]
 
+                # Hesaplamalar
                 endeks_genel = (df_analiz.dropna(subset=[son, baz])[agirlik_col] * (
                             df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[
                                    agirlik_col].sum() * 100
@@ -514,26 +559,41 @@ def dashboard_modu():
                 gida = df_analiz[df_analiz['Kod'].str.startswith("01")].copy()
                 enf_gida = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[
                     agirlik_col].sum() - 1) * 100 if not gida.empty else 0
-                dt_son = datetime.strptime(son, '%Y-%m-%d');
+
+                # GELECEK TAHMİNİ
+                dt_son = datetime.strptime(son, '%Y-%m-%d')
                 dt_baz = datetime.strptime(baz, '%Y-%m-%d')
-                days_left = calendar.monthrange(dt_son.year, dt_son.month)[1] - dt_son.day
-                month_end_forecast = enf_genel + (enf_genel / max(dt_son.day, 1) * days_left)
+                days_in_month = calendar.monthrange(dt_son.year, dt_son.month)[1]
+                days_passed = dt_son.day
+                days_left = days_in_month - days_passed
+                daily_rate = enf_genel / max(days_passed, 1)
+                month_end_forecast = enf_genel + (daily_rate * days_left)
                 gun_farki = (dt_son - dt_baz).days
 
+                # --- 1. TICKER ---
                 inc = df_analiz.sort_values('Fark', ascending=False).head(5)
                 dec = df_analiz.sort_values('Fark', ascending=True).head(5)
-                items = [f"<span style='color:#f87171'>▲ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>" for _, r in
-                         inc.iterrows()] + [f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>"
-                                            for _, r in dec.iterrows()]
+                items = []
+                for _, r in inc.iterrows(): items.append(
+                    f"<span style='color:#f87171'>▲ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>")
+                for _, r in dec.iterrows(): items.append(
+                    f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>")
                 st.markdown(
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>',
                     unsafe_allow_html=True)
 
+                # --- 2. KPI KARTLARI ---
                 def kpi_card(title, val, sub, sub_color, color_class, is_long_text=False):
                     val_class = "metric-val long-text" if is_long_text else "metric-val"
-                    st.markdown(
-                        f'<div class="metric-card {color_class}"><div class="metric-label">{title}</div><div class="{val_class}">{val}</div><div class="metric-sub" style="color:{sub_color}">{sub}</div></div>',
-                        unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div class="metric-card {color_class}">
+                            <div class="metric-label">{title}</div>
+                            <div class="{val_class}">{val}</div>
+                            <div class="metric-sub" style="color:{sub_color}">
+                                {sub}
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
 
                 c1, c2, c3, c4 = st.columns(4)
                 with c1:
@@ -547,23 +607,58 @@ def dashboard_modu():
                 with c4:
                     kpi_card("En Yüksek Risk", f"{top[ad_col][:15]}", f"%{top['Fark'] * 100:.1f} Artış", "#f59e0b",
                              "card-orange", is_long_text=True)
+
                 st.markdown("<br>", unsafe_allow_html=True)
 
+                # --- 3. SEKMELER ---
                 t1, t2, t3, t4, t5, t6, t7 = st.tabs(
                     ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
 
                 with t1:
+                    col_trend, col_comp = st.columns([2, 1])
+
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                                 df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
+
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
                     fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
                                            line_shape='spline')
-                    fig_main.update_layout(template="plotly_white", height=450, hovermode="x unified",
+                    fig_main.update_layout(template="plotly_white", height=400, hovermode="x unified",
                                            yaxis=dict(range=[95, 105]), plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
-                    st.plotly_chart(fig_main, use_container_width=True)
+                    col_trend.plotly_chart(fig_main, use_container_width=True)
+
+                    with col_comp:
+                        # MANUEL REFERANS DEĞERLERİ
+                        REF_ARALIK_2024 = 1.03
+                        REF_KASIM_2025 = 0.87
+                        diff_24 = enf_genel - REF_ARALIK_2024
+
+                        # --- NATIVE STREAMLIT BLOCKS (NO HTML RISK) ---
+                        st.markdown(f"""
+                        <div style="background:white; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:center;">
+                            <h4 style="margin:0; color:#334155;">⚖️ ENFLASYON KARŞILAŞTIRMASI</h4>
+                        </div>
+                        <br>
+                        """, unsafe_allow_html=True)
+
+                        # Referanslar
+                        c_r1, c_r2 = st.columns(2)
+                        c_r1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
+                        c_r2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
+
+                        st.divider()
+
+                        # Büyük Sistem Verisi (Native Metric ile)
+                        st.metric(
+                            label="ŞU ANKİ (SİSTEM)",
+                            value=f"%{enf_genel:.2f}",
+                            delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
+                            delta_color="inverse" if diff_24 > 0 else "normal"
+                        )
+                        st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
                     st.markdown("##### 🤖 Fiyat Asistanı")
@@ -581,9 +676,19 @@ def dashboard_modu():
 
                             if target is not None:
                                 fark = target['Fark'] * 100
-                                st.markdown(
-                                    f'<div class="bot-bubble"><b style="font-size:16px;">{target[ad_col]}</b> ({target["Grup"]})<br><div style="margin-top:5px; display:flex; justify-content:space-between;"><span>{baz}: <b>{target[baz]:.2f} TL</b></span><span>➜</span><span>{son}: <b>{target[son]:.2f} TL</b></span></div><div style="margin-top:5px; font-weight:bold; color:{"#dc2626" if fark > 0 else "#16a34a"};">Değişim: %{fark:.2f}</div></div>',
-                                    unsafe_allow_html=True)
+                                st.markdown(f"""
+                                    <div class="bot-bubble">
+                                        <b style="font-size:16px;">{target[ad_col]}</b> ({target['Grup']})<br>
+                                        <div style="margin-top:5px; display:flex; justify-content:space-between;">
+                                            <span>{baz}: <b>{target[baz]:.2f} TL</b></span>
+                                            <span>➜</span>
+                                            <span>{son}: <b>{target[son]:.2f} TL</b></span>
+                                        </div>
+                                        <div style="margin-top:5px; font-weight:bold; color:{'#dc2626' if fark > 0 else '#16a34a'};">
+                                            Değişim: %{fark:.2f}
+                                        </div>
+                                    </div>
+                                """, unsafe_allow_html=True)
                         else:
                             st.warning("Ürün bulunamadı.")
 
@@ -695,7 +800,7 @@ def dashboard_modu():
         unsafe_allow_html=True)
 
 
-# --- 5. LOGIN (GİZLİ ŞİFRE SIFIRLAMA MODÜLÜ) ---
+# --- 5. LOGIN ---
 def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
@@ -710,6 +815,7 @@ def main():
         .stApp { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
         @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
         [data-testid="stForm"] { background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid rgba(255, 255, 255, 0.2); position: relative; z-index: 9999; }
+        [data-testid="stForm"] input { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; color: #1e293b !important; }
         </style>
         """, unsafe_allow_html=True)
 
@@ -739,12 +845,38 @@ def main():
         return  # Normal logini gösterme
 
     if not st.session_state['logged_in']:
+        # Şovlu Login Ekranı CSS (Animasyon Arkada, Form Önde - Z-INDEX FIXED)
         st.markdown("""
         <style>
-        .stApp { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
+        .stApp {
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
         @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
-        [data-testid="stForm"] { background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid rgba(255, 255, 255, 0.2); position: relative; z-index: 9999; }
-        [data-testid="stForm"] input { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; color: #1e293b !important; }
+
+        /* Form Container'ı (Buzlu Cam) - Z-INDEX 9999 ile öne alındı */
+        [data-testid="stForm"] {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            z-index: 9999;
+        }
+        [data-testid="stForm"] input {
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #1e293b !important;
+        }
+
+        /* Google Button Style */
+        .google-btn {
+            background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: not-allowed; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none; opacity: 0.8;
+        }
         </style>
         """, unsafe_allow_html=True)
 
@@ -761,6 +893,7 @@ def main():
                     l_u = st.text_input("Kullanıcı Adı")
                     l_p = st.text_input("Şifre", type="password")
                     st.checkbox("Beni Hatırla")
+
                     if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
                         ok, msg = github_user_islem("login", l_u, l_p)
                         if ok:
@@ -771,6 +904,14 @@ def main():
                             st.rerun()
                         else:
                             st.error(msg)
+
+                # GOOGLE BUTTON (DEMO)
+                st.markdown("""
+                <button class="google-btn" onclick="alert('Google API anahtarı bekleniyor...')">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" width="20">
+                    Google ile Giriş Yap
+                </button>
+                """, unsafe_allow_html=True)
 
             with t_reg:
                 with st.form("reg_f"):
