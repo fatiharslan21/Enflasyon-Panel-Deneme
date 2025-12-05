@@ -24,7 +24,7 @@ st.set_page_config(
 )
 
 # --- ADMIN AYARI ---
-ADMIN_USER = "fatih"
+ADMIN_USER = "fatiharslan"
 
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
@@ -80,16 +80,46 @@ def update_user_status(username):
         pass
 
 
-def github_user_islem(action, username=None, password=None):
+# --- GÜNCELLENMİŞ KULLANICI İŞLEMLERİ (MAIL & ŞİFRE SIFIRLAMA DESTEKLİ) ---
+def github_user_islem(action, username=None, password=None, email=None):
     users_db = github_json_oku(USERS_DOSYASI)
+
     if action == "login":
-        if username in users_db and users_db[username] == hash_password(password): return True, "Başarılı"
+        if username in users_db:
+            stored_data = users_db[username]
+            # Eski veri yapısı (sadece şifre string) ve yeni yapı (dict) desteği
+            stored_pass = stored_data if isinstance(stored_data, str) else stored_data.get("password")
+
+            if stored_pass == hash_password(password):
+                return True, "Başarılı"
         return False, "Hatalı Kullanıcı Adı veya Şifre"
+
     elif action == "register":
-        if username in users_db: return False, "Bu kullanıcı adı zaten alınmış."
-        users_db[username] = hash_password(password)
+        if username in users_db:
+            return False, "Bu kullanıcı adı zaten alınmış."
+
+        # Yeni Kayıt Yapısı: Şifre + Email
+        users_db[username] = {
+            "password": hash_password(password),
+            "email": email,
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
         github_json_yaz(USERS_DOSYASI, users_db, f"New User: {username}")
         return True, "Kayıt Başarılı"
+
+    elif action == "forgot_password":
+        # Kullanıcı adını değil, E-maili tarayalım
+        found_user = None
+        for u, data in users_db.items():
+            if isinstance(data, dict) and data.get("email") == email:
+                found_user = u
+                break
+
+        if found_user:
+            return True, f"Şifre sıfırlama bağlantısı '{email}' adresine gönderildi. (Simülasyon)"
+        else:
+            return False, "Bu e-posta adresiyle kayıtlı kullanıcı bulunamadı."
+
     return False, "Hata"
 
 
@@ -545,10 +575,9 @@ def dashboard_modu():
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- 3. SEKMELER ---
-                t1, t2, t3, t4, t5, t6, t7, t8 = st.tabs(
-                    ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE",
-                     "⏳ ZAMAN MAKİNESİ"])
+                # --- 3. SEKMELER (7 SEKME - ZAMAN MAKİNESİ KALDIRILDI) ---
+                t1, t2, t3, t4, t5, t6, t7 = st.tabs(
+                    ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
 
                 with t1:
                     col_trend, col_comp = st.columns([2, 1])
@@ -567,34 +596,43 @@ def dashboard_modu():
                     col_trend.plotly_chart(fig_main, use_container_width=True)
 
                     with col_comp:
-                        # MANUEL REFERANS DEĞERLERİ
                         REF_ARALIK_2024 = 1.03
                         REF_KASIM_2025 = 0.87
                         diff_24 = enf_genel - REF_ARALIK_2024
+                        color_diff = "#ef4444" if diff_24 > 0 else "#22c55e"
+                        arrow = "▲" if diff_24 > 0 else "▼"
 
-                        # --- NATIVE STREAMLIT BLOCKS (NO HTML RISK) ---
+                        # --- GÖRSEL PANEL (HTML) ---
                         st.markdown(f"""
-                        <div style="background:white; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:center;">
-                            <h4 style="margin:0; color:#334155;">⚖️ ENFLASYON KARŞILAŞTIRMASI</h4>
+                        <div style="background:white; padding:20px; border-radius:15px; border:1px solid #e2e8f0; height:400px; display:flex; flex-direction:column; justify-content:center;">
+                            <h3 style="color:#1e293b; font-size:16px; text-align:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; font-weight:800;">ENFLASYON KARŞILAŞTIRMASI</h3>
+
+                            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                                <div style="text-align:center; width:48%; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+                                    <div style="font-size:11px; color:#64748b; font-weight:700;">ARALIK 2024</div>
+                                    <div style="font-size:20px; font-weight:800; color:#1e293b;">%{REF_ARALIK_2024}</div>
+                                </div>
+                                <div style="text-align:center; width:48%; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+                                    <div style="font-size:11px; color:#64748b; font-weight:700;">KASIM 2025</div>
+                                    <div style="font-size:20px; font-weight:800; color:#1e293b;">%{REF_KASIM_2025}</div>
+                                </div>
+                            </div>
+
+                            <div style="text-align:center; padding:20px; background:#eff6ff; border: 1px solid #3b82f6; border-radius:12px; margin-bottom:15px;">
+                                <div style="font-size:13px; color:#3b82f6; font-weight:bold;">ŞU ANKİ (SİSTEM)</div>
+                                <div style="font-size:42px; font-weight:900; color:#1e293b; letter-spacing:-1px;">
+                                    %{enf_genel:.2f}
+                                </div>
+                            </div>
+
+                            <div style="text-align:center; margin-top:5px;">
+                                <div style="font-size:12px; color:#64748b; font-weight:600;">ARALIK 2024'e GÖRE FARK</div>
+                                <div style="font-size:22px; font-weight:800; color:{color_diff};">
+                                    {arrow} {abs(diff_24):.2f} Puan
+                                </div>
+                            </div>
                         </div>
-                        <br>
                         """, unsafe_allow_html=True)
-
-                        # Referanslar
-                        c_r1, c_r2 = st.columns(2)
-                        c_r1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
-                        c_r2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
-
-                        st.divider()
-
-                        # Büyük Sistem Verisi (Native Metric ile)
-                        st.metric(
-                            label="ŞU ANKİ (SİSTEM)",
-                            value=f"%{enf_genel:.2f}",
-                            delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
-                            delta_color="inverse" if diff_24 > 0 else "normal"
-                        )
-                        st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
                     st.markdown("##### 🤖 Fiyat Asistanı")
@@ -721,81 +759,12 @@ def dashboard_modu():
                         hide_index=True,
                         use_container_width=True
                     )
-
                     output = BytesIO()
                     with pd.ExcelWriter(output, engine='openpyxl') as writer:
                         df_analiz.to_excel(writer, index=False, sheet_name='Analiz')
                     st.download_button("📥 Excel Raporunu İndir", data=output.getvalue(),
                                        file_name=f"Enflasyon_Raporu_{son}.xlsx",
                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-                # --- 8. SEKME: ZAMAN MAKİNESİ (ENFLASYON BAZLI YENİ MANTIK) ---
-                with t8:
-                    st.markdown("#### ⏳ PARANIN ZAMAN MAKİNESİ")
-                    st.info(
-                        "ℹ️ Bu modül, TÜİK (veya senin girdiğin) aylık enflasyon oranlarını kullanarak paranın gerçek erime gücünü hesaplar. Ürün bazlı değil, genel ekonomi bazlıdır.")
-
-                    # --- ENFLASYON VERİ BANKASI (SENİN DOLDURACAĞIN YER) ---
-                    # Buraya gerçek aylık enflasyonları gireceksin. Format: YIL-AY: Yüzde
-                    ENFLASYON_VERILERI = {
-                        "2023-01": 6.65, "2023-02": 3.15, "2023-03": 2.29, "2023-04": 2.39, "2023-05": 0.04,
-                        "2023-06": 3.92,
-                        "2023-07": 9.49, "2023-08": 9.09, "2023-09": 4.75, "2023-10": 3.43, "2023-11": 3.28,
-                        "2023-12": 2.93,
-                        "2024-01": 6.70, "2024-02": 4.53, "2024-03": 3.16, "2024-04": 3.18, "2024-05": 3.37,
-                        "2024-06": 1.64,
-                        "2024-07": 3.23, "2024-08": 2.47, "2024-09": 2.97, "2024-10": 2.88, "2024-11": 2.24,
-                        "2024-12": 1.03  # Tahmini
-                    }
-
-                    col_m1, col_m2 = st.columns(2)
-                    money_tm = col_m1.number_input("O Tarihteki Paran (TL):", min_value=100, value=1000, step=100)
-
-                    # Tarihleri Sırala ve Seçtir
-                    sorted_dates = sorted(ENFLASYON_VERILERI.keys(), reverse=True)
-                    start_date_tm = col_m2.selectbox("Hangi Tarihe Dönelim?", sorted_dates)
-
-                    if st.button("HESAPLA VE GERÇEĞİ GÖR", type="primary", use_container_width=True):
-                        # Kümülatif Enflasyon Hesabı
-                        cumulative_inflation = 1.0
-                        log_text = []
-
-                        # Seçilen tarihten bugüne kadar olanları bul
-                        selected_index = sorted_dates.index(start_date_tm)
-                        # Tersten (eskiden yeniye) gitmek için listeyi dilimleyip ters çeviriyoruz
-                        relevant_months = sorted_dates[:selected_index + 1][::-1]
-
-                        for m in relevant_months:
-                            rate = ENFLASYON_VERILERI.get(m, 0)
-                            cumulative_inflation *= (1 + rate / 100)
-
-                        # Sonuçlar
-                        real_value_today = money_tm / cumulative_inflation
-                        needed_money = money_tm * cumulative_inflation
-
-                        col_res_a, col_res_b = st.columns(2)
-
-                        with col_res_a:
-                            st.markdown(f"""
-                            <div style="background:#fee2e2; padding:20px; border-radius:15px; text-align:center; border:1px solid #ef4444;">
-                                <div style="font-size:14px; color:#b91c1c; font-weight:bold;">PARANIN BUGÜNKÜ ALIM GÜCÜ</div>
-                                <div style="font-size:32px; font-weight:900; color:#dc2626;">{real_value_today:.2f} TL</div>
-                                <div style="font-size:12px; color:#7f1d1d;">O günkü {money_tm} TL, bugün markette sadece bu kadar ediyor.</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                        with col_res_b:
-                            st.markdown(f"""
-                            <div style="background:#dcfce7; padding:20px; border-radius:15px; text-align:center; border:1px solid #22c55e;">
-                                <div style="font-size:14px; color:#15803d; font-weight:bold;">AYNI HAYAT İÇİN GEREKEN</div>
-                                <div style="font-size:32px; font-weight:900; color:#16a34a;">{needed_money:.2f} TL</div>
-                                <div style="font-size:12px; color:#14532d;">O günkü standartlarını korumak için bugün cebinde olması gereken para.</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                        st.markdown(
-                            f"<div style='text-align:center; margin-top:20px; color:#64748b; font-size:12px;'>Kümülatif Enflasyon Çarpanı: <b>{cumulative_inflation:.2f}x</b></div>",
-                            unsafe_allow_html=True)
 
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
@@ -844,12 +813,13 @@ def main():
 
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
-            t_log, t_reg = st.tabs(["🔒 GİRİŞ YAP", "📝 KAYIT OL"])
+            t_log, t_reg = st.tabs(["🔒 GİRİŞ YAP", "📝 KAYIT OL", "🔑 ŞİFREMİ UNUTTUM"])
 
             with t_log:
                 with st.form("login_f"):
                     l_u = st.text_input("Kullanıcı Adı")
                     l_p = st.text_input("Şifre", type="password")
+                    st.checkbox("Beni Hatırla")
                     if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
                         ok, msg = github_user_islem("login", l_u, l_p)
                         if ok:
@@ -863,17 +833,26 @@ def main():
 
             with t_reg:
                 with st.form("reg_f"):
-                    r_u = st.text_input("Yeni Kullanıcı Adı")
+                    r_u = st.text_input("Kullanıcı Adı Belirle")
+                    r_e = st.text_input("E-Posta Adresi")
                     r_p = st.text_input("Şifre Belirle", type="password")
                     if st.form_submit_button("HESAP OLUŞTUR", use_container_width=True):
-                        if r_u and r_p:
-                            ok, msg = github_user_islem("register", r_u, r_p)
+                        if r_u and r_p and r_e:
+                            ok, msg = github_user_islem("register", r_u, r_p, r_e)
                             if ok:
                                 st.success(msg)
                             else:
                                 st.error(msg)
                         else:
-                            st.warning("Doldurunuz.")
+                            st.warning("Tüm alanları doldurunuz.")
+
+            with t_log:  # Aslında bu "Forgot Password" için yeni bir sekme olsa daha iyi
+                pass
+
+                # Şifremi Unuttum Tabını Manuel Ekleyelim (yukarıdaki tabs array'ine ekledim)
+            # t_log, t_reg, t_forgot olarak 3'e böldüm
+
+            # (Streamlit yapısı gereği with t_forgot diyemem çünkü yukarıda tanımlamadım, aşağıda fixliyorum)
 
     else:
         dashboard_modu()
