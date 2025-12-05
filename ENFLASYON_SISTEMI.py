@@ -83,12 +83,15 @@ def update_user_status(username):
         pass
 
 
-# --- GERÇEK MAİL GÖNDERME FONKSİYONU ---
+# --- GERÇEK MAİL GÖNDERME FONKSİYONU (LİNK EKLENDİ) ---
 def send_reset_email(to_email, username):
     try:
         # Secrets'tan bilgileri çek
         sender_email = st.secrets["email"]["sender"]
         sender_password = st.secrets["email"]["password"]
+
+        # SENİN VERDİĞİN LİNK BURAYA GÖMÜLDÜ 👇
+        app_url = "https://enflasyon-gida.streamlit.app/"
 
         subject = "Enflasyon Monitörü - Şifre Sıfırlama"
         body = f"""
@@ -96,7 +99,7 @@ def send_reset_email(to_email, username):
 
         Şifreni unuttuğunu duyduk. Hesabına tekrar erişmek için aşağıdaki bağlantıyı kullanabilirsin:
 
-        https://enflasyon-monitoru.streamlit.app/reset-password?user={username}
+        {app_url}?reset_user={username}
 
         Bu işlemi sen yapmadıysan, bu maili dikkate alma.
 
@@ -122,7 +125,7 @@ def send_reset_email(to_email, username):
         return False, f"Mail gönderirken hata oluştu: {str(e)}. Lütfen sistem yöneticisine başvurun."
 
 
-# --- KULLANICI İŞLEMLERİ (ENTGRASYONLU) ---
+# --- KULLANICI İŞLEMLERİ ---
 def github_user_islem(action, username=None, password=None, email=None):
     users_db = github_json_oku(USERS_DOSYASI)
 
@@ -149,7 +152,6 @@ def github_user_islem(action, username=None, password=None, email=None):
 
     elif action == "forgot_password":
         found_user = None
-        # Email ile kullanıcı bulma
         for u, data in users_db.items():
             if isinstance(data, dict) and data.get("email") == email:
                 found_user = u
@@ -406,31 +408,14 @@ def dashboard_modu():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
-
-        /* Global Reset */
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
-
-        /* Sidebar Styling */
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
         section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
-        /* Header & Title Shimmer Effect */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
-
-        .app-title { 
-            font-family: 'Poppins', sans-serif; 
-            font-size: 32px; 
-            font-weight: 800; 
-            letter-spacing: -1px; 
-            background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); 
-            background-size: 200% auto;
-            -webkit-background-clip: text; 
-            -webkit-text-fill-color: transparent; 
-            animation: shine 5s linear infinite;
-        }
+        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
         @keyframes shine { to { background-position: 200% center; } }
 
-        /* Cards */
         .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: all 0.3s ease; }
         .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
         .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
@@ -439,22 +424,18 @@ def dashboard_modu():
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
         .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
-        /* Update Button Pulse */
         .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
         .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
 
-        /* Ticker */
         .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
         .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
-        /* Bot & Bubble */
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
 
-        /* Live Clock Font */
         #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
     </style>
     """, unsafe_allow_html=True)
@@ -632,7 +613,7 @@ def dashboard_modu():
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
                     fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
                                            line_shape='spline')
-                    fig_main.update_layout(template="plotly_white", height=450, hovermode="x unified",
+                    fig_main.update_layout(template="plotly_white", height=400, hovermode="x unified",
                                            yaxis=dict(range=[95, 105]), plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
                     col_trend.plotly_chart(fig_main, use_container_width=True)
