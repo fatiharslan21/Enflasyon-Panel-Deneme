@@ -6,5 +6,3 @@ PyGithub
 openpyxl
 lxml
 numpy
-google-auth-oauthlib
-google-api-python-client
