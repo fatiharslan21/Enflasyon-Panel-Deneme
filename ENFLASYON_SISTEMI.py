@@ -85,11 +85,11 @@ def update_user_status(username):
         pass
 
 
-# --- GOOGLE GİRİŞ (HATA KORUMALI) ---
+# --- GOOGLE GİRİŞ FONKSİYONU ---
 def google_login():
-    # Eğer secrets dosyasında google ayarı yoksa çökmemesi için koruma
+    # Secrets kontrolü (Çökmemesi için)
     if "google" not in st.secrets:
-        st.warning("⚠️ Google Giriş Ayarları (Secrets) Yapılmamış.")
+        # Eğer ayar yoksa boş döner, sistem çökmez
         return None
 
     client_config = {
@@ -141,6 +141,7 @@ def send_reset_email(to_email, username):
         sender_email = st.secrets["email"]["sender"]
         sender_password = st.secrets["email"]["password"]
 
+        # KENDİ LİNKİN
         app_url = "https://enflasyon-gida.streamlit.app/"
         reset_link = f"{app_url}?reset_user={username}"
 
@@ -150,6 +151,8 @@ def send_reset_email(to_email, username):
 
         Şifreni sıfırlamak için aşağıdaki bağlantıya tıkla:
         {reset_link}
+
+        Bu işlemi sen yapmadıysan dikkate alma.
 
         Sevgiler,
         Enflasyon Monitörü Ekibi
@@ -458,14 +461,31 @@ def dashboard_modu():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
+
+        /* Global Reset */
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
+
+        /* Sidebar Styling */
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
         section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
+        /* Header & Title Shimmer Effect */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
-        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
+
+        .app-title { 
+            font-family: 'Poppins', sans-serif; 
+            font-size: 32px; 
+            font-weight: 800; 
+            letter-spacing: -1px; 
+            background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); 
+            background-size: 200% auto;
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            animation: shine 5s linear infinite;
+        }
         @keyframes shine { to { background-position: 200% center; } }
 
+        /* Cards */
         .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: all 0.3s ease; }
         .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
         .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
@@ -474,27 +494,32 @@ def dashboard_modu():
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
         .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
+        /* Update Button Pulse */
         .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
         .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
 
+        /* Ticker */
         .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
         .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
+        /* Bot & Bubble */
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
 
+        /* Live Clock Font */
         #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
 
-        /* GOOGLE BUTTON STYLE */
+        /* GOOGLE BUTTON STYLE (SHOW) */
         .google-btn {
             background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px;
             padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none;
         }
         .google-btn:hover { background-color: #f8fafc; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .google-icon { width: 20px; height: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -525,7 +550,7 @@ def dashboard_modu():
     """
     st.markdown(header_html, unsafe_allow_html=True)
 
-    # --- TOAST MESSAGE ---
+    # --- TOAST MESSAGE (ŞOV) ---
     if 'toast_shown' not in st.session_state:
         st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
         st.session_state['toast_shown'] = True
@@ -606,13 +631,15 @@ def dashboard_modu():
                 enf_gida = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[
                     agirlik_col].sum() - 1) * 100 if not gida.empty else 0
 
+                # GELECEK TAHMİNİ
                 dt_son = datetime.strptime(son, '%Y-%m-%d')
+                dt_baz = datetime.strptime(baz, '%Y-%m-%d')
                 days_in_month = calendar.monthrange(dt_son.year, dt_son.month)[1]
                 days_passed = dt_son.day
                 days_left = days_in_month - days_passed
                 daily_rate = enf_genel / max(days_passed, 1)
                 month_end_forecast = enf_genel + (daily_rate * days_left)
-                gun_farki = (dt_son - datetime.strptime(baz, '%Y-%m-%d')).days
+                gun_farki = (dt_son - dt_baz).days
 
                 # --- 1. TICKER ---
                 inc = df_analiz.sort_values('Fark', ascending=False).head(5)
@@ -654,16 +681,17 @@ def dashboard_modu():
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- 3. SEKMELER (TEMİZLENDİ) ---
+                # --- 3. SEKMELER ---
                 t1, t2, t3, t4, t5, t6, t7 = st.tabs(
                     ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
 
                 with t1:
-                    # GRAFİK TAM EKRAN (KARŞILAŞTIRMA YOK)
+                    # GRAFİK TAM EKRAN (Comparison Removed)
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                                 df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
+
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
                     fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
                                            line_shape='spline')
@@ -816,7 +844,7 @@ def dashboard_modu():
 def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
-    # URL KONTROLÜ (ŞİFRE SIFIRLAMA)
+    # URL Kontrolü (Reset Modu)
     params = st.query_params
     if "reset_user" in params and not st.session_state['logged_in']:
         reset_user = params["reset_user"]
