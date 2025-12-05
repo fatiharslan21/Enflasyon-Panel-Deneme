@@ -17,56 +17,8 @@ import numpy as np
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-# --- GOOGLE AUTH FONKSİYONU ---
 import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
-
-def google_login():
-    # Secrets'tan verileri al
-    client_config = {
-        "web": {
-            "client_id": st.secrets["google"]["client_id"],
-            "client_secret": st.secrets["google"]["client_secret"],
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [st.secrets["google"]["redirect_uri"]],
-        }
-    }
-
-    # Akışı başlat
-    flow = google_auth_oauthlib.flow.Flow.from_client_config(
-        client_config,
-        scopes=['openid', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
-        redirect_uri=st.secrets["google"]["redirect_uri"]
-    )
-
-    # URL'deki kodu yakala (Geri dönüş)
-    try:
-        auth_code = st.query_params.get("code")
-    except:
-        auth_code = None
-
-    if auth_code:
-        # Google'dan gelen kodu token ile takas et
-        try:
-            flow.fetch_token(code=auth_code)
-            credentials = flow.credentials
-            user_info_service = build('oauth2', 'v2', credentials=credentials)
-            user_info = user_info_service.userinfo().get().execute()
-            return user_info # Kullanıcı bilgilerini (email, isim) döndür
-        except Exception as e:
-            st.error(f"Giriş hatası: {e}")
-            return None
-    else:
-        # Giriş linki oluştur ve butona koy
-        authorization_url, _ = flow.authorization_url(prompt='consent')
-        st.markdown(f'''
-            <a href="{authorization_url}" target="_self" class="google-btn">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" width="20">
-                Google ile Giriş Yap
-            </a>
-            ''', unsafe_allow_html=True)
-        return None
 
 # --- 1. AYARLAR ---
 st.set_page_config(
@@ -133,26 +85,71 @@ def update_user_status(username):
         pass
 
 
+# --- GOOGLE GİRİŞ (HATA KORUMALI) ---
+def google_login():
+    # Eğer secrets dosyasında google ayarı yoksa çökmemesi için koruma
+    if "google" not in st.secrets:
+        st.warning("⚠️ Google Giriş Ayarları (Secrets) Yapılmamış.")
+        return None
+
+    client_config = {
+        "web": {
+            "client_id": st.secrets["google"]["client_id"],
+            "client_secret": st.secrets["google"]["client_secret"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [st.secrets["google"]["redirect_uri"]],
+        }
+    }
+
+    flow = google_auth_oauthlib.flow.Flow.from_client_config(
+        client_config,
+        scopes=['openid', 'https://www.googleapis.com/auth/userinfo.email',
+                'https://www.googleapis.com/auth/userinfo.profile'],
+        redirect_uri=st.secrets["google"]["redirect_uri"]
+    )
+
+    try:
+        auth_code = st.query_params.get("code")
+    except:
+        auth_code = None
+
+    if auth_code:
+        try:
+            flow.fetch_token(code=auth_code)
+            credentials = flow.credentials
+            user_info_service = build('oauth2', 'v2', credentials=credentials)
+            user_info = user_info_service.userinfo().get().execute()
+            return user_info
+        except Exception as e:
+            st.error(f"Google Giriş Hatası: {e}")
+            return None
+    else:
+        authorization_url, _ = flow.authorization_url(prompt='consent')
+        st.markdown(f'''
+            <a href="{authorization_url}" target="_self" class="google-btn">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" width="20">
+                Google ile Giriş Yap
+            </a>
+            ''', unsafe_allow_html=True)
+        return None
+
+
 # --- MAİL GÖNDERME ---
 def send_reset_email(to_email, username):
     try:
         sender_email = st.secrets["email"]["sender"]
         sender_password = st.secrets["email"]["password"]
 
-        # LİNK GÜNCELLENDİ
         app_url = "https://enflasyon-gida.streamlit.app/"
         reset_link = f"{app_url}?reset_user={username}"
 
-        subject = "🔐 Şifre Sıfırlama Talebi - Enflasyon Monitörü"
+        subject = "🔐 Şifre Sıfırlama - Enflasyon Monitörü"
         body = f"""
         Merhaba {username},
 
-        Hesabın için bir şifre sıfırlama talebi aldık. 
-        Aşağıdaki bağlantıya tıklayarak yeni şifreni belirleyebilirsin:
-
+        Şifreni sıfırlamak için aşağıdaki bağlantıya tıkla:
         {reset_link}
-
-        Bu işlemi sen yapmadıysan, lütfen bu maili dikkate alma.
 
         Sevgiler,
         Enflasyon Monitörü Ekibi
@@ -170,9 +167,9 @@ def send_reset_email(to_email, username):
         text = msg.as_string()
         server.sendmail(sender_email, to_email, text)
         server.quit()
-        return True, "Sıfırlama bağlantısı e-posta adresine gönderildi."
+        return True, "Sıfırlama bağlantısı gönderildi."
     except Exception as e:
-        return False, f"Mail gönderilemedi: {str(e)}"
+        return False, f"Mail Hatası: {str(e)}"
 
 
 # --- KULLANICI İŞLEMLERİ ---
@@ -214,7 +211,7 @@ def github_user_islem(action, username=None, password=None, email=None):
             user_data["password"] = hash_password(password)
             users_db[username] = user_data
             if github_json_yaz(USERS_DOSYASI, users_db, f"Password Reset: {username}"):
-                return True, "Şifreniz başarıyla güncellendi! Giriş yapabilirsiniz."
+                return True, "Şifreniz güncellendi! Giriş yapabilirsiniz."
         return False, "Kullanıcı bulunamadı."
 
     return False, "Hata"
@@ -491,14 +488,13 @@ def dashboard_modu():
 
         #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
 
-        /* GOOGLE BUTTON STYLE (SHOW) */
+        /* GOOGLE BUTTON STYLE */
         .google-btn {
             background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px;
             padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none;
         }
         .google-btn:hover { background-color: #f8fafc; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: translateY(-2px); }
-        .google-icon { width: 20px; height: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -610,15 +606,13 @@ def dashboard_modu():
                 enf_gida = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[
                     agirlik_col].sum() - 1) * 100 if not gida.empty else 0
 
-                # GELECEK TAHMİNİ
                 dt_son = datetime.strptime(son, '%Y-%m-%d')
-                dt_baz = datetime.strptime(baz, '%Y-%m-%d')
                 days_in_month = calendar.monthrange(dt_son.year, dt_son.month)[1]
                 days_passed = dt_son.day
                 days_left = days_in_month - days_passed
                 daily_rate = enf_genel / max(days_passed, 1)
                 month_end_forecast = enf_genel + (daily_rate * days_left)
-                gun_farki = (dt_son - dt_baz).days
+                gun_farki = (dt_son - datetime.strptime(baz, '%Y-%m-%d')).days
 
                 # --- 1. TICKER ---
                 inc = df_analiz.sort_values('Fark', ascending=False).head(5)
@@ -660,55 +654,23 @@ def dashboard_modu():
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- 3. SEKMELER ---
+                # --- 3. SEKMELER (TEMİZLENDİ) ---
                 t1, t2, t3, t4, t5, t6, t7 = st.tabs(
                     ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
 
                 with t1:
-                    col_trend, col_comp = st.columns([2, 1])
-
+                    # GRAFİK TAM EKRAN (KARŞILAŞTIRMA YOK)
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                                 df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
-
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
                     fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
                                            line_shape='spline')
-                    fig_main.update_layout(template="plotly_white", height=400, hovermode="x unified",
+                    fig_main.update_layout(template="plotly_white", height=450, hovermode="x unified",
                                            yaxis=dict(range=[95, 105]), plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
-                    col_trend.plotly_chart(fig_main, use_container_width=True)
-
-                    with col_comp:
-                        # MANUEL REFERANS DEĞERLERİ
-                        REF_ARALIK_2024 = 1.03
-                        REF_KASIM_2025 = 0.87
-                        diff_24 = enf_genel - REF_ARALIK_2024
-
-                        # --- NATIVE STREAMLIT BLOCKS (NO HTML RISK) ---
-                        st.markdown(f"""
-                        <div style="background:white; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:center;">
-                            <h4 style="margin:0; color:#334155;">⚖️ ENFLASYON KARŞILAŞTIRMASI</h4>
-                        </div>
-                        <br>
-                        """, unsafe_allow_html=True)
-
-                        # Referanslar
-                        c_r1, c_r2 = st.columns(2)
-                        c_r1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
-                        c_r2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
-
-                        st.divider()
-
-                        # Büyük Sistem Verisi (Native Metric ile)
-                        st.metric(
-                            label="ŞU ANKİ (SİSTEM)",
-                            value=f"%{enf_genel:.2f}",
-                            delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
-                            delta_color="inverse" if diff_24 > 0 else "normal"
-                        )
-                        st.caption("Veriler veritabanından anlık hesaplanmıştır.")
+                    st.plotly_chart(fig_main, use_container_width=True)
 
                 with t2:
                     st.markdown("##### 🤖 Fiyat Asistanı")
@@ -850,16 +812,15 @@ def dashboard_modu():
         unsafe_allow_html=True)
 
 
-# --- 5. LOGIN ---
+# --- 5. LOGIN (RESET MOD & NORMAL GİRİŞ) ---
 def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
-    # URL Kontrolü (Reset Modu)
+    # URL KONTROLÜ (ŞİFRE SIFIRLAMA)
     params = st.query_params
     if "reset_user" in params and not st.session_state['logged_in']:
         reset_user = params["reset_user"]
 
-        # Şovlu Login Ekranı CSS (Animasyon Arkada, Form Önde - Z-INDEX FIXED)
         st.markdown("""
         <style>
         .stApp { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
@@ -886,47 +847,24 @@ def main():
                         if ok:
                             st.success(msg)
                             time.sleep(2)
-                            st.query_params.clear()  # URL temizle
+                            st.query_params.clear()  # URL TEMİZLE
                             st.rerun()  # Logine dön
                         else:
                             st.error(msg)
                     else:
                         st.warning("Şifreler uyuşmuyor.")
-        return  # Normal logini gösterme
+        return
 
     if not st.session_state['logged_in']:
-        # Şovlu Login Ekranı CSS (Animasyon Arkada, Form Önde - Z-INDEX FIXED)
+        # NORMAL GİRİŞ EKRANI
         st.markdown("""
         <style>
-        .stApp {
-            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-            background-size: 400% 400%;
-            animation: gradient 15s ease infinite;
-        }
+        .stApp { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
         @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
-
-        /* Form Container'ı (Buzlu Cam) - Z-INDEX 9999 ile öne alındı */
-        [data-testid="stForm"] {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            position: relative;
-            z-index: 9999;
-        }
-        [data-testid="stForm"] input {
-            background: #f8fafc !important;
-            border: 1px solid #e2e8f0 !important;
-            color: #1e293b !important;
-        }
-
-        /* Google Button Style */
-        .google-btn {
-            background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px;
-            padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: not-allowed; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none; opacity: 0.8;
-        }
+        [data-testid="stForm"] { background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid rgba(255, 255, 255, 0.2); position: relative; z-index: 9999; }
+        [data-testid="stForm"] input { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; color: #1e293b !important; }
+        .google-btn { background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none; }
+        .google-btn:hover { background-color: #f8fafc; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: translateY(-2px); }
         </style>
         """, unsafe_allow_html=True)
 
@@ -955,17 +893,14 @@ def main():
                         else:
                             st.error(msg)
 
-                # GOOGLE BUTTON (DEMO)
-                # Demo butonu sil, yerine bunu koy:
+                # GOOGLE GİRİŞ BUTONU
                 google_user = google_login()
                 if google_user:
                     email = google_user["email"]
-                    # Burada senin kullanıcı veritabanını kontrol etmeliyiz
-                    # Eğer email kayıtlıysa giriş yap, değilse hata ver veya otomatik kaydet
                     st.success(f"Hoşgeldin {google_user['name']}!")
                     st.session_state['logged_in'] = True
-                    st.session_state['username'] = email  # Kullanıcı adı olarak maili kullanır
-                    time.sleep(1)
+                    st.session_state['username'] = email
+                    time.sleep(1);
                     st.rerun()
 
             with t_reg:
