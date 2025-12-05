@@ -17,6 +17,56 @@ import numpy as np
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+# --- GOOGLE AUTH FONKSİYONU ---
+import google_auth_oauthlib.flow
+from googleapiclient.discovery import build
+
+def google_login():
+    # Secrets'tan verileri al
+    client_config = {
+        "web": {
+            "client_id": st.secrets["google"]["client_id"],
+            "client_secret": st.secrets["google"]["client_secret"],
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [st.secrets["google"]["redirect_uri"]],
+        }
+    }
+
+    # Akışı başlat
+    flow = google_auth_oauthlib.flow.Flow.from_client_config(
+        client_config,
+        scopes=['openid', 'https://www.googleapis.com/auth/userinfo.email', 'https://www.googleapis.com/auth/userinfo.profile'],
+        redirect_uri=st.secrets["google"]["redirect_uri"]
+    )
+
+    # URL'deki kodu yakala (Geri dönüş)
+    try:
+        auth_code = st.query_params.get("code")
+    except:
+        auth_code = None
+
+    if auth_code:
+        # Google'dan gelen kodu token ile takas et
+        try:
+            flow.fetch_token(code=auth_code)
+            credentials = flow.credentials
+            user_info_service = build('oauth2', 'v2', credentials=credentials)
+            user_info = user_info_service.userinfo().get().execute()
+            return user_info # Kullanıcı bilgilerini (email, isim) döndür
+        except Exception as e:
+            st.error(f"Giriş hatası: {e}")
+            return None
+    else:
+        # Giriş linki oluştur ve butona koy
+        authorization_url, _ = flow.authorization_url(prompt='consent')
+        st.markdown(f'''
+            <a href="{authorization_url}" target="_self" class="google-btn">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" width="20">
+                Google ile Giriş Yap
+            </a>
+            ''', unsafe_allow_html=True)
+        return None
 
 # --- 1. AYARLAR ---
 st.set_page_config(
@@ -906,12 +956,17 @@ def main():
                             st.error(msg)
 
                 # GOOGLE BUTTON (DEMO)
-                st.markdown("""
-                <button class="google-btn" onclick="alert('Google API anahtarı bekleniyor...')">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" width="20">
-                    Google ile Giriş Yap
-                </button>
-                """, unsafe_allow_html=True)
+                # Demo butonu sil, yerine bunu koy:
+                google_user = google_login()
+                if google_user:
+                    email = google_user["email"]
+                    # Burada senin kullanıcı veritabanını kontrol etmeliyiz
+                    # Eğer email kayıtlıysa giriş yap, değilse hata ver veya otomatik kaydet
+                    st.success(f"Hoşgeldin {google_user['name']}!")
+                    st.session_state['logged_in'] = True
+                    st.session_state['username'] = email  # Kullanıcı adı olarak maili kullanır
+                    time.sleep(1)
+                    st.rerun()
 
             with t_reg:
                 with st.form("reg_f"):
