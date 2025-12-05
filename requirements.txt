@@ -4,3 +4,4 @@ plotly
 beautifulsoup4
 PyGithub
 openpyxl
+google-auth-oauthlib
