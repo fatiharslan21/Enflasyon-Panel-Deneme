@@ -14,6 +14,9 @@ from io import BytesIO
 import zipfile
 import base64
 import numpy as np
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # --- 1. AYARLAR ---
 st.set_page_config(
@@ -24,7 +27,7 @@ st.set_page_config(
 )
 
 # --- ADMIN AYARI ---
-ADMIN_USER = "fatiharslan"
+ADMIN_USER = "fatih"
 
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
@@ -80,14 +83,52 @@ def update_user_status(username):
         pass
 
 
-# --- KULLANICI İŞLEMLERİ (GÜNCELLENDİ) ---
+# --- GERÇEK MAİL GÖNDERME FONKSİYONU ---
+def send_reset_email(to_email, username):
+    try:
+        # Secrets'tan bilgileri çek
+        sender_email = st.secrets["email"]["sender"]
+        sender_password = st.secrets["email"]["password"]
+
+        subject = "Enflasyon Monitörü - Şifre Sıfırlama"
+        body = f"""
+        Merhaba {username},
+
+        Şifreni unuttuğunu duyduk. Hesabına tekrar erişmek için aşağıdaki bağlantıyı kullanabilirsin:
+
+        https://enflasyon-monitoru.streamlit.app/reset-password?user={username}
+
+        Bu işlemi sen yapmadıysan, bu maili dikkate alma.
+
+        Sevgiler,
+        Enflasyon Monitörü Ekibi
+        """
+
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Gmail SMTP Sunucusu
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = msg.as_string()
+        server.sendmail(sender_email, to_email, text)
+        server.quit()
+        return True, "Sıfırlama maili başarıyla gönderildi! Lütfen gelen kutunu (ve spam klasörünü) kontrol et."
+    except Exception as e:
+        return False, f"Mail gönderirken hata oluştu: {str(e)}. Lütfen sistem yöneticisine başvurun."
+
+
+# --- KULLANICI İŞLEMLERİ (ENTGRASYONLU) ---
 def github_user_islem(action, username=None, password=None, email=None):
     users_db = github_json_oku(USERS_DOSYASI)
 
     if action == "login":
         if username in users_db:
             stored_data = users_db[username]
-            # Eski veri yapısı (string) ve yeni yapı (dict) desteği
             stored_pass = stored_data if isinstance(stored_data, str) else stored_data.get("password")
 
             if stored_pass == hash_password(password):
@@ -108,13 +149,16 @@ def github_user_islem(action, username=None, password=None, email=None):
 
     elif action == "forgot_password":
         found_user = None
+        # Email ile kullanıcı bulma
         for u, data in users_db.items():
             if isinstance(data, dict) and data.get("email") == email:
                 found_user = u
                 break
 
         if found_user:
-            return True, f"Şifre sıfırlama bağlantısı '{email}' adresine gönderildi. (Simülasyon)"
+            # GERÇEK MAİL FONKSİYONUNU ÇAĞIR
+            success, msg = send_reset_email(email, found_user)
+            return success, msg
         else:
             return False, "Bu e-posta adresiyle kayıtlı kullanıcı bulunamadı."
 
@@ -362,33 +406,55 @@ def dashboard_modu():
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
+
+        /* Global Reset */
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
+
+        /* Sidebar Styling */
         section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
         section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
+        /* Header & Title Shimmer Effect */
         .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
-        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
+
+        .app-title { 
+            font-family: 'Poppins', sans-serif; 
+            font-size: 32px; 
+            font-weight: 800; 
+            letter-spacing: -1px; 
+            background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); 
+            background-size: 200% auto;
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            animation: shine 5s linear infinite;
+        }
         @keyframes shine { to { background-position: 200% center; } }
 
+        /* Cards */
         .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: all 0.3s ease; }
         .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
         .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
         .card-blue::before { background: #3b82f6; } .card-purple::before { background: #8b5cf6; } .card-emerald::before { background: #10b981; } .card-orange::before { background: #f59e0b; }
         .metric-label { color: #64748b; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
         .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
+        .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
+        /* Update Button Pulse */
         .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
         .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
 
+        /* Ticker */
         .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
         .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
         .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
+        /* Bot & Bubble */
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
 
+        /* Live Clock Font */
         #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
     </style>
     """, unsafe_allow_html=True)
@@ -566,7 +632,7 @@ def dashboard_modu():
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
                     fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
                                            line_shape='spline')
-                    fig_main.update_layout(template="plotly_white", height=400, hovermode="x unified",
+                    fig_main.update_layout(template="plotly_white", height=450, hovermode="x unified",
                                            yaxis=dict(range=[95, 105]), plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
                     col_trend.plotly_chart(fig_main, use_container_width=True)
@@ -576,40 +642,30 @@ def dashboard_modu():
                         REF_ARALIK_2024 = 1.03
                         REF_KASIM_2025 = 0.87
                         diff_24 = enf_genel - REF_ARALIK_2024
-                        color_diff = "#ef4444" if diff_24 > 0 else "#22c55e"
-                        arrow = "▲" if diff_24 > 0 else "▼"
 
-                        # --- GÖRSEL PANEL (HTML) ---
+                        # --- NATIVE STREAMLIT BLOCKS (NO HTML RISK) ---
                         st.markdown(f"""
-                        <div style="background:white; padding:20px; border-radius:15px; border:1px solid #e2e8f0; height:400px; display:flex; flex-direction:column; justify-content:center;">
-                            <h3 style="color:#1e293b; font-size:16px; text-align:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; font-weight:800;">ENFLASYON KARŞILAŞTIRMASI</h3>
-
-                            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                                <div style="text-align:center; width:48%; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
-                                    <div style="font-size:11px; color:#64748b; font-weight:700;">ARALIK 2024</div>
-                                    <div style="font-size:20px; font-weight:800; color:#1e293b;">%{REF_ARALIK_2024}</div>
-                                </div>
-                                <div style="text-align:center; width:48%; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
-                                    <div style="font-size:11px; color:#64748b; font-weight:700;">KASIM 2025</div>
-                                    <div style="font-size:20px; font-weight:800; color:#1e293b;">%{REF_KASIM_2025}</div>
-                                </div>
-                            </div>
-
-                            <div style="text-align:center; padding:20px; background:#eff6ff; border: 1px solid #3b82f6; border-radius:12px; margin-bottom:15px;">
-                                <div style="font-size:13px; color:#3b82f6; font-weight:bold;">ŞU ANKİ (SİSTEM)</div>
-                                <div style="font-size:42px; font-weight:900; color:#1e293b; letter-spacing:-1px;">
-                                    %{enf_genel:.2f}
-                                </div>
-                            </div>
-
-                            <div style="text-align:center; margin-top:5px;">
-                                <div style="font-size:12px; color:#64748b; font-weight:600;">ARALIK 2024'e GÖRE FARK</div>
-                                <div style="font-size:22px; font-weight:800; color:{color_diff};">
-                                    {arrow} {abs(diff_24):.2f} Puan
-                                </div>
-                            </div>
+                        <div style="background:white; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:center;">
+                            <h4 style="margin:0; color:#334155;">⚖️ ENFLASYON KARŞILAŞTIRMASI</h4>
                         </div>
+                        <br>
                         """, unsafe_allow_html=True)
+
+                        # Referanslar
+                        c_r1, c_r2 = st.columns(2)
+                        c_r1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
+                        c_r2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
+
+                        st.divider()
+
+                        # Büyük Sistem Verisi (Native Metric ile)
+                        st.metric(
+                            label="ŞU ANKİ (SİSTEM)",
+                            value=f"%{enf_genel:.2f}",
+                            delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
+                            delta_color="inverse" if diff_24 > 0 else "normal"
+                        )
+                        st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
                     st.markdown("##### 🤖 Fiyat Asistanı")
