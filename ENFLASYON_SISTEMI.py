@@ -829,7 +829,7 @@ def dashboard_modu():
             st.error(f"Kritik Hata: {e}")
 
     st.markdown(
-        '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">POWERED BY FATİH ARSLAN AI ENGINE © 2025</div>',
+        '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">DESIGNED BY FATIH ARSLAN © 2025</div>',
         unsafe_allow_html=True)
 
 
