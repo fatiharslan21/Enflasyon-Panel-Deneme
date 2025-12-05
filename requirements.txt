@@ -6,3 +6,4 @@ PyGithub
 openpyxl
 lxml
 numpy
+statsmodels
