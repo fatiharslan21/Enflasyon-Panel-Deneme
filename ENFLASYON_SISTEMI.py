@@ -17,11 +17,10 @@ import numpy as np
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import google.generativeai as genai
 
 # --- 1. AYARLAR ---
 st.set_page_config(
-    page_title="ENFLASYON MONİTÖRÜ PRO",
+    page_title="ENFLASYON MONİTÖRÜ",
     page_icon="💎",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -36,7 +35,6 @@ FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 USERS_DOSYASI = "kullanicilar.json"
 ACTIVITY_DOSYASI = "user_activity.json"
 SEPETLER_DOSYASI = "user_baskets.json"
-PREFERENCES_DOSYASI = "user_preferences.json"
 SAYFA_ADI = "Madde_Sepeti"
 
 
@@ -83,17 +81,6 @@ def update_user_status(username):
         github_json_yaz(ACTIVITY_DOSYASI, activity, f"Activity: {username}")
     except:
         pass
-
-
-def get_user_preferences(username):
-    prefs = github_json_oku(PREFERENCES_DOSYASI)
-    return prefs.get(username, {"theme": "light", "language": "tr", "notifications": True})
-
-
-def save_user_preferences(username, prefs):
-    all_prefs = github_json_oku(PREFERENCES_DOSYASI)
-    all_prefs[username] = prefs
-    github_json_yaz(PREFERENCES_DOSYASI, all_prefs, f"Prefs: {username}")
 
 
 # --- MAİL GÖNDERME ---
@@ -203,7 +190,7 @@ def github_excel_guncelle(df_yeni, dosya_adi):
             old = old[~((old['Tarih'].astype(str) == yeni_tarih) & (old['Kod'].isin(df_yeni['Kod'])))]
             final = pd.concat([old, df_yeni], ignore_index=True)
         except:
-            c = None
+            c = None;
             final = df_yeni
 
         out = BytesIO()
@@ -231,59 +218,86 @@ def temizle_fiyat(t):
         return None
 
 
-def kod_standartlastir(k):
-    return str(k).replace('.0', '').strip().zfill(7)
+def kod_standartlastir(k): return str(k).replace('.0', '').strip().zfill(7)
 
 
+# --- FİYAT BULUCU (MİGROS GÜNCELLENDİ) ---
 def fiyat_bul_siteye_gore(soup, url):
     fiyat = 0
     kaynak = ""
     domain = url.lower() if url else ""
 
+    # =========================================================
+    # 1. MİGROS: AGRESİF TEMİZLİK VE NOKTA ATIŞI
+    # =========================================================
     if "migros" in domain:
+
+        # --- ADIM A: YAN ÜRÜNLERİ YOK ET (KÖKTEN ÇÖZÜM) ---
+        # Sayfadaki "önerilen ürünler" listesindeki kartların teknik adı "sm-list-page-item"dır.
+        # Bunları ve kapsayıcılarını siliyoruz ki kodun gözü kaymasın.
         garbage_selectors = [
-            "sm-list-page-item",
-            ".horizontal-list-page-items-container",
-            "app-product-carousel",
-            ".similar-products",
-            "div.badges-wrapper"
+            "sm-list-page-item",  # Tüm yan ürün kartları (En kritik hamle bu)
+            ".horizontal-list-page-items-container",  # Yan liste kapsayıcısı
+            "app-product-carousel",  # Kayar bantlar
+            ".similar-products",  # Benzer ürünler
+            "div.badges-wrapper"  # Bazen fiyatla karışan etiketler
         ]
         for selector in garbage_selectors:
             for garbage in soup.select(selector):
-                garbage.decompose()
+                garbage.decompose()  # HTML'den tamamen siler.
 
+        # --- ADIM B: SADECE ANA KUTUYA ODAKLAN ---
+        # Senin "SADECE BURAYA BAK" dediğin kutu: .name-price-wrapper
         main_wrapper = soup.select_one(".name-price-wrapper")
 
         if main_wrapper:
+            # --- ADIM C: ÖNCELİK NORMAL FİYAT ---
+            # Senin gönderdiğin iki farklı normal fiyat yapısını da burada arıyoruz.
+            # 1. Yapı: <div class="price subtitle-1">
+            # 2. Yapı: <span class="single-price-amount">
+
+            # Önce .price.subtitle-1 var mı diye bak, textini temizle
             normal_div = main_wrapper.select_one(".price.subtitle-1")
             if normal_div:
+                # Sadece rakamları al (TL yazısını temizle_fiyat halleder)
                 if val := temizle_fiyat(normal_div.get_text()):
                     return val, "Migros(Ana-Normal-Div)"
 
+            # Eğer div yoksa span versiyonuna bak
             normal_span = main_wrapper.select_one(".single-price-amount")
             if normal_span:
                 if val := temizle_fiyat(normal_span.get_text()):
                     return val, "Migros(Ana-Normal-Span)"
 
+            # --- ADIM D: NORMAL YOKSA -> İNDİRİMLİ (SALE) FİYAT ---
+            # Normal fiyat etiketleri yoksa, ürün indirimdedir. Sale ID'sine bak.
             sale_el = main_wrapper.select_one("#sale-price, .sale-price")
             if sale_el:
                 if val := temizle_fiyat(sale_el.get_text()):
                     return val, "Migros(Ana-İndirim)"
 
+        # --- ADIM E: ACİL DURUM (Eğer Wrapper Bulunamazsa) ---
+        # HTML yapısı değiştiyse ve wrapper yoksa, temizlenmiş HTML'de genel ara.
+        # Yan ürünleri sildiğimiz için (Adım A) burası da güvenlidir.
         if fiyat == 0:
+            # 1. Normal Fiyat Ara
             el = soup.select_one("fe-product-price .subtitle-1, .single-price-amount")
             if el:
                 if val := temizle_fiyat(el.get_text()):
-                    fiyat = val
+                    fiyat = val;
                     kaynak = "Migros(Genel-Normal)"
 
+            # 2. Bulamazsan İndirimli Ara
             if fiyat == 0:
                 el = soup.select_one("#sale-price")
                 if el:
                     if val := temizle_fiyat(el.get_text()):
-                        fiyat = val
+                        fiyat = val;
                         kaynak = "Migros(Genel-İndirim)"
 
+    # =========================================================
+    # 2. CİMRİ VE DİĞERLERİ (DEĞİŞİKLİK YOK)
+    # =========================================================
     elif "cimri" in domain:
         for sel in ["div.rTdMX", ".offer-price", "div.sS0lR", ".min-price-val"]:
             if els := soup.select(sel):
@@ -298,6 +312,9 @@ def fiyat_bul_siteye_gore(soup, url):
                 ff = sorted([temizle_fiyat(x) for x in m if temizle_fiyat(x)])
                 if ff: fiyat = sum(ff[:max(1, len(ff) // 2)]) / max(1, len(ff) // 2); kaynak = "Cimri(Reg)"
 
+    # =========================================================
+    # 3. GENEL FALLBACK
+    # =========================================================
     if fiyat == 0 and "migros" not in domain:
         for sel in [".product-price", ".price", ".current-price", "span[itemprop='price']"]:
             if el := soup.select_one(sel):
@@ -323,9 +340,9 @@ def html_isleyici(log_callback):
         if not kod_col or not url_col: return "Hata: Excel sütunları eksik."
         df_conf['Kod'] = df_conf[kod_col].astype(str).apply(kod_standartlastir)
         url_map = {str(row[url_col]).strip(): row for _, row in df_conf.iterrows() if pd.notna(row[url_col])}
-        veriler = []
+        veriler = [];
         islenen_kodlar = set()
-        bugun = datetime.now().strftime("%Y-%m-%d")
+        bugun = datetime.now().strftime("%Y-%m-%d");
         simdi = datetime.now().strftime("%H:%M")
 
         log_callback("✍️ Manuel fiyatlar kontrol ediliyor...")
@@ -339,7 +356,7 @@ def html_isleyici(log_callback):
                         if fiyat_man > 0:
                             veriler.append({"Tarih": bugun, "Zaman": simdi, "Kod": row['Kod'], "Madde_Adi": row[ad_col],
                                             "Fiyat": fiyat_man, "Kaynak": "Manuel", "URL": row[url_col]})
-                            islenen_kodlar.add(row['Kod'])
+                            islenen_kodlar.add(row['Kod']);
                             ms += 1
                     except:
                         pass
@@ -347,6 +364,7 @@ def html_isleyici(log_callback):
 
         log_callback("📦 ZIP dosyaları taranıyor...")
         contents = repo.get_contents("", ref=st.secrets["github"]["branch"])
+        # Sadece 'Bolum' ile başlayan zip dosyaları
         zip_files = [c for c in contents if c.name.endswith(".zip") and c.name.startswith("Bolum")]
         hs = 0
         for zip_file in zip_files:
@@ -372,7 +390,7 @@ def html_isleyici(log_callback):
                                     veriler.append({"Tarih": bugun, "Zaman": simdi, "Kod": target['Kod'],
                                                     "Madde_Adi": target[ad_col], "Fiyat": fiyat, "Kaynak": kaynak,
                                                     "URL": target[url_col]})
-                                    islenen_kodlar.add(target['Kod'])
+                                    islenen_kodlar.add(target['Kod']);
                                     hs += 1
             except Exception as e:
                 log_callback(f"⚠️ Hata ({zip_file.name}): {str(e)}")
@@ -386,202 +404,8 @@ def html_isleyici(log_callback):
         return f"Hata: {str(e)}"
 
 
-# ===================================================================
-# 🤖 CLAUDE AI CHATBOT - AKILLI ASİSTAN
-# ===================================================================
-async def call_claude_api(messages, system_prompt=""):
-    """Claude AI ile konuşma"""
-    try:
-        response = await fetch("https://api.anthropic.com/v1/messages", {
-            "method": "POST",
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({
-                "model": "claude-sonnet-4-20250514",
-                "max_tokens": 1000,
-                "system": system_prompt,
-                "messages": messages
-            })
-        })
-        data = await response.json()
-        return data.content[0].text if data.content else "Üzgünüm, cevap alamadım."
-    except Exception as e:
-        return f"API Hatası: {str(e)}"
-
-
-def ai_chatbot_interface(df_analiz, ad_col, baz, son):
-    """Gelişmiş AI Chatbot UI"""
-    st.markdown("""
-    <style>
-    .chat-container {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 20px 60px rgba(102, 126, 234, 0.3);
-        margin-bottom: 20px;
-    }
-    .chat-title {
-        color: white;
-        font-size: 28px;
-        font-weight: 800;
-        text-align: center;
-        margin-bottom: 20px;
-        text-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    }
-    .chat-message {
-        background: white;
-        border-radius: 15px;
-        padding: 15px 20px;
-        margin: 10px 0;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        animation: fadeIn 0.5s ease-in;
-    }
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .user-msg { 
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        margin-left: 20%;
-    }
-    .ai-msg {
-        background: white;
-        margin-right: 20%;
-        border-left: 4px solid #667eea;
-    }
-    .chat-input-container {
-        background: white;
-        border-radius: 15px;
-        padding: 15px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-    .quick-btn {
-        background: rgba(255,255,255,0.2);
-        color: white;
-        border: 1px solid rgba(255,255,255,0.3);
-        border-radius: 20px;
-        padding: 8px 16px;
-        margin: 5px;
-        cursor: pointer;
-        transition: all 0.3s;
-        display: inline-block;
-        font-size: 13px;
-    }
-    .quick-btn:hover {
-        background: rgba(255,255,255,0.3);
-        transform: translateY(-2px);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-    st.markdown('<div class="chat-title">🤖 AI Alışveriş Asistanı</div>', unsafe_allow_html=True)
-
-    # Chat history
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-
-    # Quick action buttons
-    st.markdown("**💡 Hızlı Sorular:**", unsafe_allow_html=True)
-    quick_questions = [
-        "Bu hafta en çok ne zamlandı?",
-        "100 TL'ye ne alabilirim?",
-        "Sepetim için önerilerin neler?",
-        "Hangi markette alışveriş yapmalıyım?",
-        "Gelecek ay fiyatlar ne olacak?"
-    ]
-
-    cols = st.columns(3)
-    for i, q in enumerate(quick_questions):
-        if cols[i % 3].button(q, key=f"quick_{i}", use_container_width=True):
-            st.session_state.chat_history.append({"role": "user", "content": q})
-            # AI yanıtı (şimdilik mock, gerçek API için açıklamayı aşağıda yapacağım)
-            ai_response = generate_smart_response(q, df_analiz, ad_col, baz, son)
-            st.session_state.chat_history.append({"role": "assistant", "content": ai_response})
-            st.rerun()
-
-    # Chat messages
-    chat_container = st.container()
-    with chat_container:
-        for msg in st.session_state.chat_history[-6:]:  # Son 6 mesaj
-            css_class = "user-msg" if msg["role"] == "user" else "ai-msg"
-            icon = "👤" if msg["role"] == "user" else "🤖"
-            st.markdown(f'<div class="chat-message {css_class}">{icon} {msg["content"]}</div>',
-                        unsafe_allow_html=True)
-
-    # Input
-    st.markdown('<div class="chat-input-container">', unsafe_allow_html=True)
-    user_input = st.text_input("Bir soru sor...", key="chat_input", placeholder="Örn: Peynir fiyatları nasıl?")
-
-    col1, col2 = st.columns([4, 1])
-    if col1.button("📤 Gönder", use_container_width=True) and user_input:
-        st.session_state.chat_history.append({"role": "user", "content": user_input})
-        ai_response = generate_smart_response(user_input, df_analiz, ad_col, baz, son)
-        st.session_state.chat_history.append({"role": "assistant", "content": ai_response})
-        st.rerun()
-
-    if col2.button("🗑️ Temizle"):
-        st.session_state.chat_history = []
-        st.rerun()
-
-    st.markdown('</div></div>', unsafe_allow_html=True)
-
-
-# ===================================================================
-# 🤖 GEMINI AI ENTEGRASYONU
-# ===================================================================
-def generate_smart_response(question, df_analiz, ad_col, baz, son):
-    """Google Gemini AI ile gerçek zamanlı analiz"""
-    try:
-        # 1. API Ayarı
-        genai.configure(api_key=st.secrets["gemini"]["api_key"])
-
-        # Hız ve performans için 'gemini-1.5-flash' modelini kullanıyoruz
-        model = genai.GenerativeModel('gemini-1.5-flash')
-
-        # 2. Veri Bağlamı Oluşturma (AI'ya veriyi tanıtıyoruz)
-        # Veriyi çok büyütmemek için en çok artan/azalanları seçiyoruz
-        en_cok_artan = df_analiz.nlargest(5, 'Fark')[[ad_col, baz, son, 'Fark']].to_string(index=False)
-        en_cok_dusen = df_analiz.nsmallest(5, 'Fark')[[ad_col, baz, son, 'Fark']].to_string(index=False)
-        genel_ort = df_analiz['Fark'].mean() * 100
-
-        context_data = f"""
-        Şu an bir 'Enflasyon Monitörü' uygulamasının asistanısın.
-        Tarih: {datetime.now().strftime('%d %B %Y')}
-
-        VERİ ÖZETİ:
-        - Genel Enflasyon Ortalaması: %{genel_ort:.2f}
-        - Baz Tarih ({baz}) ile Son Tarih ({son}) arasındaki değişimler inceleniyor.
-
-        EN ÇOK ZAMLANAN 5 ÜRÜN:
-        {en_cok_artan}
-
-        EN ÇOK UCUZLAYAN 5 ÜRÜN:
-        {en_cok_dusen}
-
-        Kullanıcının sorusu aşağıda. Bu verilere dayanarak kısa, samimi ve Türkçe cevap ver. 
-        Eğer veride olmayan bir şey sorulursa genel bilgi ver ama veride yok de.
-        Para birimi TL.
-        """
-
-        # 3. Gemini'ye Gönder
-        chat = model.start_chat(history=[])
-        response = chat.send_message(f"{context_data}\n\nKULLANICI SORUSU: {question}")
-
-        return response.text
-
-    except Exception as e:
-        return f"Üzgünüm, şu an Gemini'ye ulaşamıyorum. Hata: {str(e)}"
-
-
-# ===================================================================
-# 4. DASHBOARD MODU - PREMIUM UI/UX
-# ===================================================================
+# --- 4. DASHBOARD MODU ---
 def dashboard_modu():
-    # Theme seçimi
-    prefs = get_user_preferences(st.session_state['username'])
-    theme = prefs.get('theme', 'light')
-
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
@@ -589,36 +413,17 @@ def dashboard_modu():
     with st.sidebar:
         user_upper = st.session_state['username'].upper()
         role_title = "SYSTEM ADMIN" if st.session_state['username'] == ADMIN_USER else "VERİ ANALİSTİ"
-
-        # Animated profile card
         st.markdown(f"""
-            <div style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                        border-radius:20px; padding:20px; text-align:center; 
-                        margin-bottom:20px; box-shadow:0 10px 30px rgba(102,126,234,0.3);
-                        animation: pulse 3s infinite;">
-                <div style="font-size:48px; margin-bottom:10px;">👤</div>
-                <div style="font-family:'Poppins'; font-weight:800; font-size:20px; color:white;">{user_upper}</div>
-                <div style="font-size:11px; text-transform:uppercase; color:rgba(255,255,255,0.8); 
-                           margin-top:5px; letter-spacing:2px;">{role_title}</div>
+            <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:15px; text-align:center; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                <div style="font-size:32px; margin-bottom:5px;">👤</div>
+                <div style="font-family:'Poppins'; font-weight:700; font-size:18px; color:#1e293b;">{user_upper}</div>
+                <div style="font-size:11px; text-transform:uppercase; color:#64748b; margin-top:4px;">{role_title}</div>
             </div>
         """, unsafe_allow_html=True)
 
-        # Theme switcher
-        st.markdown("### 🎨 Tema Seçimi")
-        new_theme = st.radio("", ["🌞 Light Mode", "🌙 Dark Mode"],
-                             index=0 if theme == "light" else 1,
-                             label_visibility="collapsed")
-        if new_theme.startswith("🌙") and theme == "light":
-            prefs['theme'] = "dark"
-            save_user_preferences(st.session_state['username'], prefs)
-            st.rerun()
-        elif new_theme.startswith("🌞") and theme == "dark":
-            prefs['theme'] = "light"
-            save_user_preferences(st.session_state['username'], prefs)
-            st.rerun()
-
+        st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
         st.divider()
-        st.markdown("<h3 style='font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
 
         users_db = github_json_oku(USERS_DOSYASI)
         activity_db = github_json_oku(ACTIVITY_DOSYASI)
@@ -640,266 +445,53 @@ def dashboard_modu():
 
         for u in sorted_users:
             role_icon = "🛡️" if u['name'] == ADMIN_USER else ""
-            status_color = '#22c55e' if u['online'] else '#cbd5e1'
             st.markdown(f"""
-                <div style="background:white; border:1px solid #e2e8f0; padding:12px; 
-                           margin-bottom:8px; border-radius:12px; display:flex; 
-                           justify-content:space-between; align-items:center;
-                           transition: all 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                    <span style="display:flex; align-items:center; color:#0f172a; 
-                                font-size:14px; font-weight:600;">
-                        <span style="height:10px; width:10px; border-radius:50%; 
-                                    display:inline-block; margin-right:10px; 
-                                    background-color:{status_color}; 
-                                    box-shadow:0 0 8px {status_color};
-                                    animation: {'pulse 2s infinite' if u['online'] else 'none'};"></span>
+                <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
+                        <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
                         {u['name']} {role_icon}
                     </span>
                 </div>
             """, unsafe_allow_html=True)
 
         st.divider()
-
-        # Notifications toggle
-        notif_enabled = prefs.get('notifications', True)
-        new_notif = st.toggle("🔔 Bildirimler", value=notif_enabled)
-        if new_notif != notif_enabled:
-            prefs['notifications'] = new_notif
-            save_user_preferences(st.session_state['username'], prefs)
-            st.toast("✅ Bildirim tercihleri güncellendi!")
-
-        st.divider()
-        if st.button("🚪 Güvenli Çıkış", use_container_width=True):
+        if st.button("Güvenli Çıkış", use_container_width=True):
             st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- CSS: DYNAMIC THEME SYSTEM ---
-    if theme == "dark":
-        bg_color = "#0f172a"
-        card_bg = "#1e293b"
-        text_color = "#f8fafc"
-        border_color = "#334155"
-        gradient = "linear-gradient(135deg, #1e293b 0%, #334155 100%)"
-    else:
-        bg_color = "#f8fafc"
-        card_bg = "white"
-        text_color = "#0f172a"
-        border_color = "#e2e8f0"
-        gradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-
-    st.markdown(f"""
+    # --- CSS: LIGHT MODE GLOBAL ---
+    st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
+        .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
+        section[data-testid="stSidebar"] { background-color: #f1f5f9; border-right: 1px solid #e2e8f0; }
+        section[data-testid="stSidebar"] h1, h2, h3, .stMarkdown { color: #1e293b !important; }
 
-        .stApp {{ 
-            background-color: {bg_color}; 
-            font-family: 'Inter', sans-serif; 
-            color: {text_color};
-            transition: all 0.3s ease;
-        }}
+        .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
+        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
+        @keyframes shine { to { background-position: 200% center; } }
 
-        section[data-testid="stSidebar"] {{ 
-            background-color: {card_bg}; 
-            border-right: 1px solid {border_color}; 
-        }}
+        .metric-card { background: white; padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); border: 1px solid #e2e8f0; position: relative; overflow: hidden; transition: all 0.3s ease; }
+        .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
+        .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
+        .card-blue::before { background: #3b82f6; } .card-purple::before { background: #8b5cf6; } .card-emerald::before { background: #10b981; } .card-orange::before { background: #f59e0b; }
+        .metric-label { color: #64748b; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
+        .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
+        .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
 
-        .header-container {{ 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 25px 35px; 
-            background: {gradient}; 
-            border-radius: 20px; 
-            margin-bottom: 25px; 
-            box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3); 
-            position: relative;
-            overflow: hidden;
-        }}
+        .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
+        .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
 
-        .header-container::before {{
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            animation: rotate 20s linear infinite;
-        }}
+        .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
+        .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
+        .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
+        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
 
-        @keyframes rotate {{
-            from {{ transform: rotate(0deg); }}
-            to {{ transform: rotate(360deg); }}
-        }}
+        .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
+        .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
 
-        .app-title {{ 
-            font-family: 'Poppins', sans-serif; 
-            font-size: 36px; 
-            font-weight: 800; 
-            letter-spacing: -1px; 
-            color: white;
-            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            position: relative;
-            z-index: 1;
-        }}
-
-        .metric-card {{ 
-            background: {card_bg}; 
-            padding: 28px; 
-            border-radius: 24px; 
-            box-shadow: 0 15px 35px rgba(0,0,0,0.08); 
-            border: 1px solid {border_color}; 
-            position: relative; 
-            overflow: hidden; 
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }}
-
-        .metric-card:hover {{ 
-            transform: translateY(-8px) scale(1.02); 
-            box-shadow: 0 25px 50px rgba(102, 126, 234, 0.25); 
-        }}
-
-        .metric-card::before {{ 
-            content: ''; 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 6px; 
-            height: 100%; 
-        }}
-
-        .card-blue::before {{ background: linear-gradient(180deg, #3b82f6, #2563eb); }}
-        .card-purple::before {{ background: linear-gradient(180deg, #8b5cf6, #7c3aed); }}
-        .card-emerald::before {{ background: linear-gradient(180deg, #10b981, #059669); }}
-        .card-orange::before {{ background: linear-gradient(180deg, #f59e0b, #d97706); }}
-
-        .metric-label {{ 
-            color: #64748b; 
-            font-size: 13px; 
-            font-weight: 700; 
-            text-transform: uppercase; 
-            margin-bottom: 8px;
-            letter-spacing: 1px;
-        }}
-
-        .metric-val {{ 
-            color: {text_color}; 
-            font-size: 40px; 
-            font-weight: 800; 
-            font-family: 'Poppins', sans-serif; 
-            letter-spacing: -2px;
-            line-height: 1;
-        }}
-
-        .metric-val.long-text {{ 
-            font-size: 26px !important; 
-            line-height: 1.3; 
-        }}
-
-        .update-btn-container button {{ 
-            background: {gradient} !important; 
-            color: white !important; 
-            font-weight: 800 !important; 
-            font-size: 18px !important; 
-            border-radius: 16px !important; 
-            height: 70px !important; 
-            border: none !important; 
-            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); 
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-            position: relative;
-            overflow: hidden;
-        }}
-
-        .update-btn-container button::before {{
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.2);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }}
-
-        .update-btn-container button:hover::before {{
-            width: 300px;
-            height: 300px;
-        }}
-
-        .update-btn-container button:hover {{ 
-            transform: translateY(-3px) scale(1.02); 
-            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.6);
-        }}
-
-        .ticker-wrap {{ 
-            width: 100%; 
-            overflow: hidden; 
-            background: {gradient}; 
-            color: white; 
-            padding: 15px 0; 
-            margin-bottom: 30px; 
-            border-radius: 16px;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
-        }}
-
-        .ticker {{ 
-            display: inline-block; 
-            animation: ticker 50s linear infinite; 
-            white-space: nowrap; 
-        }}
-
-        .ticker-item {{ 
-            display: inline-block; 
-            padding: 0 2.5rem; 
-            font-weight: 600; 
-            font-size: 15px; 
-            font-family: 'JetBrains Mono', monospace; 
-        }}
-
-        @keyframes ticker {{ 
-            0% {{ transform: translateX(100%); }} 
-            100% {{ transform: translateX(-100%); }} 
-        }}
-
-        @keyframes pulse {{
-            0%, 100% {{ opacity: 1; }}
-            50% {{ opacity: 0.5; }}
-        }}
-
-        #live_clock_js {{ 
-            font-family: 'JetBrains Mono', monospace; 
-            color: white; 
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            position: relative;
-            z-index: 1;
-        }}
-
-        /* Tab customization */
-        .stTabs [data-baseweb="tab-list"] {{
-            gap: 10px;
-            background-color: {card_bg};
-            padding: 10px;
-            border-radius: 15px;
-        }}
-
-        .stTabs [data-baseweb="tab"] {{
-            background-color: transparent;
-            border-radius: 10px;
-            padding: 12px 24px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }}
-
-        .stTabs [data-baseweb="tab"]:hover {{
-            background-color: rgba(102, 126, 234, 0.1);
-        }}
-
-        .stTabs [aria-selected="true"] {{
-            background: {gradient} !important;
-            color: white !important;
-        }}
+        #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -907,11 +499,10 @@ def dashboard_modu():
     tr_time_start = datetime.now() + timedelta(hours=3)
     header_html = f"""
     <div class="header-container">
-        <div class="app-title">✨ Enflasyon Monitörü PRO</div>
-        <div style="text-align:right; position:relative; z-index:1;">
-            <div style="color:rgba(255,255,255,0.9); font-size:13px; font-weight:700; 
-                       margin-bottom:5px; letter-spacing:1px;">İSTANBUL, TÜRKİYE</div>
-            <div id="live_clock_js" style="font-size:18px; font-weight:800;">
+        <div class="app-title">Enflasyon Monitörü</div>
+        <div style="text-align:right;">
+            <div style="color:#64748b; font-size:12px; font-weight:600; margin-bottom:4px;">İSTANBUL, TR</div>
+            <div id="live_clock_js" style="color:#0f172a; font-size:16px; font-weight:800; font-family:'JetBrains Mono', monospace;">
                 {tr_time_start.strftime('%d %B %Y, %H:%M:%S')}
             </div>
         </div>
@@ -921,14 +512,10 @@ def dashboard_modu():
         var clockElement = document.getElementById('live_clock_js');
         function update() {{
             var now = new Date();
-            var options = {{ timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', 
-                           year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }};
-            if (clockElement) {{ 
-                clockElement.innerHTML = now.toLocaleTimeString('tr-TR', options); 
-            }}
+            var options = {{ timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }};
+            if (clockElement) {{ clockElement.innerHTML = now.toLocaleTimeString('tr-TR', options); }}
         }}
-        setInterval(update, 1000); 
-        update(); 
+        setInterval(update, 1000); update(); 
     }}
     startClock();
     </script>
@@ -937,32 +524,30 @@ def dashboard_modu():
 
     # --- TOAST MESSAGE ---
     if 'toast_shown' not in st.session_state:
-        st.toast('🚀 Sistem Aktif! Premium özelliklere hoş geldin.', icon='✨')
+        st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
         st.session_state['toast_shown'] = True
 
-    # --- UPDATE BUTTON ---
+    # --- EN ÜSTTE UPDATE BUTONU ---
     st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
     if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
-        with st.status("🔄 Veri Tabanı Güncelleniyor...", expanded=True) as status:
+        with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
             st.write("📡 GitHub bağlantısı kuruluyor...")
             time.sleep(0.5)
             st.write("📦 ZIP dosyaları taranıyor...")
-            log_ph = st.empty()
+            log_ph = st.empty();
             log_msgs = []
 
             def logger(m):
-                log_msgs.append(f"> {m}")
-                log_ph.markdown(
-                    f'<div style="background:#1e293b; color:#4ade80; font-family:monospace; font-size:12px; padding:15px; border-radius:12px; height:180px; overflow-y:auto;">{"<br>".join(log_msgs)}</div>',
-                    unsafe_allow_html=True)
+                log_msgs.append(f"> {m}");
+                log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
 
             res = html_isleyici(logger)
-            status.update(label="✅ İşlem Tamamlandı!", state="complete", expanded=False)
+            status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
 
         if "OK" in res:
-            st.toast('🎉 Veritabanı Güncellendi!', icon='✅')
-            st.success("✅ Sistem Başarıyla Senkronize Edildi!")
-            time.sleep(2)
+            st.toast('Veritabanı Güncellendi!', icon='🎉')
+            st.success("✅ Sistem Başarıyla Senkronize Edildi!");
+            time.sleep(2);
             st.rerun()
         else:
             st.error(res)
@@ -1000,18 +585,16 @@ def dashboard_modu():
                 if agirlik_col in df_analiz.columns:
                     df_analiz[agirlik_col] = pd.to_numeric(df_analiz[agirlik_col], errors='coerce').fillna(1)
                 else:
-                    df_analiz['Agirlik_2025'] = 1
+                    df_analiz['Agirlik_2025'] = 1;
                     agirlik_col = 'Agirlik_2025'
 
                 gunler = [c for c in pivot.columns if c != 'Kod']
-                if len(gunler) < 1:
-                    st.warning("Yeterli tarih verisi yok.")
-                    return
+                if len(gunler) < 1: st.warning("Yeterli tarih verisi yok."); return
                 baz, son = gunler[0], gunler[-1]
 
                 # Hesaplamalar
                 endeks_genel = (df_analiz.dropna(subset=[son, baz])[agirlik_col] * (
-                            df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[
+                        df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[
                                    agirlik_col].sum() * 100
                 enf_genel = (endeks_genel / 100 - 1) * 100
                 df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
@@ -1030,26 +613,26 @@ def dashboard_modu():
                 month_end_forecast = enf_genel + (daily_rate * days_left)
                 gun_farki = (dt_son - dt_baz).days
 
-                # --- TICKER ---
+                # --- 1. TICKER ---
                 inc = df_analiz.sort_values('Fark', ascending=False).head(5)
                 dec = df_analiz.sort_values('Fark', ascending=True).head(5)
                 items = []
-                for _, r in inc.iterrows():
-                    items.append(f"<span style='color:#f87171'>▲ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>")
-                for _, r in dec.iterrows():
-                    items.append(f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>")
+                for _, r in inc.iterrows(): items.append(
+                    f"<span style='color:#f87171'>▲ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>")
+                for _, r in dec.iterrows(): items.append(
+                    f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>")
                 st.markdown(
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>',
                     unsafe_allow_html=True)
 
-                # --- KPI KARTLARI ---
+                # --- 2. KPI KARTLARI ---
                 def kpi_card(title, val, sub, sub_color, color_class, is_long_text=False):
                     val_class = "metric-val long-text" if is_long_text else "metric-val"
                     st.markdown(f"""
                         <div class="metric-card {color_class}">
                             <div class="metric-label">{title}</div>
                             <div class="{val_class}">{val}</div>
-                            <div style="color:{sub_color}; font-size:13px; margin-top:8px; font-weight:600;">
+                            <div class="metric-sub" style="color:{sub_color}">
                                 {sub}
                             </div>
                         </div>
@@ -1057,42 +640,90 @@ def dashboard_modu():
 
                 c1, c2, c3, c4 = st.columns(4)
                 with c1:
-                    kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"📊 {gun_farki} Günlük Değişim", "#ef4444",
+                    kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"{gun_farki} Günlük Değişim", "#ef4444",
                              "card-blue")
                 with c2:
-                    kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "🍽️ Mutfak Sepeti", "#ef4444", "card-emerald")
+                    kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
                 with c3:
-                    kpi_card("Ay Sonu Tahmini", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
+                    kpi_card("Ay Sonu Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
                              "card-purple")
                 with c4:
-                    kpi_card("En Yüksek Risk", f"{top[ad_col][:15]}", f"⚠️ %{top['Fark'] * 100:.1f} Artış", "#f59e0b",
+                    kpi_card("En Yüksek Risk", f"{top[ad_col][:15]}", f"%{top['Fark'] * 100:.1f} Artış", "#f59e0b",
                              "card-orange", is_long_text=True)
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- SEKMELER ---
+                # --- 3. SEKMELER ---
                 t1, t2, t3, t4, t5, t6, t7 = st.tabs(
-                    ["📊 ANALİZ", "🤖 AI ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"]
-                )
+                    ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
 
                 with t1:
-                    # Trend grafiği
+                    # GRAFİK TAM EKRAN (NİHAİ)
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
-                                df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
+                            df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
 
                     fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
-                    fig_main.update_traces(line_color='#667eea', fillcolor="rgba(102, 126, 234, 0.3)",
-                                           line_shape='spline', line_width=3)
-                    fig_main.update_layout(template="plotly_white", height=500, hovermode="x unified",
+                    fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
+                                           line_shape='spline')
+                    fig_main.update_layout(template="plotly_white", height=450, hovermode="x unified",
                                            yaxis=dict(range=[95, 105]), plot_bgcolor='rgba(0,0,0,0)',
-                                           paper_bgcolor='rgba(0,0,0,0)', font=dict(family="Inter", size=12))
+                                           paper_bgcolor='rgba(0,0,0,0)')
                     st.plotly_chart(fig_main, use_container_width=True)
 
+                    # --- NATIVE METRIC BLOCKS (HTML SORUNSUZ) ---
+                    REF_ARALIK_2024 = 1.03
+                    REF_KASIM_2025 = 0.87
+                    diff_24 = enf_genel - REF_ARALIK_2024
+
+                    # st.markdown("#### ⚖️ ENFLASYON KARŞILAŞTIRMASI")
+                    # c_ref1, c_ref2 = st.columns(2)
+                    # c_ref1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
+                    # c_ref2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
+
+                    # st.divider()
+
+                    # Büyük Sistem Verisi (Native Metric ile)
+                    # st.metric(
+                    #    label="ŞU ANKİ (SİSTEM)",
+                    #    value=f"%{enf_genel:.2f}",
+                    #    delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
+                    #    delta_color="inverse" if diff_24 > 0 else "normal"
+                    # )
+                    # st.caption("Veriler veritabanından anlık hesaplanmıştır.")
+
                 with t2:
-                    # AI CHATBOT INTERFACE
-                    ai_chatbot_interface(df_analiz, ad_col, baz, son)
+                    st.markdown("##### 🤖 Fiyat Asistanı")
+                    q = st.text_input("Merak ettiğin ürünü yaz:", placeholder="Örn: Peynir")
+                    if q:
+                        res = df_analiz[df_analiz[ad_col].str.lower().str.contains(q.lower())]
+                        if not res.empty:
+                            target = None
+                            if len(res) == 1:
+                                target = res.iloc[0]
+                            else:
+                                st.info(f"🔎 '{q}' ile ilgili {len(res)} sonuç bulundu. Lütfen seçiniz:")
+                                selected_prod = st.selectbox("Ürün Seçin:", res[ad_col].unique())
+                                target = res[res[ad_col] == selected_prod].iloc[0]
+
+                            if target is not None:
+                                fark = target['Fark'] * 100
+                                st.markdown(f"""
+                                    <div class="bot-bubble">
+                                        <b style="font-size:16px;">{target[ad_col]}</b> ({target['Grup']})<br>
+                                        <div style="margin-top:5px; display:flex; justify-content:space-between;">
+                                            <span>{baz}: <b>{target[baz]:.2f} TL</b></span>
+                                            <span>➜</span>
+                                            <span>{son}: <b>{target[son]:.2f} TL</b></span>
+                                        </div>
+                                        <div style="margin-top:5px; font-weight:bold; color:{'#dc2626' if fark > 0 else '#16a34a'};">
+                                            Değişim: %{fark:.2f}
+                                        </div>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                        else:
+                            st.warning("Ürün bulunamadı.")
 
                 with t3:
                     col_hist, col_box = st.columns(2)
@@ -1103,254 +734,240 @@ def dashboard_modu():
                                            yaxis_title="Ürün Adedi", plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
                     col_hist.plotly_chart(fig_hist, use_container_width=True)
-
-                    fig_box = px.box(df_analiz, x="Grup", y="Fark_Yuzde", title="📦 Kategori Bazlı Fiyat Dağılımı",
-                                            color="Grup")
-                    fig_box.update_layout(template="plotly_white",
-                                          xaxis_title="Kategori",
-                                          yaxis_title="Değişim (%)",
-                                          plot_bgcolor='rgba(0,0,0,0)',
-                                          paper_bgcolor='rgba(0,0,0,0)',
-                                          showlegend=False)
+                    fig_box = px.box(df_analiz, x="Grup", y="Fark_Yuzde", title="📦 Sektörel Fiyat Dengesizliği",
+                                     color="Grup")
+                    fig_box.update_layout(template="plotly_white", xaxis_title="Sektör", showlegend=False,
+                                          plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
                     col_box.plotly_chart(fig_box, use_container_width=True)
 
                 with t4:
-                    # 🛒 AKILLI SEPET YÖNETİMİ
-                    st.markdown("### 🛒 Kişisel Alışveriş Sepetim")
-
-                    # Kullanıcı sepetini çek
+                    st.info(
+                        "💡 **Akıllı İpucu:** Kendi tüketim alışkanlıklarına göre ürünleri seçerek kişisel enflasyonunu hesapla.")
                     baskets = github_json_oku(SEPETLER_DOSYASI)
-                    user = st.session_state['username']
-                    if user not in baskets: baskets[user] = []
-
-                    c_add, c_view = st.columns([1, 2])
-
-                    with c_add:
-                        st.markdown("##### ➕ Ürün Ekle")
-                        secilen_urun = st.selectbox("Ürün Seçiniz:", df_analiz[ad_col].unique())
-                        if st.button("Sepete Ekle"):
-                            kod = df_analiz[df_analiz[ad_col] == secilen_urun]['Kod'].iloc[0]
-                            if kod not in baskets[user]:
-                                baskets[user].append(kod)
-                                github_json_yaz(SEPETLER_DOSYASI, baskets, f"Sepet Update: {user}")
-                                st.success(f"{secilen_urun} eklendi!")
-                                time.sleep(1)
+                    user_codes = baskets.get(st.session_state['username'], [])
+                    all_products = df_analiz[ad_col].unique()
+                    default_names = df_analiz[df_analiz['Kod'].isin(user_codes)][ad_col].tolist()
+                    with st.expander("📝 Sepet İçeriğini Düzenle", expanded=False):
+                        with st.form("basket_form"):
+                            selected_names = st.multiselect("Takip Ettiğin Ürünler:", all_products,
+                                                            default=default_names)
+                            if st.form_submit_button("Sepeti Güncelle"):
+                                new_codes = df_analiz[df_analiz[ad_col].isin(selected_names)]['Kod'].tolist()
+                                baskets[st.session_state['username']] = new_codes
+                                github_json_yaz(SEPETLER_DOSYASI, baskets, "Basket Update")
+                                st.success("Sepet güncellendi!");
+                                time.sleep(1);
                                 st.rerun()
-                            else:
-                                st.warning("Bu ürün zaten sepetinizde.")
-
-                    with c_view:
-                        if baskets[user]:
-                            sepet_df = df_analiz[df_analiz['Kod'].isin(baskets[user])].copy()
-                            if not sepet_df.empty:
-                                total_baz = sepet_df[baz].sum()
-                                total_son = sepet_df[son].sum()
-                                sepet_enf = ((total_son / total_baz) - 1) * 100
-
-                                st.info(f"💰 **Sepet Toplamı:** {total_son:.2f} TL (Geçen Ay: {total_baz:.2f} TL)")
-                                st.metric("Sepet Enflasyonu", f"%{sepet_enf:.2f}", f"{total_son - total_baz:.2f} TL Artış", delta_color="inverse")
-
-                                st.dataframe(sepet_df[[ad_col, baz, son, 'Fark_Yuzde']], hide_index=True, use_container_width=True)
-
-                                if st.button("🗑️ Sepeti Temizle"):
-                                    baskets[user] = []
-                                    github_json_yaz(SEPETLER_DOSYASI, baskets, f"Clear Basket: {user}")
-                                    st.rerun()
-                        else:
-                            st.info("Sepetiniz henüz boş. Soldan ürün ekleyebilirsiniz.")
+                    if selected_names:
+                        my_df = df_analiz[df_analiz[ad_col].isin(selected_names)]
+                        if not my_df.empty:
+                            my_enf = ((my_df[son] / my_df[baz] * my_df[agirlik_col]).sum() / my_df[
+                                agirlik_col].sum() - 1) * 100
+                            c_my, c_ch = st.columns([1, 2])
+                            c_my.metric("KİŞİSEL ENFLASYON", f"%{my_enf:.2f}", f"Genel: %{enf_genel:.2f}",
+                                        delta_color="inverse")
+                            fig_comp = go.Figure()
+                            fig_comp.add_trace(go.Bar(y=['Genel', 'Senin'], x=[enf_genel, my_enf], orientation='h',
+                                                      marker_color=['#cbd5e1', '#3b82f6'],
+                                                      text=[f"%{enf_genel:.2f}", f"%{my_enf:.2f}"],
+                                                      textposition='auto'))
+                            fig_comp.update_layout(template="plotly_white", height=200, margin=dict(t=0, b=0, l=0, r=0),
+                                                   xaxis=dict(showgrid=False), plot_bgcolor='rgba(0,0,0,0)',
+                                                   paper_bgcolor='rgba(0,0,0,0)')
+                            c_ch.plotly_chart(fig_comp, use_container_width=True)
+                            st.dataframe(my_df[[ad_col, 'Fark', baz, son]], use_container_width=True)
+                    else:
+                        st.warning("Henüz bir sepet oluşturmadın.")
 
                 with t5:
-                    # 🗺️ ENFLASYON ISI HARİTASI (TREEMAP)
-                    st.markdown("### 🗺️ Harcama Grupları Isı Haritası")
-                    st.markdown("Kutucuk büyüklüğü harcama ağırlığını, renkler ise fiyat artış oranını gösterir.")
-
-                    fig_tree = px.treemap(df_analiz,
-                                          path=[px.Constant("TÜM ÜRÜNLER"), 'Grup', ad_col],
-                                          values=agirlik_col,
-                                          color='Fark_Yuzde',
-                                          color_continuous_scale='RdYlGn_r',
-                                          color_continuous_midpoint=0,
-                                          hover_data={ad_col: True, 'Fark_Yuzde': ':.2f', son: ':.2f'})
-
-                    fig_tree.update_layout(margin=dict(t=0, l=0, r=0, b=0), height=600)
-                    st.plotly_chart(fig_tree, use_container_width=True)
+                    c1, c2 = st.columns([2, 1])
+                    fig_tree = px.treemap(df_analiz, path=[px.Constant("Piyasa"), 'Grup', ad_col], values=agirlik_col,
+                                          color='Fark', color_continuous_scale='RdYlGn_r', title="🔥 Isı Haritası")
+                    fig_tree.update_layout(margin=dict(t=40, l=0, r=0, b=0))
+                    c1.plotly_chart(fig_tree, use_container_width=True)
+                    sect_data = df_analiz.groupby('Grup')['Fark'].mean().reset_index()
+                    fig_sun = px.sunburst(df_analiz, path=['Grup', ad_col], values=agirlik_col,
+                                          title="Sektörel Ağırlık")
+                    fig_sun.update_layout(margin=dict(t=40, l=0, r=0, b=0))
+                    c2.plotly_chart(fig_sun, use_container_width=True)
 
                 with t6:
-                    # 📉 FIRSATLAR VE UCUZLAYANLAR
-                    st.markdown("### 📉 İndirime Giren Ürünler (Fırsatlar)")
-                    indirimler = df_analiz[df_analiz['Fark'] < 0].sort_values('Fark')
-
-                    if not indirimler.empty:
-                        for _, row in indirimler.iterrows():
-                            with st.container():
-                                st.markdown(f"""
-                                <div style="background:white; padding:15px; border-radius:10px; border-left: 5px solid #22c55e; margin-bottom:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                                        <div>
-                                            <div style="font-weight:bold; font-size:16px;">{row[ad_col]}</div>
-                                            <div style="font-size:12px; color:#64748b;">{row['Grup']}</div>
-                                        </div>
-                                        <div style="text-align:right;">
-                                            <div style="font-weight:bold; color:#22c55e; font-size:18px;">%{row['Fark_Yuzde']:.1f} ▼</div>
-                                            <div style="font-size:12px;"><strike>{row[baz]:.2f} TL</strike> ➝ <b>{row[son]:.2f} TL</b></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                """, unsafe_allow_html=True)
+                    st.markdown("##### 📉 En Çok Düşenler (Fırsatlar)")
+                    low = df_analiz[df_analiz['Fark'] < 0].sort_values('Fark').head(10)
+                    if not low.empty:
+                        low_disp = low[[ad_col, 'Grup', 'Fark', son]].copy()
+                        low_disp['Fark'] = low_disp['Fark'].apply(lambda x: f"%{x * 100:.2f}")
+                        st.table(low_disp)
                     else:
-                        st.info("Şu an sistemde fiyatı düşen bir ürün bulunamadı.")
+                        st.info("Şu an indirimde ürün yok, her şey zamlanmış görünüyor.")
 
                 with t7:
-                    # 📋 DETAYLI LİSTE
-                    st.markdown("### 📋 Detaylı Veri Seti")
-
-                    search = st.text_input("🔍 Listede Ara:", placeholder="Ürün adı yazın...")
-                    if search:
-                        mask = df_analiz[ad_col].str.lower().str.contains(search.lower())
-                        display_df = df_analiz[mask]
-                    else:
-                        display_df = df_analiz
-
-                    st.dataframe(
-                        display_df[[ad_col, 'Grup', baz, son, 'Fark_Yuzde']],
+                    st.data_editor(
+                        df_analiz[['Grup', ad_col, 'Fark', baz, son]],
                         column_config={
-                            "Fark_Yuzde": st.column_config.NumberColumn("Değişim %", format="%.2f %%"),
-                            baz: st.column_config.NumberColumn(f"Fiyat ({baz})", format="%.2f TL"),
-                            son: st.column_config.NumberColumn(f"Fiyat ({son})", format="%.2f TL"),
+                            "Fark": st.column_config.ProgressColumn(
+                                "Değişim Oranı",
+                                help="Fiyat değişim yüzdesi",
+                                format="%.2f",
+                                min_value=-0.5,
+                                max_value=0.5,
+                            ),
+                            ad_col: "Ürün Adı",
+                            "Grup": "Kategori"
                         },
-                        use_container_width=True,
-                        height=500
+                        hide_index=True,
+                        use_container_width=True
                     )
-
-                    # Excel İndir
                     output = BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        df_analiz.to_excel(writer, sheet_name='Analiz', index=False)
-
-                    st.download_button(
-                        label="📥 Excel Olarak İndir",
-                        data=output.getvalue(),
-                        file_name=f"Enflasyon_Analiz_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                        mime="application/vnd.ms-excel"
-                    )
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        df_analiz.to_excel(writer, index=False, sheet_name='Analiz')
+                    st.download_button("📥 Excel Raporunu İndir", data=output.getvalue(),
+                                       file_name=f"Enflasyon_Raporu_{son}.xlsx",
+                                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
         except Exception as e:
-            st.error(f"Bir hata oluştu: {str(e)}")
-            st.code(str(e))
-    else:
-        st.info("Veri tabanı hazırlanıyor, lütfen bekleyiniz veya 'Sistemi Güncelle' butonuna basınız.")
+            st.error(f"Kritik Hata: {e}")
 
-# ===================================================================
-# 5. GİRİŞ EKRANI (LOGIN PAGE)
-# ===================================================================
-def login_page():
-    st.markdown("""
+    st.markdown(
+        '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">DESIGNED BY FATIH ARSLAN © 2025</div>',
+        unsafe_allow_html=True)
+
+
+# --- 5. LOGIN ---
+def main():
+    if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
+
+    # URL Kontrolü (Reset Modu)
+    params = st.query_params
+    if "reset_user" in params and not st.session_state['logged_in']:
+        reset_user = params["reset_user"]
+
+        st.markdown("""
         <style>
-        .login-container {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 40px;
+        .stApp { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
+        @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
+        [data-testid="stForm"] { background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid rgba(255, 255, 255, 0.2); position: relative; z-index: 9999; }
+        [data-testid="stForm"] input { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; color: #1e293b !important; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        st.markdown(
+            "<div style='text-align: center; margin-top:80px; margin-bottom:30px; position:relative; z-index:9999;'><h1 style='color:white; font-family:Poppins; font-size:36px; font-weight:800;'>ŞİFRE SIFIRLAMA</h1></div>",
+            unsafe_allow_html=True)
+
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            with st.form("reset_form"):
+                st.info(f"Kullanıcı: {reset_user}")
+                new_p = st.text_input("Yeni Şifre", type="password")
+                conf_p = st.text_input("Şifreyi Onayla", type="password")
+
+                if st.form_submit_button("ŞİFREYİ GÜNCELLE", use_container_width=True):
+                    if new_p and new_p == conf_p:
+                        ok, msg = github_user_islem("update_password", username=reset_user, password=new_p)
+                        if ok:
+                            st.success(msg)
+                            time.sleep(2)
+                            st.query_params.clear()  # URL TEMİZLE
+                            st.rerun()  # Logine dön
+                        else:
+                            st.error(msg)
+                    else:
+                        st.warning("Şifreler uyuşmuyor.")
+        return
+
+    if not st.session_state['logged_in']:
+        # Şovlu Login Ekranı CSS (Animasyon Arkada, Form Önde - Z-INDEX FIXED)
+        st.markdown("""
+        <style>
+        .stApp { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
+        @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
+
+        /* Form Container'ı (Buzlu Cam) - Z-INDEX 9999 ile öne alındı */
+        [data-testid="stForm"] {
             background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
             border-radius: 20px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
-            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            z-index: 9999;
         }
-        .stApp {
-            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-            background-size: 400% 400%;
-            animation: gradient 15s ease infinite;
+        [data-testid="stForm"] input {
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #1e293b !important;
         }
-        @keyframes gradient {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
+
+        /* Google Button Style */
+        .google-btn {
+            background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: not-allowed; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none; opacity: 0.8;
         }
         </style>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        st.markdown("<h1 style='text-align: center; color: white; text-shadow: 0 2px 10px rgba(0,0,0,0.2);'>💎 Enflasyon Monitörü</h1>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='text-align: center; margin-top:80px; margin-bottom:30px; position:relative; z-index:9999;'><h1 style='color:white; font-family:Poppins; font-size:48px; font-weight:800; text-shadow: 0 4px 20px rgba(0,0,0,0.3);'>ENFLASYON MONİTÖRÜ</h1></div>",
+            unsafe_allow_html=True)
 
-        tab_login, tab_register = st.tabs(["Giriş Yap", "Kayıt Ol"])
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            t_log, t_reg, t_forgot = st.tabs(["🔒 GİRİŞ YAP", "📝 KAYIT OL", "🔑 ŞİFREMİ UNUTTUM"])
 
-        with tab_login:
-            with st.form("login_form"):
-                kadi = st.text_input("Kullanıcı Adı")
-                sifre = st.text_input("Şifre", type="password")
-                submit = st.form_submit_button("Giriş Yap", use_container_width=True)
+            with t_log:
+                with st.form("login_f"):
+                    l_u = st.text_input("Kullanıcı Adı")
+                    l_p = st.text_input("Şifre", type="password")
+                    st.checkbox("Beni Hatırla")
 
-                if submit:
-                    if not kadi or not sifre:
-                        st.warning("Lütfen tüm alanları doldurun.")
-                    else:
-                        success, msg = github_user_islem("login", username=kadi, password=sifre)
-                        if success:
-                            st.session_state['logged_in'] = True
-                            st.session_state['username'] = kadi
-                            st.success("Giriş başarılı!")
-                            time.sleep(1)
+                    if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
+                        ok, msg = github_user_islem("login", l_u, l_p)
+                        if ok:
+                            st.session_state['logged_in'] = True;
+                            st.session_state['username'] = l_u
+                            st.success("Giriş Başarılı!");
+                            time.sleep(1);
                             st.rerun()
                         else:
                             st.error(msg)
 
-            # Şifremi Unuttum Modalı
-            if st.button("Şifremi Unuttum?", type="tertiary"):
-                st.session_state['show_forgot'] = True
-
-            if st.session_state.get('show_forgot', False):
-                email_input = st.text_input("E-posta adresinizi girin:")
-                if st.button("Sıfırlama Bağlantısı Gönder"):
-                    if email_input:
-                        suc, m = github_user_islem("forgot_password", email=email_input)
-                        if suc: st.success(m)
-                        else: st.error(m)
-                    else:
-                        st.warning("E-posta giriniz.")
-
-        with tab_register:
-            with st.form("register_form"):
-                new_user = st.text_input("Kullanıcı Adı Seçin")
-                new_email = st.text_input("E-posta Adresi")
-                new_pass = st.text_input("Şifre Belirleyin", type="password")
-                reg_submit = st.form_submit_button("Kayıt Ol", use_container_width=True)
-
-                if reg_submit:
-                    if new_user and new_pass and new_email:
-                        success, msg = github_user_islem("register", username=new_user, password=new_pass, email=new_email)
-                        if success:
-                            st.success("Kayıt başarılı! Şimdi giriş yapabilirsiniz.")
+            with t_reg:
+                with st.form("reg_f"):
+                    r_u = st.text_input("Kullanıcı Adı Belirle")
+                    r_e = st.text_input("E-Posta Adresi")
+                    r_p = st.text_input("Şifre Belirle", type="password")
+                    if st.form_submit_button("HESAP OLUŞTUR", use_container_width=True):
+                        if r_u and r_p and r_e:
+                            ok, msg = github_user_islem("register", r_u, r_p, r_e)
+                            if ok:
+                                st.success("Kayıt Başarılı! Otomatik giriş yapılıyor...")
+                                st.session_state['logged_in'] = True
+                                st.session_state['username'] = r_u
+                                time.sleep(2)
+                                st.rerun()
+                            else:
+                                st.error(msg)
                         else:
-                            st.error(msg)
-                    else:
-                        st.warning("Eksik bilgi girdiniz.")
+                            st.warning("Tüm alanları doldurunuz.")
 
-# ===================================================================
-# 6. ANA UYGULAMA AKIŞI
-# ===================================================================
-if __name__ == "__main__":
-    # Session state tanımları
-    if "logged_in" not in st.session_state:
-        st.session_state["logged_in"] = False
+            with t_forgot:
+                with st.form("forgot_f"):
+                    f_email = st.text_input("Kayıtlı E-Posta Adresi")
+                    if st.form_submit_button("ŞİFRE SIFIRLAMA LİNKİ GÖNDER", use_container_width=True):
+                        if f_email:
+                            ok, msg = github_user_islem("forgot_password", email=f_email)
+                            if ok:
+                                st.success(msg)
+                            else:
+                                st.error(msg)
+                        else:
+                            st.warning("Lütfen e-posta adresinizi girin.")
 
-    # URL Parametresi ile Şifre Sıfırlama Kontrolü
-    params = st.query_params
-    if "reset_user" in params:
-        user_reset = params["reset_user"]
-        st.info(f"🔓 {user_reset} için şifre sıfırlama ekranı.")
-        new_p = st.text_input("Yeni Şifreniz", type="password")
-        if st.button("Şifreyi Güncelle"):
-            s, m = github_user_islem("update_password", username=user_reset, password=new_p)
-            if s:
-                st.success(m)
-                st.query_params.clear()
-                time.sleep(2)
-                st.rerun()
-            else:
-                st.error(m)
-
-    # Ana ekran yönlendirmesi
-    elif st.session_state["logged_in"]:
-        dashboard_modu()
     else:
-        login_page()
+        dashboard_modu()
+
+
+if __name__ == "__main__":
+    main()
