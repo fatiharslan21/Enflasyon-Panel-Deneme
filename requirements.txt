@@ -10,3 +10,4 @@ statsmodels
 xlsxwriter
 google-generativeai
 Pillow
+PIL.Image
