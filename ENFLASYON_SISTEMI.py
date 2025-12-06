@@ -17,6 +17,12 @@ import numpy as np
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import google.generativeai as genai
+
+
+# --- GEMINI AYARI ---
+if "gemini" in st.secrets:
+    genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
 # --- 1. AYARLAR ---
 st.set_page_config(
@@ -57,6 +63,48 @@ def github_json_oku(dosya_adi):
         return json.loads(c.decoded_content.decode("utf-8"))
     except:
         return {}
+
+
+def ask_gemini_ai(soru, df_context, genel_enf, gida_enf):
+    try:
+        # 1. Veri Setinden Kritik Özet Çıkar (Tüm tabloyu veremeyiz, token yetmez)
+        en_cok_artanlar = df_context.sort_values('Fark', ascending=False).head(5)[['Madde_Adi', 'Fark']].to_string(
+            index=False)
+        en_cok_dusenler = df_context.sort_values('Fark', ascending=True).head(5)[['Madde_Adi', 'Fark']].to_string(
+            index=False)
+
+        context_text = f"""
+        Şu anki Enflasyon Raporu Özeti:
+        - Genel Enflasyon: %{genel_enf:.2f}
+        - Gıda Enflasyonu: %{gida_enf:.2f}
+
+        En Çok Zamlanan 5 Ürün:
+        {en_cok_artanlar}
+
+        En Çok Düşen/Sabit Kalan 5 Ürün:
+        {en_cok_dusenler}
+
+        Veri tabanındaki rastgele bazı ürünler ve değişimleri:
+        {df_context.sample(min(10, len(df_context)))[['Madde_Adi', 'Fark']].to_string(index=False)}
+        """
+
+        # 2. Model Promptu
+        prompt = f"""
+        Sen bir Enflasyon Analisti asistanısın. Adın 'Enflasyon AI'.
+        Aşağıdaki verilere dayanarak kullanıcının sorusunu samimi, kısa ve veri odaklı cevapla.
+        Kullanıcıya asla "bilmiyorum" deme, elindeki veriyi yorumla. Siyaset yapma, sadece veriye odaklan.
+
+        VERİLER:
+        {context_text}
+
+        KULLANICI SORUSU: {soru}
+        """
+
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"Üzgünüm, şu an bağlantı kuramıyorum. Hata: {str(e)}"
 
 
 def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
@@ -694,36 +742,38 @@ def dashboard_modu():
                     # st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
-                    st.markdown("##### 🤖 Fiyat Asistanı")
-                    q = st.text_input("Merak ettiğin ürünü yaz:", placeholder="Örn: Peynir")
-                    if q:
-                        res = df_analiz[df_analiz[ad_col].str.lower().str.contains(q.lower())]
-                        if not res.empty:
-                            target = None
-                            if len(res) == 1:
-                                target = res.iloc[0]
-                            else:
-                                st.info(f"🔎 '{q}' ile ilgili {len(res)} sonuç bulundu. Lütfen seçiniz:")
-                                selected_prod = st.selectbox("Ürün Seçin:", res[ad_col].unique())
-                                target = res[res[ad_col] == selected_prod].iloc[0]
+                    st.markdown("##### 🤖 Yapay Zeka Analisti ile Sohbet Edin")
 
-                            if target is not None:
-                                fark = target['Fark'] * 100
-                                st.markdown(f"""
-                                    <div class="bot-bubble">
-                                        <b style="font-size:16px;">{target[ad_col]}</b> ({target['Grup']})<br>
-                                        <div style="margin-top:5px; display:flex; justify-content:space-between;">
-                                            <span>{baz}: <b>{target[baz]:.2f} TL</b></span>
-                                            <span>➜</span>
-                                            <span>{son}: <b>{target[son]:.2f} TL</b></span>
-                                        </div>
-                                        <div style="margin-top:5px; font-weight:bold; color:{'#dc2626' if fark > 0 else '#16a34a'};">
-                                            Değişim: %{fark:.2f}
-                                        </div>
-                                    </div>
-                                """, unsafe_allow_html=True)
-                        else:
-                            st.warning("Ürün bulunamadı.")
+                    # Session State'de mesaj geçmişi yoksa oluştur
+                    if "messages" not in st.session_state:
+                        st.session_state.messages = []
+
+                    # Geçmiş mesajları ekrana yaz
+                    for message in st.session_state.messages:
+                        with st.chat_message(message["role"]):
+                            st.markdown(message["content"])
+
+                    # Kullanıcıdan girdi al
+                    if prompt := st.chat_input("Merak ettiğin ürünü veya analizi sor... (Örn: En çok neye zam geldi?)"):
+                        # Kullanıcı mesajını ekle
+                        st.session_state.messages.append({"role": "user", "content": prompt})
+                        with st.chat_message("user"):
+                            st.markdown(prompt)
+
+                        # Asistan cevabını oluştur
+                        with st.chat_message("assistant"):
+                            with st.spinner("Veriler analiz ediliyor..."):
+                                # Gemini fonksiyonunu çağırıyoruz
+                                ai_response = ask_gemini_ai(prompt, df_analiz, enf_genel, enf_gida)
+                                st.markdown(ai_response)
+
+                        # Asistan cevabını geçmişe kaydet
+                        st.session_state.messages.append({"role": "assistant", "content": ai_response})
+
+                    # Temizleme Butonu
+                    if st.button("Sohbeti Temizle", key="clear_chat"):
+                        st.session_state.messages = []
+                        st.rerun()
 
                 with t3:
                     col_hist, col_box = st.columns(2)
