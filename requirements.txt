@@ -9,3 +9,4 @@ numpy
 statsmodels
 xlsxwriter
 google-generativeai
+Pillow
