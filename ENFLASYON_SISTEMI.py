@@ -65,13 +65,15 @@ def github_json_oku(dosya_adi):
         return {}
 
 
-def ask_gemini_ai(soru, df_context, genel_enf, gida_enf):
+def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name):
     try:
-        # 1. Veri Setinden Kritik Özet Çıkar (Tüm tabloyu veremeyiz, token yetmez)
-        en_cok_artanlar = df_context.sort_values('Fark', ascending=False).head(5)[['Madde_Adi', 'Fark']].to_string(
-            index=False)
-        en_cok_dusenler = df_context.sort_values('Fark', ascending=True).head(5)[['Madde_Adi', 'Fark']].to_string(
-            index=False)
+        # Sütun ismini dinamik olarak alıyoruz
+        cols_to_use = [ad_col_name, 'Fark']
+
+        # 1. Veri Setinden Kritik Özet Çıkar
+        en_cok_artanlar = df_context.sort_values('Fark', ascending=False).head(5)[cols_to_use].to_string(index=False)
+        en_cok_dusenler = df_context.sort_values('Fark', ascending=True).head(5)[cols_to_use].to_string(index=False)
+        sample_data = df_context.sample(min(10, len(df_context)))[cols_to_use].to_string(index=False)
 
         context_text = f"""
         Şu anki Enflasyon Raporu Özeti:
@@ -85,14 +87,14 @@ def ask_gemini_ai(soru, df_context, genel_enf, gida_enf):
         {en_cok_dusenler}
 
         Veri tabanındaki rastgele bazı ürünler ve değişimleri:
-        {df_context.sample(min(10, len(df_context)))[['Madde_Adi', 'Fark']].to_string(index=False)}
+        {sample_data}
         """
 
         # 2. Model Promptu
         prompt = f"""
-        Sen bir Enflasyon Analisti asistanısın. Adın 'Enflasyon AI'.
-        Aşağıdaki verilere dayanarak kullanıcının sorusunu samimi, kısa ve veri odaklı cevapla.
-        Kullanıcıya asla "bilmiyorum" deme, elindeki veriyi yorumla. Siyaset yapma, sadece veriye odaklan.
+        Sen bir Enflasyon Analisti asistanısın.
+        Aşağıdaki verilere dayanarak kullanıcının sorusunu cevapla.
+        Kullanıcı bir ürün sorarsa listede varsa değişimini söyle, yoksa genel yorum yap.
 
         VERİLER:
         {context_text}
@@ -104,8 +106,7 @@ def ask_gemini_ai(soru, df_context, genel_enf, gida_enf):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"Üzgünüm, şu an bağlantı kuramıyorum. Hata: {str(e)}"
-
+        return f"Hata oluştu: {str(e)}"
 
 def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
     repo = get_github_repo()
@@ -744,33 +745,26 @@ def dashboard_modu():
                 with t2:
                     st.markdown("##### 🤖 Yapay Zeka Analisti ile Sohbet Edin")
 
-                    # Session State'de mesaj geçmişi yoksa oluştur
                     if "messages" not in st.session_state:
                         st.session_state.messages = []
 
-                    # Geçmiş mesajları ekrana yaz
                     for message in st.session_state.messages:
                         with st.chat_message(message["role"]):
                             st.markdown(message["content"])
 
-                    # Kullanıcıdan girdi al
-                    if prompt := st.chat_input("Merak ettiğin ürünü veya analizi sor... (Örn: En çok neye zam geldi?)"):
-                        # Kullanıcı mesajını ekle
+                    if prompt := st.chat_input("Sorunuzu yazın... (Örn: Domates fiyatı ne oldu?)"):
                         st.session_state.messages.append({"role": "user", "content": prompt})
                         with st.chat_message("user"):
                             st.markdown(prompt)
 
-                        # Asistan cevabını oluştur
                         with st.chat_message("assistant"):
-                            with st.spinner("Veriler analiz ediliyor..."):
-                                # Gemini fonksiyonunu çağırıyoruz
-                                ai_response = ask_gemini_ai(prompt, df_analiz, enf_genel, enf_gida)
+                            with st.spinner("Analiz ediliyor..."):
+                                # DÜZELTİLEN SATIR BURASI: ad_col parametresi eklendi
+                                ai_response = ask_gemini_ai(prompt, df_analiz, enf_genel, enf_gida, ad_col)
                                 st.markdown(ai_response)
 
-                        # Asistan cevabını geçmişe kaydet
                         st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
-                    # Temizleme Butonu
                     if st.button("Sohbeti Temizle", key="clear_chat"):
                         st.session_state.messages = []
                         st.rerun()
