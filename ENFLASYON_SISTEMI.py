@@ -66,13 +66,9 @@ def github_json_oku(dosya_adi):
 
 
 def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name, image=None):
+    # --- 1. VERİ HAZIRLIĞI ---
     try:
-        # --- 1. MODEL SEÇİMİ (Resim varsa Vision model lazım) ---
-        target_model = 'gemini-1.5-flash'  # Resim ve Hız için en iyisi
-
-        # --- 2. VERİ HAZIRLIĞI ---
         cols_to_use = [ad_col_name, 'Fark']
-        # Veri setini biraz küçültüyoruz ki token yetinsin
         sample_data = df_context.sample(min(15, len(df_context)))[cols_to_use].to_string(index=False)
 
         context_text = f"""
@@ -80,40 +76,52 @@ def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name, image=None
         - Genel Enflasyon: %{genel_enf:.2f}
         - Gıda Enflasyonu: %{gida_enf:.2f}
 
-        Veritabanından Örnek Fiyat Değişimleri:
+        Veritabanından Rastgele Örnekler:
         {sample_data}
         """
 
         prompt = f"""
         Sen bir Piyasa Analistisin. 
-        Görevin: Kullanıcının gönderdiği (varsa) görseli veya soruyu analiz etmek.
 
-        Eğer bir RESİM verildiyse:
-        1. Resimdeki ürünün adını ve fiyatını tespit et.
-        2. Bu fiyatı genel piyasa algınla ve yukarıdaki "Referans Veriler" ile kıyasla.
-        3. Kullanıcıya "Bu ürün pahalı/ucuz" şeklinde net bir tavsiye ver.
-
-        Eğer sadece METİN verildiyse:
-        Verilere dayanarak soruyu cevapla.
+        GÖREVİN:
+        Eğer RESİM varsa: Ürünü ve fiyatı tespit et, aşağıdaki verilerle kıyasla, pahalı mı ucuz mu söyle.
+        Eğer sadece METİN varsa: Verilere dayanarak cevapla.
 
         VERİLER: {context_text}
         SORU: {soru}
         """
 
-        # --- 3. MODELİ ÇAĞIR ---
-        model = genai.GenerativeModel(target_model)
-
+        # --- 2. ÇOKLU MODEL DENEME MEKANİZMASI (Try-Catch Chain) ---
+        # Sırasıyla bu modelleri deneyeceğiz. Biri çalışana kadar durmak yok.
         if image:
-            # Resim varsa listeye ekleyip gönderiyoruz
-            response = model.generate_content([prompt, image])
+            # Resim varsa görsel yetenekli modelleri dene
+            candidate_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro-vision']
         else:
-            # Sadece metin
-            response = model.generate_content(prompt)
+            # Sadece metin varsa hızlı modelleri dene
+            candidate_models = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro']
 
-        return response.text
+        last_error = ""
+
+        for model_name in candidate_models:
+            try:
+                model = genai.GenerativeModel(model_name)
+                if image:
+                    response = model.generate_content([prompt, image])
+                else:
+                    response = model.generate_content(prompt)
+
+                # Başarılı olursa döngüden çık ve cevabı döndür
+                return response.text
+            except Exception as e:
+                # Hata alırsak kaydet ve bir sonraki modeli dene
+                last_error = str(e)
+                continue
+
+        # Hiçbiri çalışmazsa:
+        return f"Tüm modeller denendi ancak bağlantı kurulamadı. Son Hata: {last_error}"
 
     except Exception as e:
-        return f"Hata oluştu: {str(e)}"
+        return f"Veri işleme hatası: {str(e)}"
 
 def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
     repo = get_github_repo()
