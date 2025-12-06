@@ -66,62 +66,80 @@ def github_json_oku(dosya_adi):
 
 
 def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name, image=None):
-    # --- 1. VERİ HAZIRLIĞI ---
     try:
+        # --- 1. MODELİ OTOMATİK BUL (EN ÖNEMLİ KISIM) ---
+        found_model_name = None
+
+        # Tüm modelleri API'den çekiyoruz
+        available_models = list(genai.list_models())
+
+        # Eğer resim varsa 'vision' veya '1.5' (yeni nesil) yetenekli model ara
+        if image:
+            # Öncelik sırası: 1.5 Flash -> 1.5 Pro -> Pro Vision
+            for m in available_models:
+                if 'generateContent' in m.supported_generation_methods:
+                    if 'gemini-1.5-flash' in m.name:
+                        found_model_name = m.name
+                        break
+
+            # Flash yoksa Pro Vision bak
+            if not found_model_name:
+                for m in available_models:
+                    if 'generateContent' in m.supported_generation_methods and 'vision' in m.name:
+                        found_model_name = m.name
+                        break
+
+        # Resim yoksa veya vision modeli bulamadıysak, herhangi bir text modeli bul
+        if not found_model_name:
+            for m in available_models:
+                if 'generateContent' in m.supported_generation_methods:
+                    if 'gemini' in m.name:
+                        found_model_name = m.name
+                        # Pro'yu bulunca dur, Flash varsa onu tercih et
+                        if 'flash' in m.name:
+                            break
+
+        if not found_model_name:
+            return "HATA: API Anahtarınızla uyumlu hiçbir model bulunamadı. Lütfen Google AI Studio'dan yeni bir API Key alıp deneyin."
+
+        # --- 2. VERİ HAZIRLIĞI ---
         cols_to_use = [ad_col_name, 'Fark']
         sample_data = df_context.sample(min(15, len(df_context)))[cols_to_use].to_string(index=False)
 
         context_text = f"""
-        Şu anki Piyasa Verileri (Referans):
+        Piyasa Verileri:
         - Genel Enflasyon: %{genel_enf:.2f}
         - Gıda Enflasyonu: %{gida_enf:.2f}
 
-        Veritabanından Rastgele Örnekler:
+        Örnek Veriler:
         {sample_data}
         """
 
         prompt = f"""
-        Sen bir Piyasa Analistisin. 
-
-        GÖREVİN:
-        Eğer RESİM varsa: Ürünü ve fiyatı tespit et, aşağıdaki verilerle kıyasla, pahalı mı ucuz mu söyle.
-        Eğer sadece METİN varsa: Verilere dayanarak cevapla.
+        Analist olarak görevin:
+        Eğer RESİM varsa: Ürünü ve fiyatı oku, verilerle kıyasla, yorumla.
+        Sadece METİN varsa: Soruyu cevapla.
 
         VERİLER: {context_text}
         SORU: {soru}
         """
 
-        # --- 2. ÇOKLU MODEL DENEME MEKANİZMASI (Try-Catch Chain) ---
-        # Sırasıyla bu modelleri deneyeceğiz. Biri çalışana kadar durmak yok.
+        # --- 3. BULUNAN MODELİ KULLAN ---
+        model = genai.GenerativeModel(found_model_name)
+
         if image:
-            # Resim varsa görsel yetenekli modelleri dene
-            candidate_models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro-vision']
-        else:
-            # Sadece metin varsa hızlı modelleri dene
-            candidate_models = ['gemini-1.5-flash', 'gemini-pro', 'gemini-1.0-pro']
-
-        last_error = ""
-
-        for model_name in candidate_models:
+            # Seçilen model vision desteklemiyorsa (eski gemini-pro gibi) hata vermemesi için try-catch
             try:
-                model = genai.GenerativeModel(model_name)
-                if image:
-                    response = model.generate_content([prompt, image])
-                else:
-                    response = model.generate_content(prompt)
+                response = model.generate_content([prompt, image])
+            except:
+                return f"Seçilen model ({found_model_name}) görsel analizini desteklemiyor. Lütfen sadece metin sorusu sorun."
+        else:
+            response = model.generate_content(prompt)
 
-                # Başarılı olursa döngüden çık ve cevabı döndür
-                return response.text
-            except Exception as e:
-                # Hata alırsak kaydet ve bir sonraki modeli dene
-                last_error = str(e)
-                continue
-
-        # Hiçbiri çalışmazsa:
-        return f"Tüm modeller denendi ancak bağlantı kurulamadı. Son Hata: {last_error}"
+        return response.text
 
     except Exception as e:
-        return f"Veri işleme hatası: {str(e)}"
+        return f"Sistem Hatası: {str(e)}"
 
 def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
     repo = get_github_repo()
@@ -487,6 +505,16 @@ def dashboard_modu():
 
         st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
         st.divider()
+        with st.expander("🔧 API Kontrol (Debugger)"):
+            if st.button("Modelleri Listele"):
+                try:
+                    models = list(genai.list_models())
+                    st.write(f"Bulunan Model Sayısı: {len(models)}")
+                    for m in models:
+                        st.text(f"Isim: {m.name}")
+                        st.caption(f"Yetenekler: {m.supported_generation_methods}")
+                except Exception as e:
+                    st.error(f"API Hatası: {e}")
         st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
 
         users_db = github_json_oku(USERS_DOSYASI)
