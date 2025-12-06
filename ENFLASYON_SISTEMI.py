@@ -67,10 +67,30 @@ def github_json_oku(dosya_adi):
 
 def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name):
     try:
-        # Sütun ismini dinamik olarak alıyoruz
-        cols_to_use = [ad_col_name, 'Fark']
+        # --- 1. ÇALIŞAN MODELİ OTOMATİK BUL ---
+        # API'den mevcut modelleri listeliyoruz
+        active_model = None
+        try:
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    name = m.name
+                    # Öncelik sırasına göre model arıyoruz
+                    if 'gemini-1.5-flash' in name:
+                        active_model = 'gemini-1.5-flash'
+                        break
+                    elif 'gemini-pro' in name and not active_model:
+                        active_model = 'gemini-pro'
+                    elif 'gemini' in name and not active_model:
+                        active_model = name
 
-        # 1. Veri Setinden Kritik Özet Çıkar
+            if not active_model:
+                return "Hata: API anahtarınızla erişilebilen uygun bir 'Gemini' modeli bulunamadı. Lütfen Google AI Studio'dan API yetkilerini kontrol edin."
+
+        except Exception as e:
+            return f"Model listesi alınamadı. API Key hatalı olabilir. Detay: {str(e)}"
+
+        # --- 2. VERİ HAZIRLIĞI ---
+        cols_to_use = [ad_col_name, 'Fark']
         en_cok_artanlar = df_context.sort_values('Fark', ascending=False).head(5)[cols_to_use].to_string(index=False)
         en_cok_dusenler = df_context.sort_values('Fark', ascending=True).head(5)[cols_to_use].to_string(index=False)
         sample_data = df_context.sample(min(10, len(df_context)))[cols_to_use].to_string(index=False)
@@ -86,27 +106,27 @@ def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name):
         En Çok Düşen/Sabit Kalan 5 Ürün:
         {en_cok_dusenler}
 
-        Veri tabanındaki rastgele bazı ürünler ve değişimleri:
+        Veri Örnekleri:
         {sample_data}
         """
 
-        # 2. Model Promptu
         prompt = f"""
         Sen bir Enflasyon Analisti asistanısın.
-        Aşağıdaki verilere dayanarak kullanıcının sorusunu cevapla.
-        Kullanıcı bir ürün sorarsa listede varsa değişimini söyle, yoksa genel yorum yap.
+        Verilere dayanarak cevap ver.
 
         VERİLER:
         {context_text}
 
-        KULLANICI SORUSU: {soru}
+        SORU: {soru}
         """
 
-        model = genai.GenerativeModel('gemini-pro')
+        # --- 3. SEÇİLEN MODEL İLE CEVAP ÜRET ---
+        model = genai.GenerativeModel(active_model)
         response = model.generate_content(prompt)
         return response.text
+
     except Exception as e:
-        return f"Hata oluştu: {str(e)}"
+        return f"Beklenmedik bir hata oluştu: {str(e)}"
 
 def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
     repo = get_github_repo()
