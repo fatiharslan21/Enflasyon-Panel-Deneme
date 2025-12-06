@@ -17,6 +17,7 @@ import numpy as np
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import google.generativeai as genai
 
 # --- 1. AYARLAR ---
 st.set_page_config(
@@ -526,67 +527,51 @@ def ai_chatbot_interface(df_analiz, ad_col, baz, son):
     st.markdown('</div></div>', unsafe_allow_html=True)
 
 
+# ===================================================================
+# 🤖 GEMINI AI ENTEGRASYONU
+# ===================================================================
 def generate_smart_response(question, df_analiz, ad_col, baz, son):
-    """Akıllı yanıt üretici (Claude API olmadan da çalışır)"""
-    q_lower = question.lower()
+    """Google Gemini AI ile gerçek zamanlı analiz"""
+    try:
+        # 1. API Ayarı
+        genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
-    # En çok zamlanlar
-    if "zam" in q_lower or "artan" in q_lower or "yükselen" in q_lower:
-        top5 = df_analiz.nlargest(5, 'Fark')
-        response = "📈 **Bu Hafta En Çok Zamlanlar:**\n\n"
-        for i, row in top5.iterrows():
-            response += f"• **{row[ad_col]}**: %{row['Fark'] * 100:.1f} artış ({row[baz]:.2f} TL → {row[son]:.2f} TL)\n"
-        response += "\n💡 Öneri: Bu ürünleri alışverişini ertele veya alternatif markalar dene."
-        return response
+        # Hız ve performans için 'gemini-1.5-flash' modelini kullanıyoruz
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
-    # Bütçe planı
-    elif "tl" in q_lower and any(c.isdigit() for c in q_lower):
-        budget = float(''.join(filter(str.isdigit, q_lower)))
-        affordable = df_analiz[df_analiz[son].astype(float) < budget / 5].sample(min(5, len(df_analiz)))
-        response = f"🛒 **{budget:.0f} TL Bütçeli Alışveriş Listesi:**\n\n"
-        total = 0
-        for i, row in affordable.iterrows():
-            price = float(row[son])
-            response += f"• {row[ad_col]}: {price:.2f} TL\n"
-            total += price
-        response += f"\n**Toplam: {total:.2f} TL** (Kalan: {budget - total:.2f} TL)"
-        return response
+        # 2. Veri Bağlamı Oluşturma (AI'ya veriyi tanıtıyoruz)
+        # Veriyi çok büyütmemek için en çok artan/azalanları seçiyoruz
+        en_cok_artan = df_analiz.nlargest(5, 'Fark')[[ad_col, baz, son, 'Fark']].to_string(index=False)
+        en_cok_dusen = df_analiz.nsmallest(5, 'Fark')[[ad_col, baz, son, 'Fark']].to_string(index=False)
+        genel_ort = df_analiz['Fark'].mean() * 100
 
-    # Sepet analizi
-    elif "sepet" in q_lower:
-        baskets = github_json_oku(SEPETLER_DOSYASI)
-        user_codes = baskets.get(st.session_state.get('username', 'guest'), [])
-        if user_codes:
-            my_df = df_analiz[df_analiz['Kod'].isin(user_codes)]
-            avg_change = my_df['Fark'].mean() * 100
-            response = f"🛒 **Sepet Analizi:**\n\n"
-            response += f"• Ortalama değişim: %{avg_change:.2f}\n"
-            response += f"• En riskli ürün: {my_df.nlargest(1, 'Fark').iloc[0][ad_col]}\n"
-            response += f"• En stabil ürün: {my_df.nsmallest(1, 'Fark').iloc[0][ad_col]}\n\n"
-            response += "💡 Öneri: Riskli ürünleri başka marketten almayı dene."
-            return response
-        else:
-            return "Henüz bir sepet oluşturmamışsın. 🛒 Sepet sekmesinden ürün ekleyebilirsin!"
+        context_data = f"""
+        Şu an bir 'Enflasyon Monitörü' uygulamasının asistanısın.
+        Tarih: {datetime.now().strftime('%d %B %Y')}
 
-    # Market önerisi
-    elif "market" in q_lower or "nerede" in q_lower:
-        return "🏪 **Market Önerileri:**\n\n• **Migros**: Geniş ürün yelpazesi, sık kampanyalar\n• **A101**: Ekonomik seçenekler\n• **Şok**: Temel gıda ürünlerinde uygun\n• **CarrefourSA**: Kalite-fiyat dengesi\n\n💡 Öneri: Hafta sonu broşürlerini takip et, dijital kuponları kullan."
+        VERİ ÖZETİ:
+        - Genel Enflasyon Ortalaması: %{genel_ort:.2f}
+        - Baz Tarih ({baz}) ile Son Tarih ({son}) arasındaki değişimler inceleniyor.
 
-    # Tahmin
-    elif "gelecek" in q_lower or "olacak" in q_lower or "tahmin" in q_lower:
-        avg_change = df_analiz['Fark'].mean() * 100
-        return f"🔮 **Fiyat Tahmini:**\n\nMevcut trend: %{avg_change:.2f}\n\nEğer bu tempo devam ederse:\n• 1 ay sonra: %{avg_change * 1.2:.2f} ek artış bekleniyor\n• 3 ay sonra: %{avg_change * 2.5:.2f} kümülatif etki\n\n⚠️ Not: Bu bir istatistiksel tahmindir, kesin sonuç değildir."
+        EN ÇOK ZAMLANAN 5 ÜRÜN:
+        {en_cok_artan}
 
-    # Genel ürün sorgusu
-    else:
-        search_term = q_lower.replace("fiyat", "").replace("ne kadar", "").replace("?", "").strip()
-        result = df_analiz[df_analiz[ad_col].str.lower().str.contains(search_term)]
-        if not result.empty:
-            item = result.iloc[0]
-            change = item['Fark'] * 100
-            emoji = "📈" if change > 0 else "📉"
-            return f"{emoji} **{item[ad_col]}**\n\n• Eski fiyat: {item[baz]:.2f} TL\n• Yeni fiyat: {item[son]:.2f} TL\n• Değişim: %{change:.2f}\n• Kategori: {item['Grup']}\n\n{'⚠️ Dikkat! Bu üründe ciddi zam var.' if change > 20 else '✅ Fiyat makul seviyede.'}"
-        return "🤔 Sorunuzu anlayamadım. Daha spesifik sorabilir misiniz? Örn: 'Süt fiyatları nasıl?'"
+        EN ÇOK UCUZLAYAN 5 ÜRÜN:
+        {en_cok_dusen}
+
+        Kullanıcının sorusu aşağıda. Bu verilere dayanarak kısa, samimi ve Türkçe cevap ver. 
+        Eğer veride olmayan bir şey sorulursa genel bilgi ver ama veride yok de.
+        Para birimi TL.
+        """
+
+        # 3. Gemini'ye Gönder
+        chat = model.start_chat(history=[])
+        response = chat.send_message(f"{context_data}\n\nKULLANICI SORUSU: {question}")
+
+        return response.text
+
+    except Exception as e:
+        return f"Üzgünüm, şu an Gemini'ye ulaşamıyorum. Hata: {str(e)}"
 
 
 # ===================================================================
