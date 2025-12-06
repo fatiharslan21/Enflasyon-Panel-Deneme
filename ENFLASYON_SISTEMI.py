@@ -18,7 +18,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import google.generativeai as genai
-
+import PIL.Image
 
 # --- GEMINI AYARI ---
 if "gemini" in st.secrets:
@@ -65,68 +65,55 @@ def github_json_oku(dosya_adi):
         return {}
 
 
-def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name):
+def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name, image=None):
     try:
-        # --- 1. ÇALIŞAN MODELİ OTOMATİK BUL ---
-        # API'den mevcut modelleri listeliyoruz
-        active_model = None
-        try:
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    name = m.name
-                    # Öncelik sırasına göre model arıyoruz
-                    if 'gemini-1.5-flash' in name:
-                        active_model = 'gemini-1.5-flash'
-                        break
-                    elif 'gemini-pro' in name and not active_model:
-                        active_model = 'gemini-pro'
-                    elif 'gemini' in name and not active_model:
-                        active_model = name
-
-            if not active_model:
-                return "Hata: API anahtarınızla erişilebilen uygun bir 'Gemini' modeli bulunamadı. Lütfen Google AI Studio'dan API yetkilerini kontrol edin."
-
-        except Exception as e:
-            return f"Model listesi alınamadı. API Key hatalı olabilir. Detay: {str(e)}"
+        # --- 1. MODEL SEÇİMİ (Resim varsa Vision model lazım) ---
+        target_model = 'gemini-1.5-flash'  # Resim ve Hız için en iyisi
 
         # --- 2. VERİ HAZIRLIĞI ---
         cols_to_use = [ad_col_name, 'Fark']
-        en_cok_artanlar = df_context.sort_values('Fark', ascending=False).head(5)[cols_to_use].to_string(index=False)
-        en_cok_dusenler = df_context.sort_values('Fark', ascending=True).head(5)[cols_to_use].to_string(index=False)
-        sample_data = df_context.sample(min(10, len(df_context)))[cols_to_use].to_string(index=False)
+        # Veri setini biraz küçültüyoruz ki token yetinsin
+        sample_data = df_context.sample(min(15, len(df_context)))[cols_to_use].to_string(index=False)
 
         context_text = f"""
-        Şu anki Enflasyon Raporu Özeti:
+        Şu anki Piyasa Verileri (Referans):
         - Genel Enflasyon: %{genel_enf:.2f}
         - Gıda Enflasyonu: %{gida_enf:.2f}
 
-        En Çok Zamlanan 5 Ürün:
-        {en_cok_artanlar}
-
-        En Çok Düşen/Sabit Kalan 5 Ürün:
-        {en_cok_dusenler}
-
-        Veri Örnekleri:
+        Veritabanından Örnek Fiyat Değişimleri:
         {sample_data}
         """
 
         prompt = f"""
-        Sen bir Enflasyon Analisti asistanısın.
-        Verilere dayanarak cevap ver.
+        Sen bir Piyasa Analistisin. 
+        Görevin: Kullanıcının gönderdiği (varsa) görseli veya soruyu analiz etmek.
 
-        VERİLER:
-        {context_text}
+        Eğer bir RESİM verildiyse:
+        1. Resimdeki ürünün adını ve fiyatını tespit et.
+        2. Bu fiyatı genel piyasa algınla ve yukarıdaki "Referans Veriler" ile kıyasla.
+        3. Kullanıcıya "Bu ürün pahalı/ucuz" şeklinde net bir tavsiye ver.
 
+        Eğer sadece METİN verildiyse:
+        Verilere dayanarak soruyu cevapla.
+
+        VERİLER: {context_text}
         SORU: {soru}
         """
 
-        # --- 3. SEÇİLEN MODEL İLE CEVAP ÜRET ---
-        model = genai.GenerativeModel(active_model)
-        response = model.generate_content(prompt)
+        # --- 3. MODELİ ÇAĞIR ---
+        model = genai.GenerativeModel(target_model)
+
+        if image:
+            # Resim varsa listeye ekleyip gönderiyoruz
+            response = model.generate_content([prompt, image])
+        else:
+            # Sadece metin
+            response = model.generate_content(prompt)
+
         return response.text
 
     except Exception as e:
-        return f"Beklenmedik bir hata oluştu: {str(e)}"
+        return f"Hata oluştu: {str(e)}"
 
 def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
     repo = get_github_repo()
@@ -763,8 +750,20 @@ def dashboard_modu():
                     # st.caption("Veriler veritabanından anlık hesaplanmıştır.")
 
                 with t2:
-                    st.markdown("##### 🤖 Yapay Zeka Analisti ile Sohbet Edin")
+                    st.markdown("##### 🤖 Gözlüklü Asistan (Fotoğraf Analizi)")
+                    st.info("💡 İpucu: Bir fiyat etiketinin fotoğrafını yükleyip 'Bu fiyat nasıl?' diye sorabilirsin.")
 
+                    # --- RESİM YÜKLEME ALANI ---
+                    uploaded_file = st.file_uploader("Bir etiket veya fiş fotoğrafı yükle:",
+                                                     type=["jpg", "png", "jpeg"])
+                    image_input = None
+
+                    if uploaded_file is not None:
+                        # Resmi ekranda göster (küçük boyutta)
+                        image_input = PIL.Image.open(uploaded_file)
+                        st.image(image_input, caption='Analiz edilecek görsel', width=200)
+
+                    # --- CHAT GEÇMİŞİ ---
                     if "messages" not in st.session_state:
                         st.session_state.messages = []
 
@@ -772,20 +771,30 @@ def dashboard_modu():
                         with st.chat_message(message["role"]):
                             st.markdown(message["content"])
 
-                    if prompt := st.chat_input("Sorunuzu yazın... (Örn: Domates fiyatı ne oldu?)"):
-                        st.session_state.messages.append({"role": "user", "content": prompt})
-                        with st.chat_message("user"):
-                            st.markdown(prompt)
+                    # --- SORU GİRİŞİ ---
+                    if prompt := st.chat_input("Sorunu yaz (Örn: Bu peynir fiyatı uygun mu?)"):
 
+                        # Kullanıcı mesajını ekle
+                        user_msg = prompt
+                        if image_input:
+                            user_msg += " (📷 Görsel Eklendi)"
+
+                        st.session_state.messages.append({"role": "user", "content": user_msg})
+                        with st.chat_message("user"):
+                            st.markdown(user_msg)
+
+                        # Asistan cevabı
                         with st.chat_message("assistant"):
-                            with st.spinner("Analiz ediliyor..."):
-                                # DÜZELTİLEN SATIR BURASI: ad_col parametresi eklendi
-                                ai_response = ask_gemini_ai(prompt, df_analiz, enf_genel, enf_gida, ad_col)
+                            with st.spinner("Görsel ve veriler taranıyor..."):
+                                # Resim varsa fonksiyona gönderiyoruz
+                                ai_response = ask_gemini_ai(prompt, df_analiz, enf_genel, enf_gida, ad_col,
+                                                            image=image_input)
                                 st.markdown(ai_response)
 
                         st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
-                    if st.button("Sohbeti Temizle", key="clear_chat"):
+                    # Temizleme Butonu
+                    if st.button("Sohbeti Temizle", key="clear_chat_vision"):
                         st.session_state.messages = []
                         st.rerun()
 
