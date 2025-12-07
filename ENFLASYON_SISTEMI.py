@@ -601,16 +601,9 @@ def dashboard_modu():
 
         st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
         st.divider()
-        with st.expander("🔧 API Kontrol (Debugger)"):
-            if st.button("Modelleri Listele"):
-                try:
-                    models = list(genai.list_models())
-                    st.write(f"Bulunan Model Sayısı: {len(models)}")
-                    for m in models:
-                        st.text(f"Isim: {m.name}")
-                        st.caption(f"Yetenekler: {m.supported_generation_methods}")
-                except Exception as e:
-                    st.error(f"API Hatası: {e}")
+        # --- DEBUGGER KALDIRILDI ---
+        # Sadece divider ve alt kısımlar kaldı.
+
         st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
 
         users_db = github_json_oku(USERS_DOSYASI)
