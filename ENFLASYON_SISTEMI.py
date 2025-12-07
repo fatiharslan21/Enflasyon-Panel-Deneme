@@ -135,7 +135,6 @@ def create_pdf_report(text_content, filename="Rapor.pdf"):
     pdf.multi_cell(0, 5,
                    "Bu rapor yapay zeka destekli piyasa analiz sistemi tarafindan otomatik olarak olusturulmustur.")
 
-    # DÜZELTME: bytearray hatasını önlemek için bytes() kullanıyoruz
     return bytes(pdf.output(dest='S'))
 
 
@@ -584,9 +583,7 @@ def html_isleyici(log_callback):
 
 # --- 4. DASHBOARD MODU ---
 def dashboard_modu():
-    # DÜZELTME BURADA YAPILDI: bugun değişkeni eklendi
     bugun = datetime.now().strftime("%Y-%m-%d")
-
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
@@ -912,7 +909,7 @@ def dashboard_modu():
                         hovermode="x unified",
                         title="Enflasyon: Geçmiş, Şimdi ve Gelecek",
                         legend=dict(orientation="h", y=1.1),
-                        yaxis=dict(title="TÜFE Endeksi"),
+                        yaxis=dict(title="TÜFE Endeksi", range=[95, 105]),
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)'
                     )
