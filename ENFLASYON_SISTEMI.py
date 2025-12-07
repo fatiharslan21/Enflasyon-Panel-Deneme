@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 import re
 import calendar
 from datetime import datetime, timedelta
-from datetime import datetime
 import time
 import json
 import hashlib
@@ -84,7 +83,7 @@ def get_market_sentiment():
         return f"Haberler alınamadı: {str(e)}", []
 
 
-# --- 2. ÖZELLİK: PRO RAPOR YAZARI (PDF - GÜNCELLENMİŞ VERSİYON) ---
+# --- 2. ÖZELLİK: PRO RAPOR YAZARI (PDF - DÜZELTİLMİŞ) ---
 class PDFReport(FPDF):
     def header(self):
         # 1. Başlık (Büyük ve Kalın)
@@ -136,6 +135,7 @@ def create_pdf_report(text_content, filename="Rapor.pdf"):
     pdf.multi_cell(0, 5,
                    "Bu rapor yapay zeka destekli piyasa analiz sistemi tarafindan otomatik olarak olusturulmustur.")
 
+    # DÜZELTME: bytearray hatasını önlemek için bytes() kullanıyoruz
     return bytes(pdf.output(dest='S'))
 
 
@@ -584,6 +584,9 @@ def html_isleyici(log_callback):
 
 # --- 4. DASHBOARD MODU ---
 def dashboard_modu():
+    # DÜZELTME BURADA YAPILDI: bugun değişkeni eklendi
+    bugun = datetime.now().strftime("%Y-%m-%d")
+
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
