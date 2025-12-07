@@ -136,7 +136,7 @@ def create_pdf_report(text_content, filename="Rapor.pdf"):
     pdf.multi_cell(0, 5,
                    "Bu rapor yapay zeka destekli piyasa analiz sistemi tarafindan otomatik olarak olusturulmustur.")
 
-    return pdf.output(dest='S').encode('latin-1', errors='ignore')
+    return bytes(pdf.output(dest='S'))
 
 
 def get_github_repo():
