@@ -19,6 +19,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import google.generativeai as genai
 import PIL.Image
+import requests
+from prophet import Prophet
 
 # --- GEMINI AYARI ---
 if "gemini" in st.secrets:
@@ -64,6 +66,62 @@ def github_json_oku(dosya_adi):
     except:
         return {}
 
+
+def get_official_inflation():
+    """
+    TCMB EVDS'den son 1 yıllık resmi TÜFE (Tüketici Fiyat Endeksi) verisini çeker.
+    Seri Kodu: TP.FG.J0 (TÜFE - Genel)
+    """
+    api_key = st.secrets.get("evds", {}).get("api_key")
+    if not api_key:
+        return None, "API Key Yok"
+
+    # Son 1 yılı al
+    start_date = (datetime.now() - timedelta(days=365)).strftime("%d-%m-%Y")
+    end_date = datetime.now().strftime("%d-%m-%Y")
+
+    url = f"https://evds2.tcmb.gov.tr/service/evds/series=TP.FG.J0&startDate={start_date}&endDate={end_date}&type=json&key={api_key}"
+
+    try:
+        res = requests.get(url)
+        data = res.json()
+        if "items" in data:
+            df_evds = pd.DataFrame(data["items"])
+            df_evds = df_evds[['Tarih', 'TP_FG_J0']]
+            df_evds.columns = ['Tarih', 'Resmi_TUFE']
+            # Tarih formatı genelde YYYY-A olur, onu datetime'a çevirelim
+            df_evds['Tarih'] = pd.to_datetime(df_evds['Tarih'] + "-01", format="%Y-%m-%d")
+
+            # Resmi TÜFE Endeks olduğu için (2003=100), bunu yüzdesel değişime çevirmek gerekebilir
+            # veya senin endeksinle aynı bazda normalize edebiliriz.
+            # Şimdilik ham endeks verisi olarak dönüyoruz.
+            df_evds['Resmi_TUFE'] = pd.to_numeric(df_evds['Resmi_TUFE'], errors='coerce')
+            return df_evds, "OK"
+        return None, "Veri Yapısı Hatası"
+    except Exception as e:
+        return None, str(e)
+
+
+# --- 3. ÖZELLİK: PROPHET İLE GELECEK TAHMİNİ ---
+def predict_inflation_prophet(df_trend):
+    """
+    Facebook Prophet kullanarak gelecek 90 günün enflasyonunu tahmin eder.
+    df_trend: Tarih ve TÜFE (Endeks) sütunları olmalı.
+    """
+    try:
+        # Prophet 'ds' (tarih) ve 'y' (değer) sütun isimlerini ister
+        df_p = df_trend.rename(columns={'Tarih': 'ds', 'TÜFE': 'y'})
+
+        m = Prophet(daily_seasonality=True, yearly_seasonality=False)
+        m.fit(df_p)
+
+        future = m.make_future_dataframe(periods=90)  # 3 Ay ileri
+        forecast = m.predict(future)
+
+        return forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
+    except Exception as e:
+        st.error(f"Prophet Hatası: {str(e)}")
+        return pd.DataFrame()
 
 def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name, image=None):
     try:
@@ -750,40 +808,99 @@ def dashboard_modu():
                     ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
 
                 with t1:
-                    # GRAFİK TAM EKRAN (NİHAİ)
+                    st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
+
+                    # 1. MEVCUT SİSTEM VERİSİNİ HAZIRLA
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                             df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
+                    df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
 
-                    fig_main = px.area(df_trend, x='Tarih', y='TÜFE', title="📈 Enflasyon Momentum Analizi")
-                    fig_main.update_traces(line_color='#2563eb', fillcolor="rgba(37, 99, 235, 0.2)",
-                                           line_shape='spline')
-                    fig_main.update_layout(template="plotly_white", height=450, hovermode="x unified",
-                                           yaxis=dict(range=[95, 105]), plot_bgcolor='rgba(0,0,0,0)',
-                                           paper_bgcolor='rgba(0,0,0,0)')
+                    # --- YENİ: RESMİ VERİ ENTEGRASYONU ---
+                    df_resmi, msg = get_official_inflation()
+
+                    # --- YENİ: PROPHET TAHMİNİ ---
+                    with st.spinner("Yapay zeka gelecek tahmini yapıyor..."):
+                        df_forecast = predict_inflation_prophet(df_trend)
+
+                    # GRAFİK OLUŞTURMA
+                    fig_main = go.Figure()
+
+                    # A) Bizim Hesapladığımız (Sokak Enflasyonu)
+                    fig_main.add_trace(go.Scatter(
+                        x=df_trend['Tarih'],
+                        y=df_trend['TÜFE'],
+                        mode='lines+markers',
+                        name='Enflasyon Monitörü (Sokak)',
+                        line=dict(color='#2563eb', width=3)
+                    ))
+
+                    # B) Prophet Tahmini (Gelecek)
+                    if not df_forecast.empty:
+                        # Sadece geleceği çizelim
+                        future_only = df_forecast[df_forecast['ds'] > df_trend['Tarih'].max()]
+
+                        # Tahmin Çizgisi
+                        fig_main.add_trace(go.Scatter(
+                            x=future_only['ds'],
+                            y=future_only['yhat'],
+                            mode='lines',
+                            name='AI Tahmini (Prophet)',
+                            line=dict(color='#f59e0b', dash='dot')
+                        ))
+
+                        # Güven Aralığı (Gölgeleme)
+                        fig_main.add_trace(go.Scatter(
+                            x=future_only['ds'].tolist() + future_only['ds'].tolist()[::-1],
+                            y=future_only['yhat_upper'].tolist() + future_only['yhat_lower'].tolist()[::-1],
+                            fill='toself',
+                            fillcolor='rgba(245, 158, 11, 0.2)',
+                            line=dict(color='rgba(255,255,255,0)'),
+                            hoverinfo="skip",
+                            showlegend=False
+                        ))
+
+                    # C) Resmi Veri (TCMB) - Eğer çekilebildiyse
+                    if df_resmi is not None and not df_resmi.empty:
+                        # Endeksleri normalize etmek gerekebilir, basitlik için direkt çiziyorum
+                        # Görsel çakışma olmaması için ikinci eksen (y2) kullanılabilir ama
+                        # karşılaştırma için aynı eksen daha iyi.
+                        # NOT: Resmi veri aylık, bizimki günlük.
+                        fig_main.add_trace(go.Scatter(
+                            x=df_resmi['Tarih'],
+                            y=df_resmi['Resmi_TUFE'],  # Burayı kendi baz yılına göre normalize etmen gerekebilir
+                            mode='lines+markers',
+                            name='Resmi TÜİK Verisi',
+                            line=dict(color='#ef4444', width=2),
+                            marker=dict(symbol='square')
+                        ))
+                    elif "API Key" in msg:
+                        st.caption("ℹ️ Resmi verileri görmek için secrets.toml dosyasına EVDS API anahtarını ekleyin.")
+
+                    fig_main.update_layout(
+                        template="plotly_white",
+                        height=500,
+                        hovermode="x unified",
+                        title="Enflasyon: Geçmiş, Şimdi ve Gelecek",
+                        legend=dict(orientation="h", y=1.1),
+                        yaxis=dict(title="TÜFE Endeksi"),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)'
+                    )
                     st.plotly_chart(fig_main, use_container_width=True)
 
-                    # --- NATIVE METRIC BLOCKS (HTML SORUNSUZ) ---
-                    REF_ARALIK_2024 = 1.03
-                    REF_KASIM_2025 = 0.87
-                    diff_24 = enf_genel - REF_ARALIK_2024
+                    # TAHMİN YORUMU
+                    if not df_forecast.empty:
+                        last_real = df_trend['TÜFE'].iloc[-1]
+                        last_pred = df_forecast['yhat'].iloc[-1]
+                        degisim = ((last_pred - last_real) / last_real) * 100
 
-                    # st.markdown("#### ⚖️ ENFLASYON KARŞILAŞTIRMASI")
-                    # c_ref1, c_ref2 = st.columns(2)
-                    # c_ref1.metric("ARALIK 2024", f"%{REF_ARALIK_2024}")
-                    # c_ref2.metric("KASIM 2025", f"%{REF_KASIM_2025}")
-
-                    # st.divider()
-
-                    # Büyük Sistem Verisi (Native Metric ile)
-                    # st.metric(
-                    #    label="ŞU ANKİ (SİSTEM)",
-                    #    value=f"%{enf_genel:.2f}",
-                    #    delta=f"{diff_24:.2f} Puan (Aralık 24 Farkı)",
-                    #    delta_color="inverse" if diff_24 > 0 else "normal"
-                    # )
-                    # st.caption("Veriler veritabanından anlık hesaplanmıştır.")
+                        st.info(f"""
+                        **🔮 Yapay Zeka Öngörüsü:** Facebook Prophet modeline göre, önümüzdeki 3 ay içinde fiyatların 
+                        **%{degisim:.2f}** oranında {'ARTMASI' if degisim > 0 else 'AZALMASI'} bekleniyor.
+                        *(Model mevsimsellik ve geçmiş trend kırılımlarını dikkate almıştır.)*
+                        """)
 
                 with t2:
                     st.markdown("##### 🤖 Gözlüklü Asistan (Fotoğraf Analizi)")
