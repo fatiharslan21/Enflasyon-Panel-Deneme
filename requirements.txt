@@ -12,3 +12,5 @@ google-generativeai
 Pillow
 requests
 prophet
+feedparser
+fpdf
