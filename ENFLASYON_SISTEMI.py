@@ -48,9 +48,6 @@ ACTIVITY_DOSYASI = "user_activity.json"
 SEPETLER_DOSYASI = "user_baskets.json"
 SAYFA_ADI = "Madde_Sepeti"
 
-import feedparser
-from fpdf import FPDF
-
 
 # --- 1. ÖZELLİK: EN HAVALISI (HABER ANALİZİ) ---
 def get_market_sentiment():
@@ -79,10 +76,6 @@ def get_market_sentiment():
         Çıktıyı kısa, net ve madde madde ver.
         """
 
-        # Gemini'ye sor (Mevcut ask_gemini_ai fonksiyonunu kullanıyoruz ama veri tablosuz)
-        # Not: ask_gemini_ai fonksiyonunda df_context None gelirse hata vermemeli.
-        # O yüzden buraya özel basit bir model çağrısı yapabiliriz veya mevcut fonksiyonu revize edebiliriz.
-        # En temizi direkt model çağırmak:
         model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(prompt)
         return response.text, headlines
@@ -91,41 +84,60 @@ def get_market_sentiment():
         return f"Haberler alınamadı: {str(e)}", []
 
 
-# --- 2. ÖZELLİK: PRO RAPOR YAZARI (PDF) ---
+# --- 2. ÖZELLİK: PRO RAPOR YAZARI (PDF - GÜNCELLENMİŞ VERSİYON) ---
 class PDFReport(FPDF):
     def header(self):
-        self.set_font('Arial', 'B', 15)
-        self.cell(0, 10, 'ENFLASYON MONITORU - AYLIK ANALIZ RAPORU', 0, 1, 'C')
+        # 1. Başlık (Büyük ve Kalın)
+        self.set_font('Arial', 'B', 16)
+        self.cell(0, 10, 'ENFLASYON DURUM RAPORU', 0, 1, 'C')
+
+        # 2. Gizlilik Damgası (Kırmızı ve Sağa Yaslı)
+        self.set_y(10)  # Aynı hizaya geri dön
+        self.set_font('Arial', 'B', 8)
+        self.set_text_color(220, 50, 50)  # Kırmızı Renk
+        self.cell(0, 10, 'GIZLI / CONFIDENTIAL - YONETIM KURULU OZEL', 0, 1, 'R')
+
+        # 3. Ayırıcı Çizgi ve Renk Sıfırlama
+        self.set_text_color(0, 0, 0)  # Siyaha dön
         self.ln(5)
+        self.line(10, 25, 200, 25)  # Başlık altı çizgi
+        self.ln(10)
 
     def footer(self):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, f'Sayfa {self.page_no()}', 0, 0, 'C')
+        self.set_text_color(128, 128, 128)  # Gri
+        self.cell(0, 10, f'Enflasyon Monitoru AI - Sayfa {self.page_no()}', 0, 0, 'C')
 
 
 def create_pdf_report(text_content, filename="Rapor.pdf"):
     pdf = PDFReport()
     pdf.add_page()
 
-    # Türkçe karakter sorunu için basit bir çözüm (Windows-1254 veya Latin-5)
-    # FPDF standart fontları Türkçe karakterleri bazen bozuk basar.
-    # Profesyonel çözüm: .ttf font dosyası eklemektir (örn: DejaVuSans.ttf).
-    # Hızlı çözüm: Karakterleri replace etmek.
-
+    # Türkçe karakter sorunu için mapping (Standart font kullanımı için)
     tr_map = {
         'ğ': 'g', 'Ğ': 'G', 'ş': 's', 'Ş': 'S', 'ı': 'i', 'İ': 'I',
-        'ü': 'u', 'Ü': 'U', 'ö': 'o', 'Ö': 'O', 'ç': 'c', 'Ç': 'C', '₺': 'TL'
+        'ü': 'u', 'Ü': 'U', 'ö': 'o', 'Ö': 'O', 'ç': 'c', 'Ç': 'C', '₺': 'TL',
+        'â': 'a', 'î': 'i'
     }
 
     clean_text = text_content
     for k, v in tr_map.items():
         clean_text = clean_text.replace(k, v)
 
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, clean_text)
+    # Gövde Yazısı
+    pdf.set_font("Arial", size=11)
+    pdf.multi_cell(0, 7, clean_text)
 
-    return pdf.output(dest='S').encode('latin-1', errors='ignore')  # Byte olarak döndür
+    # Altına bir not ekle
+    pdf.ln(10)
+    pdf.set_font("Arial", 'I', 9)
+    pdf.set_text_color(100, 100, 100)
+    pdf.multi_cell(0, 5,
+                   "Bu rapor yapay zeka destekli piyasa analiz sistemi tarafindan otomatik olarak olusturulmustur.")
+
+    return pdf.output(dest='S').encode('latin-1', errors='ignore')
+
 
 def get_github_repo():
     try:
@@ -157,7 +169,6 @@ def get_official_inflation():
     if not api_key:
         return None, "API Key Yok"
 
-    # Son 1 yılı al
     start_date = (datetime.now() - timedelta(days=365)).strftime("%d-%m-%Y")
     end_date = datetime.now().strftime("%d-%m-%Y")
 
@@ -170,12 +181,7 @@ def get_official_inflation():
             df_evds = pd.DataFrame(data["items"])
             df_evds = df_evds[['Tarih', 'TP_FG_J0']]
             df_evds.columns = ['Tarih', 'Resmi_TUFE']
-            # Tarih formatı genelde YYYY-A olur, onu datetime'a çevirelim
             df_evds['Tarih'] = pd.to_datetime(df_evds['Tarih'] + "-01", format="%Y-%m-%d")
-
-            # Resmi TÜFE Endeks olduğu için (2003=100), bunu yüzdesel değişime çevirmek gerekebilir
-            # veya senin endeksinle aynı bazda normalize edebiliriz.
-            # Şimdilik ham endeks verisi olarak dönüyoruz.
             df_evds['Resmi_TUFE'] = pd.to_numeric(df_evds['Resmi_TUFE'], errors='coerce')
             return df_evds, "OK"
         return None, "Veri Yapısı Hatası"
@@ -185,63 +191,46 @@ def get_official_inflation():
 
 # --- 3. ÖZELLİK: PROPHET İLE GELECEK TAHMİNİ ---
 def predict_inflation_prophet(df_trend):
-    """
-    Facebook Prophet kullanarak gelecek 90 günün enflasyonunu tahmin eder.
-    df_trend: Tarih ve TÜFE (Endeks) sütunları olmalı.
-    """
     try:
-        # Prophet 'ds' (tarih) ve 'y' (değer) sütun isimlerini ister
         df_p = df_trend.rename(columns={'Tarih': 'ds', 'TÜFE': 'y'})
-
         m = Prophet(daily_seasonality=True, yearly_seasonality=False)
         m.fit(df_p)
-
-        future = m.make_future_dataframe(periods=90)  # 3 Ay ileri
+        future = m.make_future_dataframe(periods=90)
         forecast = m.predict(future)
-
         return forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
     except Exception as e:
         st.error(f"Prophet Hatası: {str(e)}")
         return pd.DataFrame()
 
+
 def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name, image=None):
     try:
-        # --- 1. MODELİ OTOMATİK BUL (EN ÖNEMLİ KISIM) ---
         found_model_name = None
-
-        # Tüm modelleri API'den çekiyoruz
         available_models = list(genai.list_models())
 
-        # Eğer resim varsa 'vision' veya '1.5' (yeni nesil) yetenekli model ara
         if image:
-            # Öncelik sırası: 1.5 Flash -> 1.5 Pro -> Pro Vision
             for m in available_models:
                 if 'generateContent' in m.supported_generation_methods:
                     if 'gemini-2.5-flash' in m.name:
                         found_model_name = m.name
                         break
-
-            # Flash yoksa Pro Vision bak
             if not found_model_name:
                 for m in available_models:
                     if 'generateContent' in m.supported_generation_methods and 'vision' in m.name:
                         found_model_name = m.name
                         break
 
-        # Resim yoksa veya vision modeli bulamadıysak, herhangi bir text modeli bul
         if not found_model_name:
             for m in available_models:
                 if 'generateContent' in m.supported_generation_methods:
                     if 'gemini' in m.name:
                         found_model_name = m.name
-                        # Pro'yu bulunca dur, Flash varsa onu tercih et
                         if 'flash' in m.name:
                             break
 
         if not found_model_name:
-            return "HATA: API Anahtarınızla uyumlu hiçbir model bulunamadı. Lütfen Google AI Studio'dan yeni bir API Key alıp deneyin."
+            return "HATA: API Anahtarınızla uyumlu hiçbir model bulunamadı."
 
-        # --- 2. VERİ HAZIRLIĞI ---
         cols_to_use = [ad_col_name, 'Fark']
         sample_data = df_context.sample(min(15, len(df_context)))[cols_to_use].to_string(index=False)
 
@@ -263,15 +252,13 @@ def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name, image=None
         SORU: {soru}
         """
 
-        # --- 3. BULUNAN MODELİ KULLAN ---
         model = genai.GenerativeModel(found_model_name)
 
         if image:
-            # Seçilen model vision desteklemiyorsa (eski gemini-pro gibi) hata vermemesi için try-catch
             try:
                 response = model.generate_content([prompt, image])
             except:
-                return f"Seçilen model ({found_model_name}) görsel analizini desteklemiyor. Lütfen sadece metin sorusu sorun."
+                return f"Seçilen model ({found_model_name}) görsel analizini desteklemiyor."
         else:
             response = model.generate_content(prompt)
 
@@ -279,6 +266,7 @@ def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name, image=None
 
     except Exception as e:
         return f"Sistem Hatası: {str(e)}"
+
 
 def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
     repo = get_github_repo()
@@ -448,67 +436,43 @@ def fiyat_bul_siteye_gore(soup, url):
     kaynak = ""
     domain = url.lower() if url else ""
 
-    # =========================================================
-    # 1. MİGROS: AGRESİF TEMİZLİK VE NOKTA ATIŞI
-    # =========================================================
     if "migros" in domain:
-
-        # --- ADIM A: YAN ÜRÜNLERİ YOK ET (KÖKTEN ÇÖZÜM) ---
-        # Sayfadaki "önerilen ürünler" listesindeki kartların teknik adı "sm-list-page-item"dır.
-        # Bunları ve kapsayıcılarını siliyoruz ki kodun gözü kaymasın.
         garbage_selectors = [
-            "sm-list-page-item",  # Tüm yan ürün kartları (En kritik hamle bu)
-            ".horizontal-list-page-items-container",  # Yan liste kapsayıcısı
-            "app-product-carousel",  # Kayar bantlar
-            ".similar-products",  # Benzer ürünler
-            "div.badges-wrapper"  # Bazen fiyatla karışan etiketler
+            "sm-list-page-item",
+            ".horizontal-list-page-items-container",
+            "app-product-carousel",
+            ".similar-products",
+            "div.badges-wrapper"
         ]
         for selector in garbage_selectors:
             for garbage in soup.select(selector):
-                garbage.decompose()  # HTML'den tamamen siler.
+                garbage.decompose()
 
-        # --- ADIM B: SADECE ANA KUTUYA ODAKLAN ---
-        # Senin "SADECE BURAYA BAK" dediğin kutu: .name-price-wrapper
         main_wrapper = soup.select_one(".name-price-wrapper")
 
         if main_wrapper:
-            # --- ADIM C: ÖNCELİK NORMAL FİYAT ---
-            # Senin gönderdiğin iki farklı normal fiyat yapısını da burada arıyoruz.
-            # 1. Yapı: <div class="price subtitle-1">
-            # 2. Yapı: <span class="single-price-amount">
-
-            # Önce .price.subtitle-1 var mı diye bak, textini temizle
             normal_div = main_wrapper.select_one(".price.subtitle-1")
             if normal_div:
-                # Sadece rakamları al (TL yazısını temizle_fiyat halleder)
                 if val := temizle_fiyat(normal_div.get_text()):
                     return val, "Migros(Ana-Normal-Div)"
 
-            # Eğer div yoksa span versiyonuna bak
             normal_span = main_wrapper.select_one(".single-price-amount")
             if normal_span:
                 if val := temizle_fiyat(normal_span.get_text()):
                     return val, "Migros(Ana-Normal-Span)"
 
-            # --- ADIM D: NORMAL YOKSA -> İNDİRİMLİ (SALE) FİYAT ---
-            # Normal fiyat etiketleri yoksa, ürün indirimdedir. Sale ID'sine bak.
             sale_el = main_wrapper.select_one("#sale-price, .sale-price")
             if sale_el:
                 if val := temizle_fiyat(sale_el.get_text()):
                     return val, "Migros(Ana-İndirim)"
 
-        # --- ADIM E: ACİL DURUM (Eğer Wrapper Bulunamazsa) ---
-        # HTML yapısı değiştiyse ve wrapper yoksa, temizlenmiş HTML'de genel ara.
-        # Yan ürünleri sildiğimiz için (Adım A) burası da güvenlidir.
         if fiyat == 0:
-            # 1. Normal Fiyat Ara
             el = soup.select_one("fe-product-price .subtitle-1, .single-price-amount")
             if el:
                 if val := temizle_fiyat(el.get_text()):
                     fiyat = val;
                     kaynak = "Migros(Genel-Normal)"
 
-            # 2. Bulamazsan İndirimli Ara
             if fiyat == 0:
                 el = soup.select_one("#sale-price")
                 if el:
@@ -516,9 +480,6 @@ def fiyat_bul_siteye_gore(soup, url):
                         fiyat = val;
                         kaynak = "Migros(Genel-İndirim)"
 
-    # =========================================================
-    # 2. CİMRİ VE DİĞERLERİ (DEĞİŞİKLİK YOK)
-    # =========================================================
     elif "cimri" in domain:
         for sel in ["div.rTdMX", ".offer-price", "div.sS0lR", ".min-price-val"]:
             if els := soup.select(sel):
@@ -533,9 +494,6 @@ def fiyat_bul_siteye_gore(soup, url):
                 ff = sorted([temizle_fiyat(x) for x in m if temizle_fiyat(x)])
                 if ff: fiyat = sum(ff[:max(1, len(ff) // 2)]) / max(1, len(ff) // 2); kaynak = "Cimri(Reg)"
 
-    # =========================================================
-    # 3. GENEL FALLBACK
-    # =========================================================
     if fiyat == 0 and "migros" not in domain:
         for sel in [".product-price", ".price", ".current-price", "span[itemprop='price']"]:
             if el := soup.select_one(sel):
@@ -585,7 +543,6 @@ def html_isleyici(log_callback):
 
         log_callback("📦 ZIP dosyaları taranıyor...")
         contents = repo.get_contents("", ref=st.secrets["github"]["branch"])
-        # Sadece 'Bolum' ile başlayan zip dosyaları
         zip_files = [c for c in contents if c.name.endswith(".zip") and c.name.startswith("Bolum")]
         hs = 0
         for zip_file in zip_files:
@@ -892,24 +849,19 @@ def dashboard_modu():
                 with t1:
                     st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
 
-                    # 1. MEVCUT SİSTEM VERİSİNİ HAZIRLA
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                             df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
                     df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
 
-                    # --- YENİ: RESMİ VERİ ENTEGRASYONU ---
                     df_resmi, msg = get_official_inflation()
 
-                    # --- YENİ: PROPHET TAHMİNİ ---
                     with st.spinner("Yapay zeka gelecek tahmini yapıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
 
-                    # GRAFİK OLUŞTURMA
                     fig_main = go.Figure()
 
-                    # A) Bizim Hesapladığımız (Sokak Enflasyonu)
                     fig_main.add_trace(go.Scatter(
                         x=df_trend['Tarih'],
                         y=df_trend['TÜFE'],
@@ -918,12 +870,9 @@ def dashboard_modu():
                         line=dict(color='#2563eb', width=3)
                     ))
 
-                    # B) Prophet Tahmini (Gelecek)
                     if not df_forecast.empty:
-                        # Sadece geleceği çizelim
                         future_only = df_forecast[df_forecast['ds'] > df_trend['Tarih'].max()]
 
-                        # Tahmin Çizgisi
                         fig_main.add_trace(go.Scatter(
                             x=future_only['ds'],
                             y=future_only['yhat'],
@@ -932,7 +881,6 @@ def dashboard_modu():
                             line=dict(color='#f59e0b', dash='dot')
                         ))
 
-                        # Güven Aralığı (Gölgeleme)
                         fig_main.add_trace(go.Scatter(
                             x=future_only['ds'].tolist() + future_only['ds'].tolist()[::-1],
                             y=future_only['yhat_upper'].tolist() + future_only['yhat_lower'].tolist()[::-1],
@@ -943,15 +891,10 @@ def dashboard_modu():
                             showlegend=False
                         ))
 
-                    # C) Resmi Veri (TCMB) - Eğer çekilebildiyse
                     if df_resmi is not None and not df_resmi.empty:
-                        # Endeksleri normalize etmek gerekebilir, basitlik için direkt çiziyorum
-                        # Görsel çakışma olmaması için ikinci eksen (y2) kullanılabilir ama
-                        # karşılaştırma için aynı eksen daha iyi.
-                        # NOT: Resmi veri aylık, bizimki günlük.
                         fig_main.add_trace(go.Scatter(
                             x=df_resmi['Tarih'],
-                            y=df_resmi['Resmi_TUFE'],  # Burayı kendi baz yılına göre normalize etmen gerekebilir
+                            y=df_resmi['Resmi_TUFE'],
                             mode='lines+markers',
                             name='Resmi TÜİK Verisi',
                             line=dict(color='#ef4444', width=2),
@@ -972,7 +915,6 @@ def dashboard_modu():
                     )
                     st.plotly_chart(fig_main, use_container_width=True)
 
-                    # TAHMİN YORUMU
                     if not df_forecast.empty:
                         last_real = df_trend['TÜFE'].iloc[-1]
                         last_pred = df_forecast['yhat'].iloc[-1]
@@ -988,17 +930,14 @@ def dashboard_modu():
                     st.markdown("##### 🤖 Gözlüklü Asistan (Fotoğraf Analizi)")
                     st.info("💡 İpucu: Bir fiyat etiketinin fotoğrafını yükleyip 'Bu fiyat nasıl?' diye sorabilirsin.")
 
-                    # --- RESİM YÜKLEME ALANI ---
                     uploaded_file = st.file_uploader("Bir etiket veya fiş fotoğrafı yükle:",
                                                      type=["jpg", "png", "jpeg"])
                     image_input = None
 
                     if uploaded_file is not None:
-                        # Resmi ekranda göster (küçük boyutta)
                         image_input = PIL.Image.open(uploaded_file)
                         st.image(image_input, caption='Analiz edilecek görsel', width=200)
 
-                    # --- CHAT GEÇMİŞİ ---
                     if "messages" not in st.session_state:
                         st.session_state.messages = []
 
@@ -1006,10 +945,7 @@ def dashboard_modu():
                         with st.chat_message(message["role"]):
                             st.markdown(message["content"])
 
-                    # --- SORU GİRİŞİ ---
                     if prompt := st.chat_input("Sorunu yaz (Örn: Bu peynir fiyatı uygun mu?)"):
-
-                        # Kullanıcı mesajını ekle
                         user_msg = prompt
                         if image_input:
                             user_msg += " (📷 Görsel Eklendi)"
@@ -1018,17 +954,14 @@ def dashboard_modu():
                         with st.chat_message("user"):
                             st.markdown(user_msg)
 
-                        # Asistan cevabı
                         with st.chat_message("assistant"):
                             with st.spinner("Görsel ve veriler taranıyor..."):
-                                # Resim varsa fonksiyona gönderiyoruz
                                 ai_response = ask_gemini_ai(prompt, df_analiz, enf_genel, enf_gida, ad_col,
                                                             image=image_input)
                                 st.markdown(ai_response)
 
                         st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
-                    # Temizleme Butonu
                     if st.button("Sohbeti Temizle", key="clear_chat_vision"):
                         st.session_state.messages = []
                         st.rerun()
@@ -1132,40 +1065,46 @@ def dashboard_modu():
                     st.download_button("📥 Excel Raporunu İndir", data=output.getvalue(),
                                        file_name=f"Enflasyon_Raporu_{son}.xlsx",
                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                    # --- SEKME 8: HABER ANALİZİ (EN HAVALISI) ---
+
+                # --- SEKME 8: HABER ANALİZİ ---
                 with t8:
-                        st.markdown("### 🌍 Yapay Zeka Destekli Piyasa Gündemi")
-                        if st.button("Haberleri Tara ve Analiz Et", key="btn_news"):
-                            with st.spinner("İnternet taranıyor, Gemini yorumluyor..."):
-                                analysis_text, headlines = get_market_sentiment()
+                    st.markdown("### 🌍 Yapay Zeka Destekli Piyasa Gündemi")
+                    if st.button("Haberleri Tara ve Analiz Et", key="btn_news"):
+                        with st.spinner("İnternet taranıyor, Gemini yorumluyor..."):
+                            analysis_text, headlines = get_market_sentiment()
 
-                                c_news1, c_news2 = st.columns([2, 1])
-                                with c_news1:
-                                    st.markdown("#### 🧠 Gemini Piyasa Yorumu")
-                                    st.success(analysis_text)
+                            c_news1, c_news2 = st.columns([2, 1])
+                            with c_news1:
+                                st.markdown("#### 🧠 Gemini Piyasa Yorumu")
+                                st.success(analysis_text)
 
-                                with c_news2:
-                                    st.markdown("#### 🗞️ Son Başlıklar")
-                                    for h in headlines:
-                                        st.caption(f"• {h}")
+                            with c_news2:
+                                st.markdown("#### 🗞️ Son Başlıklar")
+                                for h in headlines:
+                                    st.caption(f"• {h}")
 
-                    # --- SEKME 9: PRO RAPOR YAZARI (ON-DEMAND) ---
+                # --- SEKME 9: PRO RAPOR YAZARI (ON-DEMAND) ---
                 with t9:
-                        st.markdown("### 📝 Profesyonel Yönetici Raporu")
-                        st.info(
-                            "Mevcut verileri kullanarak, paylaşılabilir formatta profesyonel bir durum raporu oluşturur.")
+                    st.markdown("### 📝 Profesyonel Yönetici Raporu")
+                    st.info(
+                        "Mevcut verileri kullanarak, paylaşılabilir formatta profesyonel bir durum raporu oluşturur.")
 
-                        col_gen, col_download = st.columns(2)
+                    col_gen, col_download = st.columns(2)
 
-                        # Rapor metnini session state'de tutalım ki sayfa yenilenince gitmesin
-                        if 'report_text' not in st.session_state:
-                            st.session_state['report_text'] = ""
+                    if 'report_text' not in st.session_state:
+                        st.session_state['report_text'] = ""
 
-                        with col_gen:
-                            if st.button("✍️ Raporu Yazdır (AI)", type="primary"):
-                                with st.spinner("Veriler derleniyor, rapor yazılıyor..."):
-                                    # Rapor için veri özeti hazırlama
-                                    report_summary = f"""
+                    with col_gen:
+                        if st.button("✍️ Raporu Yazdır (AI)", type="primary"):
+                            with st.spinner("Veriler derleniyor, rapor yazılıyor..."):
+                                # KATEGORİ ANALİZİ İÇİN VERİ HAZIRLA
+                                sepet_dagilimi = df_analiz.groupby('Grup')['Fark'].mean().sort_values(ascending=False)
+                                kategori_metni = ""
+                                for kat, oran in sepet_dagilimi.items():
+                                    durum = "YÜKSELİŞ" if oran > 0 else "DÜŞÜŞ"
+                                    kategori_metni += f"- {kat}: %{oran * 100:.2f} ({durum})\n"
+
+                                report_summary = f"""
                                                     Tarih: {datetime.now().strftime('%d-%m-%Y')}
                                                     Genel Enflasyon: %{enf_genel:.2f}
                                                     Gıda Enflasyonu: %{enf_gida:.2f}
@@ -1173,42 +1112,42 @@ def dashboard_modu():
                                                     Tahmin (Ay Sonu): %{month_end_forecast:.2f}
                                                     """
 
-                                    prompt_report = f"""
+                                prompt_report = f"""
                                                     Sen kıdemli bir ekonomi analistisin. Aşağıdaki verilere dayanarak, 
                                                     yöneticilere sunulmak üzere PROFESYONEL, CİDDİ ama AKICI bir "Aylık Enflasyon Durum Raporu" yaz.
 
                                                     VERİLER:
                                                     {report_summary}
 
+                                                    SEKTÖREL AYRIŞMA DETAYLARI:
+                                                    {kategori_metni}
+
                                                     ŞABLON:
                                                     1. GİRİŞ: Genel piyasa durumu özeti.
-                                                    2. DETAYLAR: Öne çıkan artışlar ve gıda durumu.
+                                                    2. DETAYLAR: Sektörel Ayrışma, Gıda Durumu ve Kivi/Patlayan Ürünler.
                                                     3. ÖNGÖRÜ: Gelecek beklentisi ve tavsiye.
 
                                                     İmza olarak "Enflasyon Monitörü AI" kullan.
                                                     """
 
-                                    model_rep = genai.GenerativeModel('gemini-2.5-flash')
-                                    st.session_state['report_text'] = model_rep.generate_content(prompt_report).text
-                                    st.success("Rapor oluşturuldu!")
+                                model_rep = genai.GenerativeModel('gemini-2.5-flash')
+                                st.session_state['report_text'] = model_rep.generate_content(prompt_report).text
+                                st.success("Rapor oluşturuldu!")
 
-                        # Rapor oluştuysa göster ve indirme butonu koy
-                        if st.session_state['report_text']:
-                            st.markdown("---")
-                            st.markdown(st.session_state['report_text'])
+                    if st.session_state['report_text']:
+                        st.markdown("---")
+                        st.markdown(st.session_state['report_text'])
 
-                            # PDF İndirme Mantığı
-                            pdf_bytes = create_pdf_report(st.session_state['report_text'])
+                        pdf_bytes = create_pdf_report(st.session_state['report_text'])
 
-                            with col_download:
-                                st.download_button(
-                                    label="📥 PDF Olarak İndir",
-                                    data=pdf_bytes,
-                                    file_name=f"Enflasyon_Raporu_{bugun}.pdf",
-                                    mime="application/pdf"
-                                )
-
-                                st.caption("Not: PDF formatında Türkçe karakterler 'TR' standardına dönüştürülmüştür.")
+                        with col_download:
+                            st.download_button(
+                                label="📥 PDF Olarak İndir (Kurumsal)",
+                                data=pdf_bytes,
+                                file_name=f"Enflasyon_Raporu_{bugun}.pdf",
+                                mime="application/pdf"
+                            )
+                            st.caption("Not: PDF, Yönetim Kurulu formatında hazırlanmıştır.")
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
 
@@ -1221,7 +1160,6 @@ def dashboard_modu():
 def main():
     if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 
-    # URL Kontrolü (Reset Modu)
     params = st.query_params
     if "reset_user" in params and not st.session_state['logged_in']:
         reset_user = params["reset_user"]
@@ -1252,8 +1190,8 @@ def main():
                         if ok:
                             st.success(msg)
                             time.sleep(2)
-                            st.query_params.clear()  # URL TEMİZLE
-                            st.rerun()  # Logine dön
+                            st.query_params.clear()
+                            st.rerun()
                         else:
                             st.error(msg)
                     else:
@@ -1261,13 +1199,10 @@ def main():
         return
 
     if not st.session_state['logged_in']:
-        # Şovlu Login Ekranı CSS (Animasyon Arkada, Form Önde - Z-INDEX FIXED)
         st.markdown("""
         <style>
         .stApp { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; }
         @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
-
-        /* Form Container'ı (Buzlu Cam) - Z-INDEX 9999 ile öne alındı */
         [data-testid="stForm"] {
             background: rgba(255, 255, 255, 0.95);
             padding: 40px;
@@ -1281,13 +1216,6 @@ def main():
             background: #f8fafc !important;
             border: 1px solid #e2e8f0 !important;
             color: #1e293b !important;
-        }
-
-        /* Google Button Style */
-        .google-btn {
-            background-color: white; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 12px;
-            padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: not-allowed; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; transition: all 0.2s;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-decoration: none; opacity: 0.8;
         }
         </style>
         """, unsafe_allow_html=True)
