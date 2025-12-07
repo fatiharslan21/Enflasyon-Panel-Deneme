@@ -82,7 +82,7 @@ def get_market_sentiment():
         # Not: ask_gemini_ai fonksiyonunda df_context None gelirse hata vermemeli.
         # O yüzden buraya özel basit bir model çağrısı yapabiliriz veya mevcut fonksiyonu revize edebiliriz.
         # En temizi direkt model çağırmak:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(prompt)
         return response.text, headlines
 
@@ -216,7 +216,7 @@ def ask_gemini_ai(soru, df_context, genel_enf, gida_enf, ad_col_name, image=None
             # Öncelik sırası: 1.5 Flash -> 1.5 Pro -> Pro Vision
             for m in available_models:
                 if 'generateContent' in m.supported_generation_methods:
-                    if 'gemini-1.5-flash' in m.name:
+                    if 'gemini-2.5-flash' in m.name:
                         found_model_name = m.name
                         break
 
@@ -1187,7 +1187,7 @@ def dashboard_modu():
                                                     İmza olarak "Enflasyon Monitörü AI" kullan.
                                                     """
 
-                                    model_rep = genai.GenerativeModel('gemini-1.5-flash')
+                                    model_rep = genai.GenerativeModel('gemini-2.5-flash')
                                     st.session_state['report_text'] = model_rep.generate_content(prompt_report).text
                                     st.success("Rapor oluşturuldu!")
 
