@@ -21,6 +21,8 @@ import google.generativeai as genai
 import PIL.Image
 import requests
 from prophet import Prophet
+import feedparser
+from fpdf import FPDF
 
 # --- GEMINI AYARI ---
 if "gemini" in st.secrets:
@@ -45,6 +47,84 @@ ACTIVITY_DOSYASI = "user_activity.json"
 SEPETLER_DOSYASI = "user_baskets.json"
 SAYFA_ADI = "Madde_Sepeti"
 
+import feedparser
+from fpdf import FPDF
+
+
+# --- 1. ÖZELLİK: EN HAVALISI (HABER ANALİZİ) ---
+def get_market_sentiment():
+    """
+    Google News Ekonomi başlıklarını çeker ve Gemini'ye yorumlatır.
+    """
+    # Google News Türkiye Ekonomi RSS
+    rss_url = "https://news.google.com/rss/search?q=ekonomi+gıda+zam+türkiye&hl=tr&gl=TR&ceid=TR:tr"
+
+    try:
+        feed = feedparser.parse(rss_url)
+        headlines = [entry.title for entry in feed.entries[:8]]  # İlk 8 haber
+        news_text = "\n".join([f"- {h}" for h in headlines])
+
+        prompt = f"""
+        Aşağıdaki son dakika ekonomi haber başlıklarını bir Piyasa Analisti gibi yorumla.
+
+        HABERLER:
+        {news_text}
+
+        GÖREVİN:
+        1. Bu haberler gıda fiyatlarını veya genel enflasyonu nasıl etkiler? (Olumlu/Olumsuz)
+        2. "Piyasa Havası"nı tek kelimeyle tanımla (Örn: Gergin, Bekleyişte, Riskli, İyimser).
+        3. En kritik 1 haberi seç ve nedenini kısaca açıkla.
+
+        Çıktıyı kısa, net ve madde madde ver.
+        """
+
+        # Gemini'ye sor (Mevcut ask_gemini_ai fonksiyonunu kullanıyoruz ama veri tablosuz)
+        # Not: ask_gemini_ai fonksiyonunda df_context None gelirse hata vermemeli.
+        # O yüzden buraya özel basit bir model çağrısı yapabiliriz veya mevcut fonksiyonu revize edebiliriz.
+        # En temizi direkt model çağırmak:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        return response.text, headlines
+
+    except Exception as e:
+        return f"Haberler alınamadı: {str(e)}", []
+
+
+# --- 2. ÖZELLİK: PRO RAPOR YAZARI (PDF) ---
+class PDFReport(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 15)
+        self.cell(0, 10, 'ENFLASYON MONITORU - AYLIK ANALIZ RAPORU', 0, 1, 'C')
+        self.ln(5)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Sayfa {self.page_no()}', 0, 0, 'C')
+
+
+def create_pdf_report(text_content, filename="Rapor.pdf"):
+    pdf = PDFReport()
+    pdf.add_page()
+
+    # Türkçe karakter sorunu için basit bir çözüm (Windows-1254 veya Latin-5)
+    # FPDF standart fontları Türkçe karakterleri bazen bozuk basar.
+    # Profesyonel çözüm: .ttf font dosyası eklemektir (örn: DejaVuSans.ttf).
+    # Hızlı çözüm: Karakterleri replace etmek.
+
+    tr_map = {
+        'ğ': 'g', 'Ğ': 'G', 'ş': 's', 'Ş': 'S', 'ı': 'i', 'İ': 'I',
+        'ü': 'u', 'Ü': 'U', 'ö': 'o', 'Ö': 'O', 'ç': 'c', 'Ç': 'C', '₺': 'TL'
+    }
+
+    clean_text = text_content
+    for k, v in tr_map.items():
+        clean_text = clean_text.replace(k, v)
+
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, clean_text)
+
+    return pdf.output(dest='S').encode('latin-1', errors='ignore')  # Byte olarak döndür
 
 def get_github_repo():
     try:
@@ -804,8 +884,9 @@ def dashboard_modu():
                 st.markdown("<br>", unsafe_allow_html=True)
 
                 # --- 3. SEKMELER ---
-                t1, t2, t3, t4, t5, t6, t7 = st.tabs(
-                    ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE"])
+                t1, t2, t3, t4, t5, t6, t7, t8, t9 = st.tabs(
+                    ["📊 ANALİZ", "🤖 ASİSTAN", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE",
+                     "📰 HABERLER", "📝 PRO RAPOR"])
 
                 with t1:
                     st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
@@ -1053,7 +1134,82 @@ def dashboard_modu():
 
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
+            # --- SEKME 8: HABER ANALİZİ (EN HAVALISI) ---
+            with t8:
+                st.markdown("### 🌍 Yapay Zeka Destekli Piyasa Gündemi")
+                if st.button("Haberleri Tara ve Analiz Et", key="btn_news"):
+                    with st.spinner("İnternet taranıyor, Gemini yorumluyor..."):
+                        analysis_text, headlines = get_market_sentiment()
 
+                        c_news1, c_news2 = st.columns([2, 1])
+                        with c_news1:
+                            st.markdown("#### 🧠 Gemini Piyasa Yorumu")
+                            st.success(analysis_text)
+
+                        with c_news2:
+                            st.markdown("#### 🗞️ Son Başlıklar")
+                            for h in headlines:
+                                st.caption(f"• {h}")
+
+            # --- SEKME 9: PRO RAPOR YAZARI (ON-DEMAND) ---
+            with t9:
+                st.markdown("### 📝 Profesyonel Yönetici Raporu")
+                st.info("Mevcut verileri kullanarak, paylaşılabilir formatta profesyonel bir durum raporu oluşturur.")
+
+                col_gen, col_download = st.columns(2)
+
+                # Rapor metnini session state'de tutalım ki sayfa yenilenince gitmesin
+                if 'report_text' not in st.session_state:
+                    st.session_state['report_text'] = ""
+
+                with col_gen:
+                    if st.button("✍️ Raporu Yazdır (AI)", type="primary"):
+                        with st.spinner("Veriler derleniyor, rapor yazılıyor..."):
+                            # Rapor için veri özeti hazırlama
+                            report_summary = f"""
+                                    Tarih: {datetime.now().strftime('%d-%m-%Y')}
+                                    Genel Enflasyon: %{enf_genel:.2f}
+                                    Gıda Enflasyonu: %{enf_gida:.2f}
+                                    En Çok Artan Ürün: {top[ad_col]} (%{top['Fark'] * 100:.2f})
+                                    Tahmin (Ay Sonu): %{month_end_forecast:.2f}
+                                    """
+
+                            prompt_report = f"""
+                                    Sen kıdemli bir ekonomi analistisin. Aşağıdaki verilere dayanarak, 
+                                    yöneticilere sunulmak üzere PROFESYONEL, CİDDİ ama AKICI bir "Aylık Enflasyon Durum Raporu" yaz.
+
+                                    VERİLER:
+                                    {report_summary}
+
+                                    ŞABLON:
+                                    1. GİRİŞ: Genel piyasa durumu özeti.
+                                    2. DETAYLAR: Öne çıkan artışlar ve gıda durumu.
+                                    3. ÖNGÖRÜ: Gelecek beklentisi ve tavsiye.
+
+                                    İmza olarak "Enflasyon Monitörü AI" kullan.
+                                    """
+
+                            model_rep = genai.GenerativeModel('gemini-1.5-flash')
+                            st.session_state['report_text'] = model_rep.generate_content(prompt_report).text
+                            st.success("Rapor oluşturuldu!")
+
+                # Rapor oluştuysa göster ve indirme butonu koy
+                if st.session_state['report_text']:
+                    st.markdown("---")
+                    st.markdown(st.session_state['report_text'])
+
+                    # PDF İndirme Mantığı
+                    pdf_bytes = create_pdf_report(st.session_state['report_text'])
+
+                    with col_download:
+                        st.download_button(
+                            label="📥 PDF Olarak İndir",
+                            data=pdf_bytes,
+                            file_name=f"Enflasyon_Raporu_{bugun}.pdf",
+                            mime="application/pdf"
+                        )
+
+                        st.caption("Not: PDF formatında Türkçe karakterler 'TR' standardına dönüştürülmüştür.")
     st.markdown(
         '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">DESIGNED BY FATIH ARSLAN © 2025</div>',
         unsafe_allow_html=True)
