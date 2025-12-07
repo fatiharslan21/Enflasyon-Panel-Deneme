@@ -1131,85 +1131,86 @@ def dashboard_modu():
                     st.download_button("📥 Excel Raporunu İndir", data=output.getvalue(),
                                        file_name=f"Enflasyon_Raporu_{son}.xlsx",
                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    # --- SEKME 8: HABER ANALİZİ (EN HAVALISI) ---
+                    with t8:
+                        st.markdown("### 🌍 Yapay Zeka Destekli Piyasa Gündemi")
+                        if st.button("Haberleri Tara ve Analiz Et", key="btn_news"):
+                            with st.spinner("İnternet taranıyor, Gemini yorumluyor..."):
+                                analysis_text, headlines = get_market_sentiment()
 
+                                c_news1, c_news2 = st.columns([2, 1])
+                                with c_news1:
+                                    st.markdown("#### 🧠 Gemini Piyasa Yorumu")
+                                    st.success(analysis_text)
+
+                                with c_news2:
+                                    st.markdown("#### 🗞️ Son Başlıklar")
+                                    for h in headlines:
+                                        st.caption(f"• {h}")
+
+                    # --- SEKME 9: PRO RAPOR YAZARI (ON-DEMAND) ---
+                    with t9:
+                        st.markdown("### 📝 Profesyonel Yönetici Raporu")
+                        st.info(
+                            "Mevcut verileri kullanarak, paylaşılabilir formatta profesyonel bir durum raporu oluşturur.")
+
+                        col_gen, col_download = st.columns(2)
+
+                        # Rapor metnini session state'de tutalım ki sayfa yenilenince gitmesin
+                        if 'report_text' not in st.session_state:
+                            st.session_state['report_text'] = ""
+
+                        with col_gen:
+                            if st.button("✍️ Raporu Yazdır (AI)", type="primary"):
+                                with st.spinner("Veriler derleniyor, rapor yazılıyor..."):
+                                    # Rapor için veri özeti hazırlama
+                                    report_summary = f"""
+                                                    Tarih: {datetime.now().strftime('%d-%m-%Y')}
+                                                    Genel Enflasyon: %{enf_genel:.2f}
+                                                    Gıda Enflasyonu: %{enf_gida:.2f}
+                                                    En Çok Artan Ürün: {top[ad_col]} (%{top['Fark'] * 100:.2f})
+                                                    Tahmin (Ay Sonu): %{month_end_forecast:.2f}
+                                                    """
+
+                                    prompt_report = f"""
+                                                    Sen kıdemli bir ekonomi analistisin. Aşağıdaki verilere dayanarak, 
+                                                    yöneticilere sunulmak üzere PROFESYONEL, CİDDİ ama AKICI bir "Aylık Enflasyon Durum Raporu" yaz.
+
+                                                    VERİLER:
+                                                    {report_summary}
+
+                                                    ŞABLON:
+                                                    1. GİRİŞ: Genel piyasa durumu özeti.
+                                                    2. DETAYLAR: Öne çıkan artışlar ve gıda durumu.
+                                                    3. ÖNGÖRÜ: Gelecek beklentisi ve tavsiye.
+
+                                                    İmza olarak "Enflasyon Monitörü AI" kullan.
+                                                    """
+
+                                    model_rep = genai.GenerativeModel('gemini-1.5-flash')
+                                    st.session_state['report_text'] = model_rep.generate_content(prompt_report).text
+                                    st.success("Rapor oluşturuldu!")
+
+                        # Rapor oluştuysa göster ve indirme butonu koy
+                        if st.session_state['report_text']:
+                            st.markdown("---")
+                            st.markdown(st.session_state['report_text'])
+
+                            # PDF İndirme Mantığı
+                            pdf_bytes = create_pdf_report(st.session_state['report_text'])
+
+                            with col_download:
+                                st.download_button(
+                                    label="📥 PDF Olarak İndir",
+                                    data=pdf_bytes,
+                                    file_name=f"Enflasyon_Raporu_{bugun}.pdf",
+                                    mime="application/pdf"
+                                )
+
+                                st.caption("Not: PDF formatında Türkçe karakterler 'TR' standardına dönüştürülmüştür.")
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
-            # --- SEKME 8: HABER ANALİZİ (EN HAVALISI) ---
-            with t8:
-                st.markdown("### 🌍 Yapay Zeka Destekli Piyasa Gündemi")
-                if st.button("Haberleri Tara ve Analiz Et", key="btn_news"):
-                    with st.spinner("İnternet taranıyor, Gemini yorumluyor..."):
-                        analysis_text, headlines = get_market_sentiment()
 
-                        c_news1, c_news2 = st.columns([2, 1])
-                        with c_news1:
-                            st.markdown("#### 🧠 Gemini Piyasa Yorumu")
-                            st.success(analysis_text)
-
-                        with c_news2:
-                            st.markdown("#### 🗞️ Son Başlıklar")
-                            for h in headlines:
-                                st.caption(f"• {h}")
-
-            # --- SEKME 9: PRO RAPOR YAZARI (ON-DEMAND) ---
-            with t9:
-                st.markdown("### 📝 Profesyonel Yönetici Raporu")
-                st.info("Mevcut verileri kullanarak, paylaşılabilir formatta profesyonel bir durum raporu oluşturur.")
-
-                col_gen, col_download = st.columns(2)
-
-                # Rapor metnini session state'de tutalım ki sayfa yenilenince gitmesin
-                if 'report_text' not in st.session_state:
-                    st.session_state['report_text'] = ""
-
-                with col_gen:
-                    if st.button("✍️ Raporu Yazdır (AI)", type="primary"):
-                        with st.spinner("Veriler derleniyor, rapor yazılıyor..."):
-                            # Rapor için veri özeti hazırlama
-                            report_summary = f"""
-                                    Tarih: {datetime.now().strftime('%d-%m-%Y')}
-                                    Genel Enflasyon: %{enf_genel:.2f}
-                                    Gıda Enflasyonu: %{enf_gida:.2f}
-                                    En Çok Artan Ürün: {top[ad_col]} (%{top['Fark'] * 100:.2f})
-                                    Tahmin (Ay Sonu): %{month_end_forecast:.2f}
-                                    """
-
-                            prompt_report = f"""
-                                    Sen kıdemli bir ekonomi analistisin. Aşağıdaki verilere dayanarak, 
-                                    yöneticilere sunulmak üzere PROFESYONEL, CİDDİ ama AKICI bir "Aylık Enflasyon Durum Raporu" yaz.
-
-                                    VERİLER:
-                                    {report_summary}
-
-                                    ŞABLON:
-                                    1. GİRİŞ: Genel piyasa durumu özeti.
-                                    2. DETAYLAR: Öne çıkan artışlar ve gıda durumu.
-                                    3. ÖNGÖRÜ: Gelecek beklentisi ve tavsiye.
-
-                                    İmza olarak "Enflasyon Monitörü AI" kullan.
-                                    """
-
-                            model_rep = genai.GenerativeModel('gemini-1.5-flash')
-                            st.session_state['report_text'] = model_rep.generate_content(prompt_report).text
-                            st.success("Rapor oluşturuldu!")
-
-                # Rapor oluştuysa göster ve indirme butonu koy
-                if st.session_state['report_text']:
-                    st.markdown("---")
-                    st.markdown(st.session_state['report_text'])
-
-                    # PDF İndirme Mantığı
-                    pdf_bytes = create_pdf_report(st.session_state['report_text'])
-
-                    with col_download:
-                        st.download_button(
-                            label="📥 PDF Olarak İndir",
-                            data=pdf_bytes,
-                            file_name=f"Enflasyon_Raporu_{bugun}.pdf",
-                            mime="application/pdf"
-                        )
-
-                        st.caption("Not: PDF formatında Türkçe karakterler 'TR' standardına dönüştürülmüştür.")
     st.markdown(
         '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">DESIGNED BY FATIH ARSLAN © 2025</div>',
         unsafe_allow_html=True)
