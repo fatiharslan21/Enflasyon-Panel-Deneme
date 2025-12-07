@@ -10,3 +10,5 @@ statsmodels
 xlsxwriter
 google-generativeai
 Pillow
+requests
+prophet
