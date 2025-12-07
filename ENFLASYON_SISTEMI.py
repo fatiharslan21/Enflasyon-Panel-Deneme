@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 import re
 import calendar
 from datetime import datetime, timedelta
+from datetime import datetime
 import time
 import json
 import hashlib
@@ -1132,7 +1133,7 @@ def dashboard_modu():
                                        file_name=f"Enflasyon_Raporu_{son}.xlsx",
                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                     # --- SEKME 8: HABER ANALİZİ (EN HAVALISI) ---
-                    with t8:
+                with t8:
                         st.markdown("### 🌍 Yapay Zeka Destekli Piyasa Gündemi")
                         if st.button("Haberleri Tara ve Analiz Et", key="btn_news"):
                             with st.spinner("İnternet taranıyor, Gemini yorumluyor..."):
@@ -1149,7 +1150,7 @@ def dashboard_modu():
                                         st.caption(f"• {h}")
 
                     # --- SEKME 9: PRO RAPOR YAZARI (ON-DEMAND) ---
-                    with t9:
+                with t9:
                         st.markdown("### 📝 Profesyonel Yönetici Raporu")
                         st.info(
                             "Mevcut verileri kullanarak, paylaşılabilir formatta profesyonel bir durum raporu oluşturur.")
