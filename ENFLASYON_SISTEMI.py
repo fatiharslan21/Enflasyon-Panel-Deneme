@@ -32,144 +32,145 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
-# --- GEMINI AYARI ---
+# --- 1. AYARLAR VE TEMA YÖNETİMİ ---
+st.set_page_config(
+    page_title="Enflasyon Monitörü",
+    layout="wide",
+    page_icon="💎",
+    initial_sidebar_state="expanded"  # Sidebar hep açık başlar
+)
+
+# --- Session State ile Tema Hafızası ---
+if 'theme' not in st.session_state:
+    st.session_state.theme = 'dark'  # Varsayılan açılış modu
+
+# --- SIDEBAR AYARLARI ---
+with st.sidebar:
+    st.title("Ayarlar")
+    # Toggle değeri session_state'den gelir
+    is_dark = st.toggle("🌙 Karanlık Mod", value=(st.session_state.theme == 'dark'))
+
+    # Eğer kullanıcı butona basarsa state güncellenir ve sayfa yenilenir
+    if is_dark and st.session_state.theme == 'light':
+        st.session_state.theme = 'dark'
+        st.rerun()
+    elif not is_dark and st.session_state.theme == 'dark':
+        st.session_state.theme = 'light'
+        st.rerun()
+
+
+# --- CSS MOTORU (TAM UYUMLU RENKLER) ---
+def apply_theme():
+    # 1. Ortak Ayarlar (Header Gizleme, Sidebar Sabitleme)
+    base_css = """
+    <style>
+        /* Üst Header ve Çizgiyi Gizle */
+        header[data-testid="stHeader"] { display: none !important; }
+        [data-testid="stDecoration"] { display: none !important; }
+
+        /* Sidebar Kapatma Tuşunu Gizle (Kalıcı Sidebar) */
+        [data-testid="collapsedControl"] { display: none !important; }
+
+        /* Sayfa üst boşluğunu al */
+        .block-container { padding-top: 1rem !important; }
+
+        /* Footer Gizle */
+        footer { visibility: hidden; }
+        .stDeployButton { display: none; }
+    </style>
+    """
+
+    # 2. Renk Paletleri
+    if st.session_state.theme == 'dark':
+        colors = {
+            "bg": "#0E1117",
+            "sidebar": "#262730",
+            "text": "#FAFAFA",
+            "input_bg": "#1E1E1E",
+            "input_border": "#4A4A4A",
+            "card_bg": "#1A1C24",
+            "success_bg": "rgba(34, 197, 94, 0.2)",
+            "border_color": "#414141"
+        }
+        # Plotly Teması
+        st.session_state.plotly_template = "plotly_dark"
+    else:
+        colors = {
+            "bg": "#FFFFFF",
+            "sidebar": "#F0F2F6",
+            "text": "#31333F",
+            "input_bg": "#FFFFFF",
+            "input_border": "#D1D5DB",
+            "card_bg": "#FFFFFF",
+            "success_bg": "#ecfdf5",
+            "border_color": "#e2e8f0"
+        }
+        # Plotly Teması
+        st.session_state.plotly_template = "plotly_white"
+
+    # 3. Dinamik CSS Enjeksiyonu
+    dynamic_css = f"""
+    <style>
+        /* Ana Arka Plan */
+        .stApp {{
+            background-color: {colors['bg']};
+            color: {colors['text']};
+        }}
+
+        /* Sidebar Arka Plan */
+        section[data-testid="stSidebar"] {{
+            background-color: {colors['sidebar']};
+            border-right: 1px solid {colors['border_color']};
+        }}
+
+        /* Tüm Yazılar */
+        h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown, .stMetricValue {{
+            color: {colors['text']} !important;
+        }}
+
+        /* Input Alanları (Text input, Number input vb.) */
+        .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {{
+            background-color: {colors['input_bg']} !important;
+            color: {colors['text']} !important;
+            border: 1px solid {colors['input_border']} !important;
+        }}
+
+        /* Tablolar (Dataframes) */
+        [data-testid="stDataFrame"] {{
+            background-color: {colors['card_bg']} !important;
+        }}
+
+        /* Metric Kartları (Dashboard Modunda Kullanılanlar) */
+        .metric-card {{
+            background: {colors['card_bg']} !important;
+            border: 1px solid {colors['border_color']} !important;
+        }}
+
+        /* Tab Sekmeleri */
+        .stTabs [data-baseweb="tab-list"] button {{
+            color: {colors['text']};
+        }}
+
+        /* Expander (Açılır kutular) */
+        .streamlit-expanderHeader {{
+            background-color: {colors['card_bg']} !important;
+            color: {colors['text']} !important;
+        }}
+    </style>
+    """
+
+    st.markdown(base_css + dynamic_css, unsafe_allow_html=True)
+
+
+# Temayı Uygula
+apply_theme()
+
+# --- ADMIN AYARI ---
+ADMIN_USERS = ["fatih", "ahmet", "mehmet"]
 if "gemini" in st.secrets:
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
-
-# --- KUR ÇEKME FONKSİYONU (EN TEPEYE EKLENECEK) ---
-# --- GÜNCELLENMİŞ KUR ÇEKME FONKSİYONU (GERÇEK ALTIN VERİSİ) ---
-@st.cache_data(ttl=1800)  # 30 dakikada bir yeniler
-def get_exchange_rates():
-    rates = {"USD": 0.0, "EUR": 0.0, "GA": 0.0}
-
-    # 1. TCMB'den Resmi Dolar ve Euro (En Güvenilir)
-    try:
-        url_tcmb = "https://www.tcmb.gov.tr/kurlar/today.xml"
-        res = requests.get(url_tcmb, timeout=5)
-        soup = BeautifulSoup(res.content, 'xml')
-
-        rates["USD"] = float(soup.find(attrs={"CurrencyCode": "USD"}).BanknoteSelling.text)
-        rates["EUR"] = float(soup.find(attrs={"CurrencyCode": "EUR"}).BanknoteSelling.text)
-    except:
-        pass  # TCMB çekemezse 0 kalır veya eski cache kullanılır
-
-    # 2. BigPara'dan CANLI Gram Altın (Artık Tahmin Değil)
-    try:
-        url_gold = "https://bigpara.hurriyet.com.tr/altin/gram-altin-fiyati/"
-        # User-Agent ekliyoruz ki site bizi robot sanıp engellemesin
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-
-        res_gold = requests.get(url_gold, headers=headers, timeout=5)
-        soup_gold = BeautifulSoup(res_gold.content, 'html.parser')
-
-        # Sayfadaki büyük fiyatı buluyoruz
-        # BigPara'da fiyat genelde "text-medium" veya ilgili class içindedir.
-        # En garanti yöntem: "Alış" veya "Satış" kutusunu hedeflemek.
-
-        # BigPara sayfa yapısına özel seçim:
-        fiyat_text = soup_gold.select_one("span.value").text
-
-        # Temizlik: "3.015,50" -> 3015.50 formatına çevir
-        temiz_fiyat = fiyat_text.replace(".", "").replace(",", ".").strip()
-        rates["GA"] = float(temiz_fiyat)
-
-    except Exception as e:
-        # Eğer site çekilemezse, yine de sistem çökmesin diye Dolar üzerinden hesapla (Yedek Plan)
-        if rates["USD"] > 0:
-            rates["GA"] = (2700 * rates["USD"]) / 31.10  # 2700 güncel ons tahmini
-        print(f"Altın Hatası: {e}")
-
-    return rates
-
-# --- 1. AYARLAR ---
-# 1. Sayfa Ayarı: Sidebar varsayılan olarak açık başlasın
-st.set_page_config(
-    page_title="Enflasyon Analizi",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# 2. Sidebar'a Dark Mode Anahtarı Ekleme
-with st.sidebar:
-    st.title("Ayarlar")
-    # Kullanıcı buradan modu seçer
-    is_dark_mode = st.toggle("🌙 Karanlık Mod", value=True)
-
-# 3. Temel Gizleme CSS'i (Sidebar butonu ve Header)
-# [data-testid="collapsedControl"] -> Sidebar kapatma tuşudur.
-# !important ekleyerek görünmesini zorla engelliyoruz.
-hide_elements_css = """
-<style>
-    /* Üstteki Header'ı gizle */
-    header[data-testid="stHeader"] {
-        display: none;
-    }
-
-    /* Sidebar kapatma okunu (toggle button) gizle */
-    [data-testid="collapsedControl"] {
-        display: none !important;
-    }
-
-    /* Header gizlenince oluşan üst boşluğu azalt */
-    .block-container {
-        padding-top: 1rem;
-    }
-</style>
-"""
-st.markdown(hide_elements_css, unsafe_allow_html=True)
-
-# 4. Dinamik Dark Mode Mantığı (CSS Enjeksiyonu)
-if is_dark_mode:
-    # Eğer anahtar açıksa Koyu Tema renklerini zorla
-    dark_theme_css = """
-    <style>
-        /* Ana arka plan */
-        .stApp {
-            background-color: #0E1117;
-            color: #FAFAFA;
-        }
-        /* Sidebar arka planı */
-        [data-testid="stSidebar"] {
-            background-color: #262730;
-        }
-        /* Yazı renkleri ve başlıklar */
-        h1, h2, h3, h4, h5, h6, p, label {
-            color: #FAFAFA !important;
-        }
-        /* Metrik değerleri vb. */
-        [data-testid="stMetricValue"] {
-            color: #FAFAFA !important;
-        }
-    </style>
-    """
-    st.markdown(dark_theme_css, unsafe_allow_html=True)
-
-else:
-    # Eğer anahtar kapalıysa (Light Mode) Açık Tema renklerini zorla
-    light_theme_css = """
-    <style>
-        /* Ana arka plan */
-        .stApp {
-            background-color: #FFFFFF;
-            color: #000000;
-        }
-        /* Sidebar arka planı */
-        [data-testid="stSidebar"] {
-            background-color: #F0F2F6;
-        }
-        /* Yazı renkleri */
-        h1, h2, h3, h4, h5, h6, p, label {
-            color: #31333F !important;
-        }
-    </style>
-    """
-    st.markdown(light_theme_css, unsafe_allow_html=True)
-    
-# --- ADMIN AYARI ---
-# Buraya yetkili olmasını istediğiniz kullanıcı adlarını yazın
-ADMIN_USERS = ["fatih", "ahmet", "mehmet"]
+# ... (Buradan sonra senin get_exchange_rates, get_github_repo vb. fonksiyonların gelecek) ...
 
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
@@ -928,7 +929,7 @@ def dashboard_modu():
                                        name='Resmi TÜİK', line=dict(color='#ef4444', width=2),
                                        marker=dict(symbol='square')))
 
-                    fig_main.update_layout(template="plotly_white", height=500, hovermode="x unified",
+                    fig_main.update_layout(template=st.session_state.plotly_template, ...)
                                            title="Enflasyon: Geçmiş, Şimdi ve Gelecek",
                                            legend=dict(orientation="h", y=1.1),
                                            # Y EKSENİ SABİTLEME
