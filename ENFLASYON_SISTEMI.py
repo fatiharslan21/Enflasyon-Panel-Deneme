@@ -39,6 +39,10 @@ from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 import requests
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 
 # --- GEMINI AYARI ---
 if "gemini" in st.secrets:
@@ -1067,110 +1071,138 @@ def dashboard_modu():
                     c2.plotly_chart(fig_sun, use_container_width=True)
 
                 with t6:
-                    st.markdown("### 🛍️ Google Shopping (Sistem Sürücüsü Modu)")
-                    st.info(
-                        "Bu modül, versiyon uyuşmazlığını önlemek için doğrudan sistemin kendi sürücüsünü kullanır.")
+                    st.markdown("### 🛍️ Google Shopping (Stealth & Debug Modu)")
+                    st.info("Çerez duvarlarını aşmaya çalışır ve hata durumunda HTML'i gösterir.")
 
-                    # 1. Ürün Seçimi
                     product_list = sorted(df_analiz[ad_col].unique())
                     selected_product = st.selectbox("Hangi ürünü Google Shopping'te tarayalım?", product_list)
 
-                    if st.button(f"Piyasa Fiyatlarını Çek", type="primary"):
+                    # Debug kutusu
+                    show_debug = st.checkbox("Hata Ayıklama Modunu Aç (HTML Göster)")
 
-                        # A. SENİN VERİ TABANIN
+                    if st.button(f"🚀 {selected_product} Fiyatlarını Çek", type="primary"):
+
                         try:
                             my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
                             my_price = my_record[son]
                         except:
                             my_price = 0
-
                         st.metric("Senin Fiyatın", f"{my_price:.2f} TL")
 
-                        # B. SELENIUM İLE SCRAPING (SİSTEM SÜRÜCÜSÜ)
                         results_data = []
+                        # Google Shopping TR linki
                         target_url = f"https://www.google.com/search?q={selected_product}&tbm=shop&hl=tr&gl=TR"
 
-                        with st.spinner("🕷️ Sistem sürücüsü ile tarayıcı başlatılıyor..."):
+                        with st.spinner("🕷️ Bot gizleniyor ve Google'a sızıyor..."):
                             try:
                                 chrome_options = Options()
                                 chrome_options.add_argument("--headless")
                                 chrome_options.add_argument("--no-sandbox")
                                 chrome_options.add_argument("--disable-dev-shm-usage")
                                 chrome_options.add_argument("--disable-gpu")
+                                # Bot tespitini zorlaştıran kritik ayarlar
+                                chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+                                chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+                                chrome_options.add_experimental_option('useAutomationExtension', False)
                                 chrome_options.add_argument(
-                                    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
+                                    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
 
-                                # 1. CHROMIUM YOLUNU BUL
+                                # Sürücü Yollarını Bul
                                 chrome_path = shutil.which("chromium") or shutil.which(
                                     "chromium-browser") or shutil.which("google-chrome")
-                                if chrome_path:
-                                    chrome_options.binary_location = chrome_path
+                                if chrome_path: chrome_options.binary_location = chrome_path
 
-                                # 2. CHROMEDRIVER YOLUNU BUL (KRİTİK DÜZELTME BURADA)
-                                # WebdriverManager kullanmıyoruz, sistemin driver'ını buluyoruz.
                                 driver_path = shutil.which("chromedriver") or shutil.which(
                                     "chromium-driver") or "/usr/bin/chromedriver"
 
                                 if not driver_path:
-                                    st.error(
-                                        "⚠️ Sistemde 'chromedriver' bulunamadı. packages.txt dosyasını kontrol et.")
+                                    st.error("⚠️ Sürücü bulunamadı. packages.txt dosyasını kontrol et.")
                                 else:
-                                    # Servisi doğrudan sistem yoluyla başlat
                                     service = Service(executable_path=driver_path)
                                     driver = webdriver.Chrome(service=service, options=chrome_options)
 
-                                    # Siteye Git
+                                    # Google'a git
                                     driver.get(target_url)
+
+                                    # --- 1. ÇEREZ DUVARINI KONTROL ET ---
+                                    try:
+                                        # "Tümünü kabul et" veya "Accept all" butonlarını ara ve tıkla
+                                        wait = WebDriverWait(driver, 5)
+                                        consent_buttons = driver.find_elements(By.XPATH,
+                                                                               "//button[contains(., 'Kabul') or contains(., 'Accept') or contains(., 'Agree')]")
+                                        if consent_buttons:
+                                            consent_buttons[0].click()
+                                            time.sleep(2)  # Sayfa yenilensin diye bekle
+                                    except:
+                                        pass  # Buton yoksa devam et
+
+                                    # Biraz daha bekle (JS Yüklemesi)
                                     time.sleep(3)
 
                                     page_source = driver.page_source
                                     driver.quit()
 
-                                    # BeautifulSoup İşlemleri
+                                    # BeautifulSoup
                                     soup = BeautifulSoup(page_source, "html.parser")
+
+                                    # --- 2. VERİ ÇEKME YÖNTEMLERİ ---
+
+                                    # YÖNTEM A: Aria-Label (En Temiz)
                                     cards = soup.find_all(attrs={"aria-label": re.compile(r"Şu Anki Fiyat:")})
+
+                                    # YÖNTEM B: Eğer A çalışmazsa, Fiyat içeren herhangi bir metni ara (Yedek Plan)
+                                    if not cards:
+                                        # İçinde 'TL' veya '₺' geçen class'ları bulmaya çalış (Basit Text Arama)
+                                        price_elements = soup.find_all(string=re.compile(r"(₺|TL)\s*\d+"))
+                                        # Bu çok ham veri getirir, şimdilik Aria-Label'a odaklanalım ama loglayalım.
 
                                     for card in cards:
                                         raw_text = card['aria-label']
                                         match = re.search(r"(.*?)\.\s*Şu Anki Fiyat:\s*(.*?)\.\s*(.*)", raw_text)
-
                                         if match:
-                                            p_name = match.group(1).strip()
-                                            p_price_str = match.group(2).strip()
-                                            p_vendor = match.group(3).strip().rstrip('.')
-
                                             try:
+                                                p_price_str = match.group(2).strip()
                                                 clean_price = float(
                                                     p_price_str.replace('₺', '').replace('.', '').replace(',',
                                                                                                           '.').strip())
+                                                results_data.append({
+                                                    "Ürün": match.group(1).strip(),
+                                                    "Fiyat_Etiketi": p_price_str,
+                                                    "Fiyat_Sayi": clean_price,
+                                                    "Satıcı": match.group(3).strip().rstrip('.')
+                                                })
                                             except:
-                                                clean_price = 0
+                                                pass
 
-                                            results_data.append({
-                                                "Ürün": p_name,
-                                                "Fiyat_Etiketi": p_price_str,
-                                                "Fiyat_Sayi": clean_price,
-                                                "Satıcı": p_vendor
-                                            })
-
+                                    # SONUÇLARI GÖSTER
                                     if results_data:
                                         df_res = pd.DataFrame(results_data).sort_values("Fiyat_Sayi")
                                         for _, row in df_res.iterrows():
                                             is_cheaper = row['Fiyat_Sayi'] < my_price and row['Fiyat_Sayi'] > 0
                                             card_bg = "#ecfdf5" if is_cheaper else "#ffffff"
                                             border_col = "#10b981" if is_cheaper else "#e2e8f0"
-
                                             st.markdown(f"""
-                                            <div style="background:{card_bg}; border:1px solid {border_col}; padding:15px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                                                <div style="font-weight:bold; color:#1e293b; font-size:16px;">{row['Ürün']}</div>
-                                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
-                                                    <div style="color:#64748b; font-size:14px;">🏪 {row['Satıcı']}</div>
-                                                    <div style="font-weight:800; font-size:18px; color:#0f172a;">{row['Fiyat_Etiketi']}</div>
+                                            <div style="background:{card_bg}; border:1px solid {border_col}; padding:15px; border-radius:10px; margin-bottom:10px;">
+                                                <div style="font-weight:bold; color:#1e293b;">{row['Ürün']}</div>
+                                                <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                                                    <div style="color:#64748b;">🏪 {row['Satıcı']}</div>
+                                                    <div style="font-weight:800; color:#0f172a;">{row['Fiyat_Etiketi']}</div>
                                                 </div>
-                                            </div>
-                                            """, unsafe_allow_html=True)
+                                            </div>""", unsafe_allow_html=True)
                                     else:
-                                        st.warning("Google Shopping'den veri okunamadı (Yapı değişmiş olabilir).")
+                                        st.warning("Veri okunamadı. Aşağıdaki nedenlerden biri olabilir:")
+                                        st.markdown(
+                                            "- Google CAPTCHA sormuş olabilir (Bot tespiti).\n- Çerez duvarı aşılamamış olabilir.\n- Sayfa dili İngilizce gelmiş olabilir.")
+
+                                        if show_debug:
+                                            st.error("🔍 BOTUN GÖRDÜĞÜ HTML (İlk 2000 karakter):")
+                                            # HTML'i temizle ve göster
+                                            clean_html = soup.prettify()
+                                            st.code(clean_html[:2000], language='html')
+
+                                            # Sayfadaki tüm metni de göster (Okunabilirlik için)
+                                            st.text("SAYFA METNİ ÖZETİ:")
+                                            st.write(soup.get_text()[:1000])
 
                             except Exception as e:
                                 st.error(f"Sistem Hatası: {e}")
