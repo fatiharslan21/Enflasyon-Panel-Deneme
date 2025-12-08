@@ -16,3 +16,5 @@ feedparser
 fpdf
 fpdf2
 duckduckgo-search
+selenium
+webdriver-manager
