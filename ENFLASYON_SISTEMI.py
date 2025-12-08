@@ -75,60 +75,69 @@ def apply_theme():
         }
         st.session_state.plotly_template = "plotly_dark"
 
-        # KARANLIK MOD ÖZEL CSS (İsteklerin buraya işlendi)
+        # KARANLIK MOD ÖZEL CSS
         extra_css = """
-        /* 1. Sidebar'daki Güvenli Çıkış Butonu (Beyaz Arka Plan, Siyah Yazı) */
+        /* 1. Sidebar'daki Butonlar (Beyaz Zemin, Siyah Yazı) */
         section[data-testid="stSidebar"] .stButton button {
             background-color: #FFFFFF !important;
             color: #000000 !important;
             border: 2px solid #ccc !important;
-            font-weight: 900 !important;
-            transition: all 0.3s ease;
-        }
-        section[data-testid="stSidebar"] .stButton button:hover {
-            background-color: #e6e6e6 !important;
-            color: #000000 !important;
-            transform: scale(1.02);
+            font-weight: 800 !important;
         }
 
-        /* 2. KPI Kartlarındaki Değerler (Beyaz Yazı) */
+        /* 2. ANA EKRANDAKİ İNDİRME BUTONU (Download Button) - Beyaz Zemin, Siyah Yazı */
+        [data-testid="stDownloadButton"] button {
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+            border: 2px solid #ccc !important;
+            font-weight: 700 !important;
+        }
+        [data-testid="stDownloadButton"] button:hover {
+            background-color: #f0f0f0 !important;
+            border-color: #fff !important;
+            color: #000 !important;
+        }
+
+        /* 3. TABLO DÜZELTMESİ (KARA DELİK SORUNU ÇÖZÜLDÜ) */
+        /* Sadece kapsayıcıyı siyah yap, içindeki div'leri boyama! */
+        [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
+            background-color: #0E1117 !important;
+            border: 1px solid #333 !important;
+        }
+
+        /* Yazıları zorla beyaz yap ama arka planlarına dokunma */
+        [data-testid="stDataFrame"] *, [data-testid="stDataEditor"] * {
+            color: #FFFFFF !important;
+            fill: #FFFFFF !important; /* İkonlar için */
+        }
+
+        /* Tablo başlıkları (Header) */
+        [data-testid="stDataFrame"] th {
+            background-color: #262730 !important; /* Başlık biraz daha gri olsun ayrılsın */
+            color: white !important;
+        }
+
+        /* 4. KPI Kartlar ve Diğer Yazılar */
         .metric-val, div[data-testid="stMetricValue"], .metric-label {
             color: #FFFFFF !important;
         }
 
-        /* 3. Tablolar (Sepet ve Liste - Siyah Arka Plan, BEYAZ Yazı) */
-        [data-testid="stDataFrame"], [data-testid="stDataEditor"], .stDataFrame {
-            background-color: #0E1117 !important;
-            border: 1px solid #333 !important;
-        }
-        /* Tablo içindeki yazıların tamamını beyaz yap */
-        [data-testid="stDataFrame"] div, [data-testid="stDataEditor"] div, 
-        [data-testid="stDataFrame"] th, [data-testid="stDataFrame"] td {
-            color: #FFFFFF !important;
-            background-color: #0E1117 !important;
-        }
-
-        /* 4. Ürün Seçim Kutusu (Multiselect - Siyah Bar) */
+        /* 5. Ürün Seçim (Multiselect) */
         .stMultiSelect div[data-baseweb="select"] {
             background-color: #000000 !important;
             color: white !important;
             border: 1px solid #444 !important;
         }
-        .stMultiSelect span {
-            color: white !important;
-        }
+        .stMultiSelect span { color: white !important; }
 
-        /* 5. Haberler Butonu (Siyah Arka Plan, Beyaz Yazı) */
+        /* 6. Haber Butonu */
         .stMain .stButton button {
             background-color: #000000 !important;
             color: #FFFFFF !important;
             border: 1px solid #444 !important;
         }
 
-        /* 6. Grafik Arka Planları Şeffaf */
-        .stPlotlyChart {
-            background-color: transparent !important;
-        }
+        .stPlotlyChart { background-color: transparent !important; }
         """
     else:
         # AYDINLIK MOD (Dokunulmadı)
@@ -145,10 +154,10 @@ def apply_theme():
         st.session_state.plotly_template = "plotly_white"
         extra_css = ""
 
-    # Tüm CSS'i Tek Bir Stringde Birleştiriyoruz (Hata Önleyici)
+    # CSS Birleştirme
     final_css = f"""
     <style>
-        /* TEMEL GİZLEMELER */
+        /* Gizlemeler */
         header[data-testid="stHeader"] {{ display: none !important; }}
         [data-testid="stDecoration"] {{ display: none !important; }}
         [data-testid="collapsedControl"] {{ display: none !important; }}
@@ -156,13 +165,12 @@ def apply_theme():
         footer {{ visibility: hidden; }}
         .stDeployButton {{ display: none; }}
 
-        /* RENK ATAMALARI */
+        /* Genel Renkler */
         .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
         section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
-
         h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown {{ color: {colors['text']} !important; }}
 
-        /* Input Alanları */
+        /* Inputlar */
         .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {{
             background-color: {colors['input_bg']} !important;
             color: {colors['text']} !important;
@@ -175,20 +183,15 @@ def apply_theme():
             border: 1px solid {colors['border_color']} !important;
         }}
 
-        /* Tab Sekmeleri */
         .stTabs [data-baseweb="tab-list"] button {{ color: {colors['text']}; }}
-
-        /* Expander */
         .streamlit-expanderHeader {{
             background-color: {colors['card_bg']} !important;
             color: {colors['text']} !important;
         }}
 
-        /* EKSTRA CSS (Karanlık Mod Özelleştirmeleri) */
         {extra_css}
     </style>
     """
-
     st.markdown(final_css, unsafe_allow_html=True)
 
 
