@@ -980,7 +980,10 @@ def dashboard_modu():
                             template=st.session_state.plotly_template,
                             title_font=dict(color='white', size=22),
                             plot_bgcolor='rgba(0,0,0,0)',
-                            paper_bgcolor='rgba(0,0,0,0)'
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            legend=dict(
+                                font=dict(color='white')  # ← KATEGORİLERİ BEYAZ YAPAN KISIM
+                            )
                         )
 
                         col_vol.plotly_chart(fig_vol, use_container_width=True)
