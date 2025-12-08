@@ -988,62 +988,67 @@ def dashboard_modu():
                         else:
                             st.metric("Durum", "Nötr", "Değişim Yok", delta_color="off")
 
-                with t_istatistik:
-                    st.markdown("### 📊 İstatistiksel Risk ve Dağılım Analizi")
-                    col_hist, col_vol = st.columns(2)
+            with t_istatistik:
+                st.markdown("### 📊 İstatistiksel Risk ve Dağılım Analizi")
+            col_hist, col_vol = st.columns(2)
 
-                    # 1. Histogram (Mevcut)
-                    df_analiz['Fark_Yuzde'] = df_analiz['Fark'] * 100
-                    fig_hist = px.histogram(df_analiz, x="Fark_Yuzde", nbins=40, title="📊 Zam Dağılımı Frekansı",
-                                            color_discrete_sequence=['#8b5cf6'])
-                    fig_hist.update_layout(template="plotly_white", xaxis_title="Artış Oranı (%)",
-                                           yaxis_title="Ürün Adedi", plot_bgcolor='rgba(0,0,0,0)',
-                                           paper_bgcolor='rgba(0,0,0,0)')
-                    col_hist.plotly_chart(fig_hist, use_container_width=True)
+            # 1. Histogram (Mevcut)
+            df_analiz['Fark_Yuzde'] = df_analiz['Fark'] * 100
+            fig_hist = px.histogram(df_analiz, x="Fark_Yuzde", nbins=40, title="📊 Zam Dağılımı Frekansı",
 
-                    # 2. Volatilite Analizi (YENİ)
-                    # Pivot tablosundan standart sapmayı hesaplıyoruz
-                    try:
-                        fiyat_sutunlari = [c for c in pivot.columns if c != 'Kod']
-                        # Varyasyon Katsayısı (Coefficient of Variation) = StdSapma / Ortalama
-                        # Bu, fiyatı 1000 TL olanla 5 TL olanın oynaklığını kıyaslamamızı sağlar.
-                        pivot['Std'] = pivot[fiyat_sutunlari].std(axis=1)
-                        pivot['Mean'] = pivot[fiyat_sutunlari].mean(axis=1)
-                        pivot['Volatilite'] = (pivot['Std'] / pivot['Mean']) * 100
 
-                        # Analiz tablosuna volatiliteyi ekle
-                        df_vol = pd.merge(df_analiz, pivot[['Kod', 'Volatilite']], on='Kod', how='left')
+color_discrete_sequence = ['#8b5cf6'])
 
-                        # Scatter Plot: X=Fiyat Değişimi, Y=Volatilite
-                        fig_vol = px.scatter(df_vol, x="Fark_Yuzde", y="Volatilite", color="Grup",
-                                             hover_data=[ad_col],
-                                             title="⚡ Risk Analizi: Fiyat Oynaklığı vs Değişim",
-                                             labels={"Fark_Yuzde": "Fiyat Değişimi (%)",
-                                                     "Volatilite": "Oynaklık Endeksi (Risk)"})
+# TEMA AYARI BURAYA EKLENDİ
+fig_hist.update_layout(
+template = st.session_state.plotly_template,
+xaxis_title = "Artış Oranı (%)",
+yaxis_title = "Ürün Adedi",
+plot_bgcolor = 'rgba(0,0,0,0)',
+paper_bgcolor = 'rgba(0,0,0,0)'
+)
+col_hist.plotly_chart(fig_hist, use_container_width=True)
 
-                        # Kritik Bölgeleri Çiz
-                        fig_vol.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.5)
-                        fig_vol.add_hline(y=df_vol['Volatilite'].mean(), line_dash="dash", line_color="red",
-                                          annotation_text="Ortalama Risk")
+# 2. Volatilite Analizi (YENİ)
+# Pivot tablosundan standart sapmayı hesaplıyoruz
+try:
+    fiyat_sutunlari = [c for c in pivot.columns if c != 'Kod']
+    # Varyasyon Katsayısı (Coefficient of Variation) = StdSapma / Ortalama
+    pivot['Std'] = pivot[fiyat_sutunlari].std(axis=1)
+    pivot['Mean'] = pivot[fiyat_sutunlari].mean(axis=1)
+    pivot['Volatilite'] = (pivot['Std'] / pivot['Mean']) * 100
 
-                        # --- DÜZELTİLEN KISIM BURASI ---
-                        fig_vol.update_layout(
-                            template=st.session_state.plotly_template,
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            paper_bgcolor='rgba(0,0,0,0)'
-                        )
-                        # Parantezler artık düzgün kapandı
-                        # -------------------------------
+    # Analiz tablosuna volatiliteyi ekle
+    df_vol = pd.merge(df_analiz, pivot[['Kod', 'Volatilite']], on='Kod', how='left')
 
-                        col_vol.plotly_chart(fig_vol, use_container_width=True)
+    # Scatter Plot: X=Fiyat Değişimi, Y=Volatilite
+    fig_vol = px.scatter(df_vol, x="Fark_Yuzde", y="Volatilite", color="Grup",
+                         hover_data=[ad_col],
+                         title="⚡ Risk Analizi: Fiyat Oynaklığı vs Değişim",
+                         labels={"Fark_Yuzde": "Fiyat Değişimi (%)",
+                                 "Volatilite": "Oynaklık Endeksi (Risk)"})
 
-                        # En oynak 3 ürün uyarısı
-                        riskli_urunler = df_vol.sort_values("Volatilite", ascending=False).head(3)
-                        st.info(f"⚠️ **En Dengesiz Fiyatlar:** " + ", ".join(
-                            [f"{r[ad_col]} (Risk: {r['Volatilite']:.1f})" for _, r in riskli_urunler.iterrows()]))
+    # Kritik Bölgeleri Çiz
+    fig_vol.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.5)
+    fig_vol.add_hline(y=df_vol['Volatilite'].mean(), line_dash="dash", line_color="red",
+                      annotation_text="Ortalama Risk")
 
-                    except Exception as e:
-                        col_vol.error(f"Volatilite hesaplanamadı: {e}")
+    # TEMA AYARI VE PARANTEZ DÜZELTMESİ YAPILMIŞ HALİ
+    fig_vol.update_layout(
+        template=st.session_state.plotly_template,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
+
+    col_vol.plotly_chart(fig_vol, use_container_width=True)
+
+    # En oynak 3 ürün uyarısı
+    riskli_urunler = df_vol.sort_values("Volatilite", ascending=False).head(3)
+    st.info(f"⚠️ **En Dengesiz Fiyatlar:** " + ", ".join(
+        [f"{r[ad_col]} (Risk: {r['Volatilite']:.1f})" for _, r in riskli_urunler.iterrows()]))
+
+except Exception as e:
+    col_vol.error(f"Volatilite hesaplanamadı: {e}")
 
                 with t_sepet:
                     st.markdown("### 🛒 Kişisel Enflasyon Sepeti (Laspeyres Endeksi)")
