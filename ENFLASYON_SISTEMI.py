@@ -60,6 +60,7 @@ with st.sidebar:
 
 
 # --- CSS MOTORU (GÜNCELLENDİ) ---
+# --- CSS MOTORU (KESİN ÇÖZÜM: TABLO VE BUTON RENKLERİ) ---
 def apply_theme():
     # Renk Paletleri
     if st.session_state.theme == 'dark':
@@ -75,72 +76,70 @@ def apply_theme():
         }
         st.session_state.plotly_template = "plotly_dark"
 
-        # KARANLIK MOD ÖZEL CSS
+        # KARANLIK MOD İÇİN ÖZEL "ZORLAYICI" CSS
         extra_css = """
-        /* 1. Sidebar'daki Butonlar (Beyaz Zemin, Siyah Yazı) */
-        section[data-testid="stSidebar"] .stButton button {
-            background-color: #FFFFFF !important;
-            color: #000000 !important;
+        /* 1. BUTONLAR (GÜVENLİ ÇIKIŞ & EXCEL İNDİR) */
+        /* Normal Butonlar ve İndirme Butonları için Kapsamlı Kural */
+        div.stButton > button, div[data-testid="stDownloadButton"] > button {
+            background-color: #FFFFFF !important; /* Arka plan BEYAZ */
             border: 2px solid #ccc !important;
-            font-weight: 800 !important;
         }
 
-        /* 2. ANA EKRANDAKİ İNDİRME BUTONU (Download Button) - Beyaz Zemin, Siyah Yazı */
-        [data-testid="stDownloadButton"] button {
-            background-color: #FFFFFF !important;
-            color: #000000 !important;
-            border: 2px solid #ccc !important;
-            font-weight: 700 !important;
+        /* Butonun İÇİNDEKİ her türlü yazıyı SİYAH yap (p etiketi, span etiketi vs.) */
+        div.stButton > button *, div[data-testid="stDownloadButton"] > button * {
+            color: #000000 !important; 
         }
-        [data-testid="stDownloadButton"] button:hover {
+
+        /* Butonun kendi yazı rengini de SİYAH yap */
+        div.stButton > button, div[data-testid="stDownloadButton"] > button {
+            color: #000000 !important;
+        }
+
+        /* Hover (Üzerine gelince) durumunda da bozulmasın */
+        div.stButton > button:hover, div[data-testid="stDownloadButton"] > button:hover {
             background-color: #f0f0f0 !important;
+            color: #000000 !important;
             border-color: #fff !important;
-            color: #000 !important;
+        }
+        div.stButton > button:hover *, div[data-testid="stDownloadButton"] > button:hover * {
+            color: #000000 !important;
         }
 
-        /* 3. TABLO DÜZELTMESİ (KARA DELİK SORUNU ÇÖZÜLDÜ) */
-        /* Sadece kapsayıcıyı siyah yap, içindeki div'leri boyama! */
-        [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
-            background-color: #0E1117 !important;
-            border: 1px solid #333 !important;
-        }
-
-        /* Yazıları zorla beyaz yap ama arka planlarına dokunma */
+        /* 2. TABLO VE DATAFRAME (KARA DELİK DÜZELTMESİ) */
+        /* Tablo alanının içindeki TÜM yazı elementlerini BEYAZ yap */
         [data-testid="stDataFrame"] *, [data-testid="stDataEditor"] * {
-            color: #FFFFFF !important;
-            fill: #FFFFFF !important; /* İkonlar için */
+            color: #ffffff !important;
+            fill: #ffffff !important; /* SVG ikonları için */
         }
 
         /* Tablo başlıkları (Header) */
-        [data-testid="stDataFrame"] th {
-            background-color: #262730 !important; /* Başlık biraz daha gri olsun ayrılsın */
-            color: white !important;
+        [data-testid="stDataFrame"] th, [data-testid="stDataEditor"] th {
+            color: #ffffff !important;
+            background-color: #262730 !important; /* Başlıklar ayırt edilsin */
         }
 
-        /* 4. KPI Kartlar ve Diğer Yazılar */
-        .metric-val, div[data-testid="stMetricValue"], .metric-label {
-            color: #FFFFFF !important;
+        /* Tablo arka planı */
+        [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
+            background-color: #0E1117 !important;
         }
 
-        /* 5. Ürün Seçim (Multiselect) */
+        /* 3. DİĞER DÜZELTMELER */
+        /* Multiselect (Ürün seçimi) */
         .stMultiSelect div[data-baseweb="select"] {
             background-color: #000000 !important;
-            color: white !important;
             border: 1px solid #444 !important;
         }
         .stMultiSelect span { color: white !important; }
 
-        /* 6. Haber Butonu */
-        .stMain .stButton button {
-            background-color: #000000 !important;
+        /* KPI Kart Değerleri */
+        .metric-val, div[data-testid="stMetricValue"], .metric-label {
             color: #FFFFFF !important;
-            border: 1px solid #444 !important;
         }
 
         .stPlotlyChart { background-color: transparent !important; }
         """
     else:
-        # AYDINLIK MOD (Dokunulmadı)
+        # AYDINLIK MOD (Standart Ayarlar)
         colors = {
             "bg": "#FFFFFF",
             "sidebar": "#F0F2F6",
@@ -154,7 +153,7 @@ def apply_theme():
         st.session_state.plotly_template = "plotly_white"
         extra_css = ""
 
-    # CSS Birleştirme
+    # CSS BİRLEŞTİRME
     final_css = f"""
     <style>
         /* Gizlemeler */
@@ -165,12 +164,12 @@ def apply_theme():
         footer {{ visibility: hidden; }}
         .stDeployButton {{ display: none; }}
 
-        /* Genel Renkler */
+        /* Ana Renkler */
         .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
         section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
         h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown {{ color: {colors['text']} !important; }}
 
-        /* Inputlar */
+        /* Input Alanları */
         .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {{
             background-color: {colors['input_bg']} !important;
             color: {colors['text']} !important;
@@ -193,7 +192,6 @@ def apply_theme():
     </style>
     """
     st.markdown(final_css, unsafe_allow_html=True)
-
 
 # Temayı Uygula
 apply_theme()
