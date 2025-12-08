@@ -98,18 +98,25 @@ def create_pdf_report(text_content, filename="Rapor.pdf"):
 
 # --- HABER MOTORU ---
 def get_market_sentiment():
-    rss_url = "https://news.google.com/rss/search?q=ekonomi+gıda+zam+türkiye&hl=tr&gl=TR&ceid=TR:tr"
+    # Kullanıcının istediği genel Google News Ana Sayfa akışının RSS hali:
+    rss_url = "https://news.google.com/rss?hl=tr&gl=TR&ceid=TR:tr"
     try:
         feed = feedparser.parse(rss_url)
-        headlines = [entry.title for entry in feed.entries[:8]]
+        # İlk 10 manşeti alalım (Genel gündem olduğu için sayı artırıldı)
+        headlines = [entry.title for entry in feed.entries[:10]]
         news_text = "\n".join([f"- {h}" for h in headlines])
+
         prompt = f"""
-        Aşağıdaki son dakika ekonomi haber başlıklarını bir Piyasa Analisti gibi yorumla.
-        HABERLER: {news_text}
+        Aşağıdaki Türkiye gündemindeki son dakika haber başlıklarını bir Piyasa Stratejisti gibi tara.
+        HABERLER:
+        {news_text}
+
         GÖREVİN:
-        1. Bu haberler gıda fiyatlarını veya genel enflasyonu nasıl etkiler? (Olumlu/Olumsuz)
-        2. "Piyasa Havası"nı tek kelimeyle tanımla (Örn: Gergin, Bekleyişte, Riskli, İyimser).
-        3. En kritik 1 haberi seç ve nedenini kısaca açıkla.
+        1. Bu genel gündem maddeleri arasında ekonomiyi, gıda fiyatlarını veya piyasa riskini etkileyebilecek bir olay var mı?
+        2. Yoksa genel gündem siyaset/magazin ağırlıklı mı?
+        3. "Piyasa Havası"nı tek kelimeyle tanımla (Örn: Nötr, Gergin, İyimser, Belirsiz).
+        4. En kritik 1 haberi (varsa ekonomiyle ilgili) seç ve yorumla.
+
         Çıktıyı kısa, net ve madde madde ver.
         """
         model = genai.GenerativeModel('gemini-2.5-flash')
@@ -117,7 +124,6 @@ def get_market_sentiment():
         return response.text, headlines
     except Exception as e:
         return f"Haberler alınamadı: {str(e)}", []
-
 
 # --- GITHUB İŞLEMLERİ ---
 def get_github_repo():
@@ -444,11 +450,11 @@ def dashboard_modu():
     with st.sidebar:
         user_upper = st.session_state['username'].upper()
 
-        # --- YENİ EKLENEN KISIM ---
+        # Yetki Kontrolü
         is_admin = st.session_state['username'] in ADMIN_USERS
         role_title = "SYSTEM ADMIN" if is_admin else "VERİ ANALİSTİ"
-        # ---------------------------
 
+        # 1. Profil Kartı (HERKES GÖRÜR)
         st.markdown(f"""
             <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:15px; text-align:center; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
                 <div style="font-size:32px; margin-bottom:5px;">👤</div>
@@ -457,39 +463,45 @@ def dashboard_modu():
             </div>
         """, unsafe_allow_html=True)
 
+        # 2. SADECE ADMINLERE GÖRÜNEN BÖLÜM
         if is_admin:
             st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
             st.divider()
 
-            # Çevrimiçi ekip herkes görsün mü yoksa sadece admin mi?
-            # Eğer sadece admin görsün isterseniz bu bloğu da if is_admin içine alın.
-        st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
+            # Çevrimiçi Ekip Başlığı
+            st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
 
-        users_db = github_json_oku(USERS_DOSYASI)
-        activity_db = github_json_oku(ACTIVITY_DOSYASI)
-        update_user_status(st.session_state['username'])
+            users_db = github_json_oku(USERS_DOSYASI)
+            activity_db = github_json_oku(ACTIVITY_DOSYASI)
 
-        user_list = []
-        for u in users_db.keys():
-            last_seen_str = activity_db.get(u, "2000-01-01 00:00:00")
-            try:
-                last_seen = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
-            except:
-                last_seen = datetime(2000, 1, 1)
-            is_online = (datetime.now() - last_seen).total_seconds() < 300
-            user_list.append({"name": u, "online": is_online})
+            # Kendi aktivitemizi güncelle
+            update_user_status(st.session_state['username'])
 
-        for u in sorted(user_list, key=lambda x: (not x['online'], x['name'] not in ADMIN_USERS, x['name'])):
-            role_icon = "🛡️" if u['name'] in ADMIN_USERS else ""
-            st.markdown(f"""
-                        <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
-                                <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
-                                {u['name']} {role_icon}
-                            </span>
-                        </div>
-                    """, unsafe_allow_html=True)
-        st.divider()
+            user_list = []
+            for u in users_db.keys():
+                last_seen_str = activity_db.get(u, "2000-01-01 00:00:00")
+                try:
+                    last_seen = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
+                except:
+                    last_seen = datetime(2000, 1, 1)
+                is_online = (datetime.now() - last_seen).total_seconds() < 300
+                user_list.append({"name": u, "online": is_online})
+
+            # Kullanıcı Listesi Döngüsü
+            for u in sorted(user_list, key=lambda x: (not x['online'], x['name'] not in ADMIN_USERS, x['name'])):
+                role_icon = "🛡️" if u['name'] in ADMIN_USERS else ""
+                st.markdown(f"""
+                    <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
+                            <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
+                            {u['name']} {role_icon}
+                        </span>
+                    </div>
+                """, unsafe_allow_html=True)
+
+            st.divider()
+
+        # 3. Çıkış Butonu (HERKES GÖRÜR)
         if st.button("Güvenli Çıkış", use_container_width=True):
             st.session_state['logged_in'] = False
             st.rerun()
