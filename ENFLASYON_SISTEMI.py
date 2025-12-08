@@ -748,7 +748,10 @@ def dashboard_modu():
                     st.plotly_chart(fig_main, use_container_width=True)
 
                 with t_istatistik:
-                    col_hist, col_box = st.columns(2)
+                    st.markdown("### 📊 İstatistiksel Risk ve Dağılım Analizi")
+                    col_hist, col_vol = st.columns(2)
+
+                    # 1. Histogram (Mevcut)
                     df_analiz['Fark_Yuzde'] = df_analiz['Fark'] * 100
                     fig_hist = px.histogram(df_analiz, x="Fark_Yuzde", nbins=40, title="📊 Zam Dağılımı Frekansı",
                                             color_discrete_sequence=['#8b5cf6'])
@@ -756,50 +759,126 @@ def dashboard_modu():
                                            yaxis_title="Ürün Adedi", plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
                     col_hist.plotly_chart(fig_hist, use_container_width=True)
-                    fig_box = px.box(df_analiz, x="Grup", y="Fark_Yuzde", title="📦 Sektörel Fiyat Dengesizliği",
-                                     color="Grup")
-                    fig_box.update_layout(template="plotly_white", xaxis_title="Sektör", showlegend=False,
-                                          plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-                    col_box.plotly_chart(fig_box, use_container_width=True)
+
+                    # 2. Volatilite Analizi (YENİ)
+                    # Pivot tablosundan standart sapmayı hesaplıyoruz
+                    try:
+                        fiyat_sutunlari = [c for c in pivot.columns if c != 'Kod']
+                        # Varyasyon Katsayısı (Coefficient of Variation) = StdSapma / Ortalama
+                        # Bu, fiyatı 1000 TL olanla 5 TL olanın oynaklığını kıyaslamamızı sağlar.
+                        pivot['Std'] = pivot[fiyat_sutunlari].std(axis=1)
+                        pivot['Mean'] = pivot[fiyat_sutunlari].mean(axis=1)
+                        pivot['Volatilite'] = (pivot['Std'] / pivot['Mean']) * 100
+
+                        # Analiz tablosuna volatiliteyi ekle
+                        df_vol = pd.merge(df_analiz, pivot[['Kod', 'Volatilite']], on='Kod', how='left')
+
+                        # Scatter Plot: X=Fiyat Değişimi, Y=Volatilite
+                        fig_vol = px.scatter(df_vol, x="Fark_Yuzde", y="Volatilite", color="Grup",
+                                             hover_data=[ad_col],
+                                             title="⚡ Risk Analizi: Fiyat Oynaklığı vs Değişim",
+                                             labels={"Fark_Yuzde": "Fiyat Değişimi (%)",
+                                                     "Volatilite": "Oynaklık Endeksi (Risk)"})
+
+                        # Kritik Bölgeleri Çiz
+                        fig_vol.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.5)
+                        fig_vol.add_hline(y=df_vol['Volatilite'].mean(), line_dash="dash", line_color="red",
+                                          annotation_text="Ortalama Risk")
+
+                        fig_vol.update_layout(template="plotly_white", plot_bgcolor='rgba(0,0,0,0)',
+                                              paper_bgcolor='rgba(0,0,0,0)')
+                        col_vol.plotly_chart(fig_vol, use_container_width=True)
+
+                        # En oynak 3 ürün uyarısı
+                        riskli_urunler = df_vol.sort_values("Volatilite", ascending=False).head(3)
+                        st.info(f"⚠️ **En Dengesiz Fiyatlar:** " + ", ".join(
+                            [f"{r[ad_col]} (Risk: {r['Volatilite']:.1f})" for _, r in riskli_urunler.iterrows()]))
+
+                    except Exception as e:
+                        col_vol.error(f"Volatilite hesaplanamadı: {e}")
 
                 with t_sepet:
+                    st.markdown("### 🛒 Kişisel Enflasyon Sepeti (Laspeyres Endeksi)")
                     st.info(
-                        "💡 **Akıllı İpucu:** Kendi tüketim alışkanlıklarına göre ürünleri seçerek kişisel enflasyonunu hesapla.")
+                        "💡 **Nasıl Çalışır?** Aşağıdan ürünleri seçip **aylık tüketim miktarını (adet/kg)** girdiğinde, sistem senin gerçek enflasyonunu hesaplar.")
+
                     baskets = github_json_oku(SEPETLER_DOSYASI)
                     user_codes = baskets.get(st.session_state['username'], [])
                     all_products = df_analiz[ad_col].unique()
                     default_names = df_analiz[df_analiz['Kod'].isin(user_codes)][ad_col].tolist()
-                    with st.expander("📝 Sepet İçeriğini Düzenle", expanded=False):
-                        with st.form("basket_form"):
-                            selected_names = st.multiselect("Takip Ettiğin Ürünler:", all_products,
-                                                            default=default_names)
-                            if st.form_submit_button("Sepeti Güncelle"):
-                                new_codes = df_analiz[df_analiz[ad_col].isin(selected_names)]['Kod'].tolist()
-                                baskets[st.session_state['username']] = new_codes
-                                github_json_yaz(SEPETLER_DOSYASI, baskets, "Basket Update")
-                                st.success("Sepet güncellendi!");
-                                time.sleep(1);
-                                st.rerun()
+
+                    # 1. Ürün Seçimi
+                    selected_names = st.multiselect("Takip Ettiğin Ürünleri Seç:", all_products, default=default_names)
+
                     if selected_names:
-                        my_df = df_analiz[df_analiz[ad_col].isin(selected_names)]
-                        if not my_df.empty:
-                            my_enf = ((my_df[son] / my_df[baz] * my_df[agirlik_col]).sum() / my_df[
-                                agirlik_col].sum() - 1) * 100
-                            c_my, c_ch = st.columns([1, 2])
-                            c_my.metric("KİŞİSEL ENFLASYON", f"%{my_enf:.2f}", f"Genel: %{enf_genel:.2f}",
-                                        delta_color="inverse")
-                            fig_comp = go.Figure()
-                            fig_comp.add_trace(go.Bar(y=['Genel', 'Senin'], x=[enf_genel, my_enf], orientation='h',
-                                                      marker_color=['#cbd5e1', '#3b82f6'],
-                                                      text=[f"%{enf_genel:.2f}", f"%{my_enf:.2f}"],
-                                                      textposition='auto'))
-                            fig_comp.update_layout(template="plotly_white", height=200, margin=dict(t=0, b=0, l=0, r=0),
-                                                   xaxis=dict(showgrid=False), plot_bgcolor='rgba(0,0,0,0)',
-                                                   paper_bgcolor='rgba(0,0,0,0)')
-                            c_ch.plotly_chart(fig_comp, use_container_width=True)
-                            st.dataframe(my_df[[ad_col, 'Fark', baz, son]], use_container_width=True)
+                        # Seçilenleri filtrele
+                        my_df = df_analiz[df_analiz[ad_col].isin(selected_names)].copy()
+
+                        # Varsayılan ağırlık 1 olarak ata (Eğer kullanıcı daha önce girmediyse)
+                        if 'Kullanici_Agirlik' not in st.session_state:
+                            st.session_state['Kullanici_Agirlik'] = {row['Kod']: 1.0 for _, row in my_df.iterrows()}
+
+                        # Mevcut DataFrame'e ağırlıkları map et
+                        my_df['Miktar'] = my_df['Kod'].map(st.session_state['Kullanici_Agirlik']).fillna(1.0)
+
+                        col_editor, col_result = st.columns([2, 1])
+
+                        with col_editor:
+                            st.caption("👇 Miktarları buradan değiştirebilirsin:")
+                            # Data Editor ile kullanıcıya miktar girdir
+                            edited_df = st.data_editor(
+                                my_df[[ad_col, 'Miktar', baz, son, 'Kod']],  # Kod gizli kalacak ama işlem için lazım
+                                column_config={
+                                    ad_col: "Ürün Adı",
+                                    "Miktar": st.column_config.NumberColumn("Tüketim (Adet/Kg)", min_value=0.1,
+                                                                            max_value=1000.0, step=0.5, format="%.1f"),
+                                    baz: st.column_config.NumberColumn(f"Eski Fiyat ({baz})", format="%.2f TL"),
+                                    son: st.column_config.NumberColumn(f"Yeni Fiyat ({son})", format="%.2f TL"),
+                                    "Kod": None  # Kodu gizle
+                                },
+                                disabled=[ad_col, baz, son],  # Sadece Miktar değişebilir
+                                use_container_width=True,
+                                key="sepet_editor"
+                            )
+
+                        # 2. Laspeyres Hesaplaması
+                        with col_result:
+                            # Formül: (Yeni Fiyat * Miktar) / (Eski Fiyat * Miktar)
+                            try:
+                                toplam_eski_masraf = (edited_df[baz] * edited_df['Miktar']).sum()
+                                toplam_yeni_masraf = (edited_df[son] * edited_df['Miktar']).sum()
+
+                                if toplam_eski_masraf > 0:
+                                    kisisel_enf = ((toplam_yeni_masraf / toplam_eski_masraf) - 1) * 100
+                                    fark_tl = toplam_yeni_masraf - toplam_eski_masraf
+
+                                    st.markdown("#### 🧾 Sepet Özeti")
+                                    st.metric("Senin Enflasyonun", f"%{kisisel_enf:.2f}", f"{fark_tl:+.2f} TL Fark",
+                                              delta_color="inverse")
+                                    st.divider()
+                                    st.write(f"📉 **Genel Enflasyon:** %{enf_genel:.2f}")
+
+                                    if kisisel_enf > enf_genel:
+                                        st.error("Senin sepetin piyasadan daha hızlı pahalanıyor!")
+                                    else:
+                                        st.success("Tüketim alışkanlıkların seni enflasyondan kısmen koruyor.")
+                                else:
+                                    st.warning("Hesaplama için miktar giriniz.")
+
+                            except Exception as e:
+                                st.error(f"Hesaplama Hatası: {e}")
+
+                        # 3. Kaydetme Butonu (Sadece ürün listesini günceller, JSON yapısını bozmamak için)
+                        if st.button("💾 Sepet Listesini Kaydet"):
+                            new_codes = edited_df['Kod'].tolist()
+                            baskets[st.session_state['username']] = new_codes
+                            if github_json_yaz(SEPETLER_DOSYASI, baskets, "Basket Update"):
+                                st.toast("Sepet başarıyla kaydedildi!", icon='✅')
+                            else:
+                                st.error("Kaydetme başarısız.")
+
                     else:
-                        st.warning("Henüz bir sepet oluşturmadın.")
+                        st.warning("Henüz sepete ürün eklemedin.")
 
                 with t_harita:
                     c1, c2 = st.columns([2, 1])
