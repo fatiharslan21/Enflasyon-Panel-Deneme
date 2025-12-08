@@ -125,6 +125,7 @@ def get_market_sentiment():
     except Exception as e:
         return f"Haberler alınamadı: {str(e)}", []
 
+
 # --- GITHUB İŞLEMLERİ ---
 def get_github_repo():
     try:
@@ -506,7 +507,7 @@ def dashboard_modu():
             st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- CSS: LIGHT MODE GLOBAL ---
+    # --- CSS: LIGHT MODE GLOBAL & GİZLEME AYARLARI ---
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -533,6 +534,17 @@ def dashboard_modu():
         .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
         .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
         #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
+
+        /* Üstteki Menü ve Çizgiyi Gizle */
+        header {visibility: hidden;}
+        #MainMenu {visibility: hidden;}
+        [data-testid="stToolbar"] {visibility: hidden;}
+
+        /* Alttaki 'Made with Streamlit' ve Manage App butonlarını gizle */
+        footer {visibility: hidden;}
+        .stDeployButton {display:none;}
+        [data-testid="stDecoration"] {display:none;}
+        [data-testid="stStatusWidget"] {visibility: hidden;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -624,14 +636,15 @@ def dashboard_modu():
                 if agirlik_col in df_analiz.columns:
                     df_analiz[agirlik_col] = pd.to_numeric(df_analiz[agirlik_col], errors='coerce').fillna(1)
                 else:
-                    df_analiz['Agirlik_2025'] = 1; agirlik_col = 'Agirlik_2025'
+                    df_analiz['Agirlik_2025'] = 1;
+                    agirlik_col = 'Agirlik_2025'
 
                 gunler = [c for c in pivot.columns if c != 'Kod']
                 if len(gunler) < 1: st.warning("Yeterli tarih verisi yok."); return
                 baz, son = gunler[0], gunler[-1]
 
                 endeks_genel = (df_analiz.dropna(subset=[son, baz])[agirlik_col] * (
-                            df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[
+                        df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[
                                    agirlik_col].sum() * 100
                 enf_genel = (endeks_genel / 100 - 1) * 100
                 df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
@@ -687,7 +700,7 @@ def dashboard_modu():
                 with t_analiz:
                     st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
-                                df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
+                            df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
                     df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
@@ -696,8 +709,11 @@ def dashboard_modu():
                     with st.spinner("Yapay zeka gelecek tahmini yapıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
 
+                    # --- TARİH VE EKSEN AYARI ---
+                    current_year = df_trend['Tarih'].dt.year.max()
                     start_date = df_trend['Tarih'].min()
-                    end_date = df_forecast['ds'].max() if not df_forecast.empty else df_trend['Tarih'].max()
+                    # Bitiş tarihini o yılın 31 Aralık'ı olarak ayarla
+                    end_date_fixed = f"{current_year}-12-31"
 
                     fig_main = go.Figure()
                     fig_main.add_trace(go.Scatter(x=df_trend['Tarih'], y=df_trend['TÜFE'], mode='lines+markers',
@@ -722,8 +738,12 @@ def dashboard_modu():
 
                     fig_main.update_layout(template="plotly_white", height=500, hovermode="x unified",
                                            title="Enflasyon: Geçmiş, Şimdi ve Gelecek",
-                                           legend=dict(orientation="h", y=1.1), yaxis=dict(title="TÜFE Endeksi"),
-                                           xaxis=dict(range=[start_date, end_date]), plot_bgcolor='rgba(0,0,0,0)',
+                                           legend=dict(orientation="h", y=1.1),
+                                           # Y EKSENİ SABİTLEME
+                                           yaxis=dict(title="TÜFE Endeksi", range=[95, 105]),
+                                           # X EKSENİ YIL SONUNA KADAR
+                                           xaxis=dict(range=[start_date, end_date_fixed]),
+                                           plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
                     st.plotly_chart(fig_main, use_container_width=True)
 
@@ -957,9 +977,7 @@ def dashboard_modu():
 
                             with c_news2:
                                 st.markdown("#### 🗞️ Son Başlıklar")
-                                # HATA BURADAYDI (DÜZELTİLDİ):
-                                # Eski hali: [st.caption(f"• {h}") for h in headlines]
-                                # Yeni hali (Normal döngü):
+                                # DÜZELTME: Normal döngü ile ekrana basma
                                 for h in headlines:
                                     st.caption(f"• {h}")
 
@@ -1014,7 +1032,10 @@ def main():
                     if new_p and new_p == conf_p:
                         ok, msg = github_user_islem("update_password", username=reset_user, password=new_p)
                         if ok:
-                            st.success(msg); time.sleep(2); st.query_params.clear(); st.rerun()
+                            st.success(msg);
+                            time.sleep(2);
+                            st.query_params.clear();
+                            st.rerun()
                         else:
                             st.error(msg)
                     else:
@@ -1039,8 +1060,12 @@ def main():
                     if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
                         ok, msg = github_user_islem("login", l_u, l_p)
                         if ok:
-                            st.session_state['logged_in'] = True; st.session_state['username'] = l_u; st.success(
-                                "Giriş Başarılı!"); time.sleep(1); st.rerun()
+                            st.session_state['logged_in'] = True;
+                            st.session_state['username'] = l_u;
+                            st.success(
+                                "Giriş Başarılı!");
+                            time.sleep(1);
+                            st.rerun()
                         else:
                             st.error(msg)
             with t_reg:
@@ -1052,8 +1077,12 @@ def main():
                         if r_u and r_p and r_e:
                             ok, msg = github_user_islem("register", r_u, r_p, r_e)
                             if ok:
-                                st.success("Kayıt Başarılı! Otomatik giriş yapılıyor..."); st.session_state[
-                                    'logged_in'] = True; st.session_state['username'] = r_u; time.sleep(2); st.rerun()
+                                st.success("Kayıt Başarılı! Otomatik giriş yapılıyor...");
+                                st.session_state[
+                                    'logged_in'] = True;
+                                st.session_state['username'] = r_u;
+                                time.sleep(2);
+                                st.rerun()
                             else:
                                 st.error(msg)
                         else:
