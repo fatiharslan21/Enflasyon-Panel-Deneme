@@ -1015,7 +1015,6 @@ def dashboard_modu():
                         df_vol = pd.merge(df_analiz, pivot[['Kod', 'Volatilite']], on='Kod', how='left')
 
                         # Scatter Plot: X=Fiyat Değişimi, Y=Volatilite
-                        # Scatter Plot: X=Fiyat Değişimi, Y=Volatilite
                         fig_vol = px.scatter(df_vol, x="Fark_Yuzde", y="Volatilite", color="Grup",
                                              hover_data=[ad_col],
                                              title="⚡ Risk Analizi: Fiyat Oynaklığı vs Değişim",
@@ -1033,6 +1032,7 @@ def dashboard_modu():
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)'
                         )
+                        # Parantezler artık düzgün kapandı
                         # -------------------------------
 
                         col_vol.plotly_chart(fig_vol, use_container_width=True)
