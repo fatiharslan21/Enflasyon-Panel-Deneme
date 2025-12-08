@@ -1061,11 +1061,10 @@ def dashboard_modu():
                         st.warning("Henüz sepete ürün eklemedin.")
 
                 with t_harita:
-                    c1, c2 = st.columns([2, 1])
+                    # GÜNCELLEME: Sadece Isı Haritası (Treemap) kaldı, tek sütun olarak genişledi.
                     fig_tree = px.treemap(df_analiz, path=[px.Constant("Piyasa"), 'Grup', ad_col], values=agirlik_col,
                                           color='Fark', color_continuous_scale='RdYlGn_r', title="🔥 Isı Haritası")
 
-                    # --- GÜNCELLEME: SİYAH ÇERÇEVE ---
                     fig_tree.update_traces(marker=dict(line=dict(color='black', width=1)))
 
                     fig_tree.update_layout(
@@ -1075,20 +1074,7 @@ def dashboard_modu():
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)'
                     )
-                    c1.plotly_chart(fig_tree, use_container_width=True)
-
-                    fig_sun = px.sunburst(df_analiz, path=['Grup', ad_col], values=agirlik_col,
-                                          title="Sektörel Ağırlık")
-                    # Sunburst için de ince siyah çizgi eklendi
-                    fig_sun.update_traces(marker=dict(line=dict(color='black', width=1)))
-
-                    fig_sun.update_layout(
-                        template=st.session_state.plotly_template,
-                        margin=dict(t=40, l=0, r=0, b=0),
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        paper_bgcolor='rgba(0,0,0,0)'
-                    )
-                    c2.plotly_chart(fig_sun, use_container_width=True)
+                    st.plotly_chart(fig_tree, use_container_width=True)
 
                 with t_firsat:
                     st.markdown("### 🛍️ Piyasadaki Benzer Ürünler")
