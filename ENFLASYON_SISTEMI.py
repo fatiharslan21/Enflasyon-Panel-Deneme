@@ -112,7 +112,6 @@ class PDFReport(FPDF):
         self.set_y(10)
         self.set_font('Arial', 'B', 8)
         self.set_text_color(220, 50, 50)
-        self.cell(0, 10, 'GIZLI / CONFIDENTIAL - YONETIM KURULU OZEL', 0, 1, 'R')
         self.set_text_color(0, 0, 0)
         self.ln(5)
         self.line(10, 25, 200, 25)
@@ -616,9 +615,12 @@ def dashboard_modu():
             st.divider()
 
         # 3. Çıkış Butonu (HERKES GÖRÜR)
-        if st.button("Güvenli Çıkış", use_container_width=True):
-            st.session_state['logged_in'] = False
-            st.rerun()
+            # 3. Çıkış Butonu (HERKES GÖRÜR)
+            if st.button("Güvenli Çıkış", use_container_width=True):
+                st.session_state['logged_in'] = False
+                # Beni hatırla parametresini sil
+                st.query_params.clear()
+                st.rerun()
 
     # --- CSS: LIGHT MODE GLOBAL & GİZLEME AYARLARI ---
     st.markdown("""
@@ -1322,17 +1324,41 @@ def dashboard_modu():
 
 
 # --- 5. LOGIN ---
+# --- 5. ANA GİRİŞ SİSTEMİ (MAIN) ---
 def main():
-    if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
+    # --- OTOMATİK GİRİŞ (BENİ HATIRLA) KONTROLÜ ---
+    # Eğer URL'de kayıtlı bir kullanıcı varsa ve henüz giriş yapılmamışsa
+    if 'logged_in' not in st.session_state:
+        st.session_state['logged_in'] = False
+
+    # URL Parametrelerini Kontrol Et
     params = st.query_params
+    if "session_user" in params and not st.session_state['logged_in']:
+        auto_user = params["session_user"]
+        # Güvenlik: Kullanıcı gerçekten veritabanında var mı diye bakılabilir
+        users_db = github_json_oku(USERS_DOSYASI)
+        if auto_user in users_db:
+            st.session_state['logged_in'] = True
+            st.session_state['username'] = auto_user
+            st.toast(f"Tekrar Hoşgeldin, {auto_user} 👋", icon="🔓")
+            time.sleep(1)
+            st.rerun()
+
+    # --- ŞİFRE SIFIRLAMA EKRANI ---
     if "reset_user" in params and not st.session_state['logged_in']:
         reset_user = params["reset_user"]
-        st.markdown(
-            """<style>.stApp { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; } @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} } [data-testid="stForm"] { background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid rgba(255, 255, 255, 0.2); position: relative; z-index: 9999; } [data-testid="stForm"] input { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; color: #1e293b !important; }</style>""",
-            unsafe_allow_html=True)
-        st.markdown(
-            "<div style='text-align: center; margin-top:80px; margin-bottom:30px; position:relative; z-index:9999;'><h1 style='color:white; font-family:Poppins; font-size:36px; font-weight:800;'>ŞİFRE SIFIRLAMA</h1></div>",
-            unsafe_allow_html=True)
+        # Özel CSS: Koyu Tema
+        st.markdown("""
+        <style>
+            .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); }
+            [data-testid="stForm"] { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 40px; }
+            h1, h2, h3, p, label, .stMarkdown { color: white !important; }
+            .stTextInput input { color: #0f172a !important; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<h1 style='text-align:center;'>🔐 ŞİFRE SIFIRLAMA</h1>", unsafe_allow_html=True)
+
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
             with st.form("reset_form"):
@@ -1343,9 +1369,9 @@ def main():
                     if new_p and new_p == conf_p:
                         ok, msg = github_user_islem("update_password", username=reset_user, password=new_p)
                         if ok:
-                            st.success(msg);
-                            time.sleep(2);
-                            st.query_params.clear();
+                            st.success(msg)
+                            time.sleep(2)
+                            st.query_params.clear()
                             st.rerun()
                         else:
                             st.error(msg)
@@ -1353,55 +1379,134 @@ def main():
                         st.warning("Şifreler uyuşmuyor.")
         return
 
+    # --- GİRİŞ EKRANI (LOGIN) ---
     if not st.session_state['logged_in']:
+        # --- PROFESYONEL CSS ---
+        st.markdown("""
+        <style>
+            /* Arka Plan: Koyu Lacivert (Fintech/Kurumsal) */
+            .stApp {
+                background-color: #0f172a;
+                background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
+                font-family: 'Inter', sans-serif;
+            }
+
+            /* Form Kutusu: Glassmorphism (Buzlu Cam) */
+            [data-testid="stForm"] {
+                background: rgba(30, 41, 59, 0.7);
+                backdrop-filter: blur(12px);
+                border-radius: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                padding: 40px;
+            }
+
+            /* Başlık ve Yazı Renkleri: BEYAZ */
+            h1 { color: white !important; font-weight: 800 !important; letter-spacing: -1px; }
+            p, label, span { color: #e2e8f0 !important; }
+
+            /* Tab (Sekme) Tasarımı */
+            .stTabs [data-baseweb="tab-list"] {
+                background-color: rgba(255,255,255,0.05);
+                border-radius: 10px;
+                padding: 5px;
+                gap: 5px;
+            }
+            .stTabs [data-baseweb="tab-list"] button {
+                color: #94a3b8; /* Pasif renk */
+                border-radius: 8px;
+                border: none;
+                font-weight: 600;
+            }
+            .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+                background-color: #3b82f6 !important; /* Aktif Mavi */
+                color: white !important;
+            }
+
+            /* Input Alanları */
+            .stTextInput input {
+                background-color: #1e293b !important;
+                color: white !important;
+                border: 1px solid #334155 !important;
+            }
+            .stTextInput input:focus {
+                border-color: #3b82f6 !important;
+                box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+            }
+
+            /* Butonlar */
+            button[kind="secondaryFormSubmit"] {
+                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                border: none;
+                color: white !important;
+                font-weight: bold;
+                transition: all 0.3s;
+            }
+            button[kind="secondaryFormSubmit"]:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+            }
+        </style>
+        """, unsafe_allow_html=True)
+
         st.markdown(
-            """<style>.stApp { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradient 15s ease infinite; } @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} } [data-testid="stForm"] { background: rgba(255, 255, 255, 0.95); padding: 40px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); border: 1px solid rgba(255, 255, 255, 0.2); position: relative; z-index: 9999; } [data-testid="stForm"] input { background: #f8fafc !important; border: 1px solid #e2e8f0 !important; color: #1e293b !important; }</style>""",
+            "<div style='text-align: center; margin-top:60px; margin-bottom:20px;'><h1 style='font-size:42px;'>ENFLASYON MONİTÖRÜ</h1><p style='font-size:14px; color:#94a3b8 !important;'>KURUMSAL PİYASA ANALİZ SİSTEMİ</p></div>",
             unsafe_allow_html=True)
-        st.markdown(
-            "<div style='text-align: center; margin-top:80px; margin-bottom:30px; position:relative; z-index:9999;'><h1 style='color:white; font-family:Poppins; font-size:48px; font-weight:800; text-shadow: 0 4px 20px rgba(0,0,0,0.3);'>ENFLASYON MONİTÖRÜ</h1></div>",
-            unsafe_allow_html=True)
+
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
             t_log, t_reg, t_forgot = st.tabs(["🔒 GİRİŞ YAP", "📝 KAYIT OL", "🔑 ŞİFREMİ UNUTTUM"])
+
             with t_log:
                 with st.form("login_f"):
-                    l_u = st.text_input("Kullanıcı Adı");
-                    l_p = st.text_input("Şifre", type="password");
-                    st.checkbox("Beni Hatırla")
+                    l_u = st.text_input("Kullanıcı Adı")
+                    l_p = st.text_input("Şifre", type="password")
+
+                    # BENİ HATIRLA ÇÖZÜMÜ
+                    beni_hatirla = st.checkbox("Beni Hatırla (Oturumu Açık Tut)")
+
                     if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
                         ok, msg = github_user_islem("login", l_u, l_p)
                         if ok:
-                            st.session_state['logged_in'] = True;
-                            st.session_state['username'] = l_u;
-                            st.success(
-                                "Giriş Başarılı!");
-                            time.sleep(1);
+                            st.session_state['logged_in'] = True
+                            st.session_state['username'] = l_u
+
+                            # Eğer beni hatırla dediyse URL'e parametre ekle
+                            if beni_hatirla:
+                                st.query_params["session_user"] = l_u
+                            else:
+                                # Demediyse URL'i temizle
+                                st.query_params.clear()
+
+                            st.success("Giriş Başarılı! Yönlendiriliyorsunuz...")
+                            time.sleep(1)
                             st.rerun()
                         else:
                             st.error(msg)
+
             with t_reg:
                 with st.form("reg_f"):
-                    r_u = st.text_input("Kullanıcı Adı Belirle");
-                    r_e = st.text_input("E-Posta Adresi");
+                    r_u = st.text_input("Kullanıcı Adı Belirle")
+                    r_e = st.text_input("E-Posta Adresi")
                     r_p = st.text_input("Şifre Belirle", type="password")
                     if st.form_submit_button("HESAP OLUŞTUR", use_container_width=True):
                         if r_u and r_p and r_e:
                             ok, msg = github_user_islem("register", r_u, r_p, r_e)
                             if ok:
-                                st.success("Kayıt Başarılı! Otomatik giriş yapılıyor...");
-                                st.session_state[
-                                    'logged_in'] = True;
-                                st.session_state['username'] = r_u;
-                                time.sleep(2);
+                                st.success("Kayıt Başarılı! Otomatik giriş yapılıyor...")
+                                st.session_state['logged_in'] = True
+                                st.session_state['username'] = r_u
+                                time.sleep(2)
                                 st.rerun()
                             else:
                                 st.error(msg)
                         else:
                             st.warning("Tüm alanları doldurunuz.")
+
             with t_forgot:
                 with st.form("forgot_f"):
                     f_email = st.text_input("Kayıtlı E-Posta Adresi")
-                    if st.form_submit_button("ŞİFRE SIFIRLAMA LİNKİ GÖNDER", use_container_width=True):
+                    if st.form_submit_button("SIFIRLAMA LİNKİ GÖNDER", use_container_width=True):
                         if f_email:
                             ok, msg = github_user_islem("forgot_password", email=f_email)
                             if ok:
@@ -1410,7 +1515,11 @@ def main():
                                 st.error(msg)
                         else:
                             st.warning("Lütfen e-posta adresinizi girin.")
+
     else:
+        # ÇIKIŞ BUTONU İÇİN URL TEMİZLİĞİ
+        # Dashboard içindeki çıkış butonuna basıldığında bu parametreyi silmek gerekir.
+        # Bu yüzden dashboard_modu içine küçük bir parametre kontrolü ekleyeceğiz.
         dashboard_modu()
 
 
