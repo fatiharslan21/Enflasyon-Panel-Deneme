@@ -1052,86 +1052,117 @@ def dashboard_modu():
                     c2.plotly_chart(fig_sun, use_container_width=True)
 
                 with t6:
-                    st.markdown("### 🌐 Canlı Piyasa Ajanı (Real-Time)")
+                    st.markdown("### 🌐 Canlı Piyasa Ajanı (Filtreli & Akıllı)")
                     st.info(
-                        "Bu modül, senin veri tabanındaki fiyatı alır, **o an internette** (Cimri, Akakçe, Trendyol vb.) arama yapar ve senin fiyatınla piyasayı kıyaslar.")
+                        "İnternetteki akademik makaleleri ve gereksiz PDF'leri filtreler, sadece market ve alışveriş sitelerini (Cimri, Migros, Trendyol vb.) tarar.")
 
                     # 1. Ürün Seçimi
                     product_list = sorted(df_analiz[ad_col].unique())
                     selected_product = st.selectbox("Hangi ürünü canlı piyasada araştıralım?", product_list)
 
-                    if st.button(f"🚀 {selected_product} İçin İnterneti Tara", type="primary"):
+                    if st.button(f"🚀 {selected_product} İçin Piyasayı Tara", type="primary"):
 
                         # A. SENİN VERİ TABANINDAKİ DURUM
-                        my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
-                        my_price = my_record[son]  # En son tarihli fiyat sütunu
-                        my_date = son
+                        try:
+                            my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
+                            my_price = my_record[son]
+                            my_date = son
+                        except:
+                            my_price = 0
+                            my_date = "Bilinmiyor"
 
                         c_res1, c_res2 = st.columns([1, 1])
-
-                        # Senin Fiyatını Göster
                         with c_res1:
                             st.metric(label="Senin Veri Tabanın", value=f"{my_price:.2f} TL", delta="Referans Fiyat")
 
-                        # B. İNTERNET TARAMASI (DuckDuckGo Ajanı)
+                        # B. İNTERNET TARAMASI (AKILLI FİLTRE MODU)
                         search_results = []
-                        with st.spinner("🌍 İnternet taranıyor... (Cimri, Akakçe, Marketler)"):
+                        valid_sites = ["cimri", "akakce", "migros", "sokmarket", "a101", "carrefoursa", "trendyol",
+                                       "hepsiburada", "amazon", "pttavm", "epey", "bim"]
+
+                        with st.spinner("🌍 Alışveriş siteleri taranıyor... (Gereksizler eleniyor)"):
                             try:
                                 with DDGS() as ddgs:
-                                    # "Ürün adı fiyat" şeklinde arama yapıyoruz
-                                    query = f"{selected_product} fiyat"
-                                    # İlk 6 sonucu çekiyoruz
-                                    results = list(ddgs.text(query, region='tr-tr', max_results=6))
+                                    # 1. Arama sorgusunu alışverişe zorluyoruz
+                                    # "satın al", "market", "fiyatı" kelimelerini ekleyerek akademik makalelerden kaçıyoruz.
+                                    query = f"{selected_product} fiyatı en ucuz satın al market cimri akakçe"
 
-                                    # Sonuçları temiz bir metne dönüştür
+                                    # Daha fazla sonuç çekip (20 tane), içinden işe yarayanları süzeceğiz
+                                    raw_results = list(ddgs.text(query, region='tr-tr', max_results=20))
+
                                     search_text = ""
-                                    for r in results:
-                                        search_text += f"- Başlık: {r['title']}\n  Link: {r['href']}\n  Özet: {r['body']}\n\n"
-                                        search_results.append(r)
+                                    count = 0
+
+                                    for r in raw_results:
+                                        link = r.get('href', '').lower()
+                                        title = r.get('title', '').lower()
+                                        body = r.get('body', '')
+
+                                        # --- FİLTRELEME MEKANİZMASI ---
+                                        # 1. PDF ve Akademik uzantıları yasakla
+                                        if any(x in link for x in
+                                               ['.pdf', '.doc', '.gov', '.edu', 'hoover.org', 'nber.org',
+                                                'supremecourt']):
+                                            continue
+
+                                        # 2. Sadece Türkçe alışveriş sitelerine odaklanmaya çalış
+                                        # (Link veya başlıkta bilindik market isimleri veya 'fiyat', 'tl' geçiyor mu?)
+                                        is_shopping = any(site in link for site in
+                                                          valid_sites) or "fiyat" in title or "tl" in title or "satın al" in title
+
+                                        if is_shopping and count < 6:  # En alakalı 6 tanesini al
+                                            search_text += f"- Kaynak: {r['title']}\n  Link: {r['href']}\n  Özet: {body}\n\n"
+                                            search_results.append(r)
+                                            count += 1
 
                             except Exception as e:
                                 st.error(f"Arama Hatası: {e}")
-                                search_text = "İnternet araması başarısız oldu."
+                                search_text = ""
 
                         # C. GEMINI ANALİZİ
                         if search_text:
                             prompt_live = f"""
-                            Sen kıdemli bir piyasa analistisin.
+                            Sen bir alışveriş asistanısın. ASLA ekonomi makalesi veya yasa analizi yapma. Sadece ürün fiyatına odaklan.
 
-                            ELİMİZDEKİ ÜRÜN: "{selected_product}"
+                            ÜRÜN: "{selected_product}"
+                            BİZİM FİYATIMIZ: {my_price:.2f} TL
 
-                            1. BİZİM VERİ TABANIMIZDAKİ FİYAT: {my_price:.2f} TL (Tarih: {my_date})
-
-                            2. AZ ÖNCE İNTERNETTEN BULDUĞUMUZ GÜNCEL SONUÇLAR:
+                            BULUNAN GÜNCEL MARKET FİYATLARI:
                             {search_text}
 
                             GÖREVİN:
-                            Bu verileri karşılaştır ve kullanıcıya kısa, net bir rapor ver.
-                            - Bizim fiyatımız piyasaya göre ucuz mu, pahalı mı?
-                            - İnternette daha ucuza bir yer var mı? Varsa neresi (Linkteki site ismini söyle)?
-                            - Fiyat farkı çok mu büyük?
-                            - Sonuç olarak: "Senin verin güncel/eski" veya "Piyasada X TL'ye var" gibi net konuş.
+                            1. Sadece yukarıdaki linklerde geçen GERÇEK FİYATLARI dikkate al.
+                            2. "En ucuz X sitesinde Y TL" şeklinde net bilgi ver.
+                            3. Bizim fiyatımızla kıyasla (Ucuz mu kaldık, pahalı mı?).
+                            4. Eğer sonuçlarda net bir fiyat yoksa "Net fiyat bilgisi bulamadım" de, uydurma.
 
-                            Cevabında emoji kullan ve samimi ol.
+                            Kısa, net ve samimi ol. Emoji kullan.
                             """
 
-                            with st.spinner("🧠 Gemini piyasayı yorumluyor..."):
-                                model_live = genai.GenerativeModel('gemini-2.5-flash')
-                                response_live = model_live.generate_content(prompt_live)
+                            with st.spinner("🧠 Gemini fiyatları kıyaslıyor..."):
+                                try:
+                                    model_live = genai.GenerativeModel('gemini-2.5-flash')
+                                    response_live = model_live.generate_content(prompt_live)
 
-                                st.markdown(f"""
-                                <div style="background-color:#eff6ff; padding:20px; border-radius:10px; border-left:5px solid #3b82f6; color:#1e3a8a; margin-top:20px;">
-                                    <div style="font-weight:bold; margin-bottom:10px; font-size:18px;">🧠 Canlı Piyasa Analizi:</div>
-                                    {response_live.text}
-                                </div>
-                                """, unsafe_allow_html=True)
+                                    st.markdown(f"""
+                                    <div style="background-color:#eff6ff; padding:20px; border-radius:10px; border-left:5px solid #3b82f6; color:#1e3a8a; margin-top:20px;">
+                                        <div style="font-weight:bold; margin-bottom:10px; font-size:18px;">🧠 Piyasa Analizi:</div>
+                                        {response_live.text}
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                except Exception as e:
+                                    st.error(f"Gemini Hatası: {str(e)}")
 
-                                # Kaynak Linkleri Göster (Kanıt olarak)
-                                with st.expander("🔗 İnternetten Bulunan Kaynaklar (Kanıtlar)"):
+                                with st.expander("🔗 Kullanılan Kaynaklar"):
+                                    if not search_results:
+                                        st.warning("Uygun alışveriş sitesi bulunamadı.")
                                     for item in search_results:
                                         st.markdown(f"**{item['title']}**")
                                         st.caption(f"{item['href']}")
                                         st.divider()
+                        else:
+                            st.warning(
+                                "Bu ürün için uygun fiyat verisi içeren site bulunamadı. Ürün ismini daha genel yazmayı deneyebilirsiniz.")
 
                 with t7:
                     st.data_editor(
