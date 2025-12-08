@@ -36,67 +36,31 @@ from webdriver_manager.chrome import ChromeDriverManager
 if "gemini" in st.secrets:
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
-# 1. Sayfa Ayarı: Sidebar varsayılan olarak açık başlasın
 st.set_page_config(
     page_title="Enflasyon Analizi",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# 2. Sidebar'a Dark Mode Anahtarı Ekleme
-with st.sidebar:
-    st.title("Ayarlar")
-    # Kullanıcı buradan modu seçer
-    is_dark_mode = st.toggle("🌙 Karanlık Mod", value=True)
-
-# 3. Temel Gizleme CSS'i (Sidebar butonu ve Header)
-# [data-testid="collapsedControl"] -> Sidebar kapatma tuşudur.
-# !important ekleyerek görünmesini zorla engelliyoruz.
-hide_elements_css = """
-<style>
-    /* Üstteki Header'ı gizle */
-    header[data-testid="stHeader"] {
-        display: none;
-    }
-
-    /* Sidebar kapatma okunu (toggle button) gizle */
-    [data-testid="collapsedControl"] {
-        display: none !important;
-    }
-
-    /* Header gizlenince oluşan üst boşluğu azalt */
-    .block-container {
-        padding-top: 1rem;
-    }
-</style>
-"""
-st.markdown(hide_elements_css, unsafe_allow_html=True)
-
-# 4. Dinamik Dark Mode Mantığı (CSS Enjeksiyonu)
-if is_dark_mode:
-    # Eğer anahtar açıksa Koyu Tema renklerini zorla
-    dark_theme_css = """
+# 2. CSS: Sadece istenmeyen tuşları gizliyoruz. Renkleri bozmuyoruz.
+st.markdown("""
     <style>
-        /* Ana arka plan */
-        .stApp {
-            background-color: #0E1117;
-            color: #FAFAFA;
+        /* Sidebar kapatma (ok işareti) butonunu gizle */
+        [data-testid="collapsedControl"] {
+            display: none !important;
         }
-        /* Sidebar arka planı */
-        [data-testid="stSidebar"] {
-            background-color: #262730;
+
+        /* En üstteki Header şeridini gizle */
+        header[data-testid="stHeader"] {
+            display: none !important;
         }
-        /* Yazı renkleri ve başlıklar */
-        h1, h2, h3, h4, h5, h6, p, label {
-            color: #FAFAFA !important;
-        }
-        /* Metrik değerleri vb. */
-        [data-testid="stMetricValue"] {
-            color: #FAFAFA !important;
+
+        /* Header gidince sayfa çok yukarı kaymasın */
+        .block-container {
+            padding-top: 2rem;
         }
     </style>
-    """
-    st.markdown(dark_theme_css, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 else:
     # Eğer anahtar kapalıysa (Light Mode) Açık Tema renklerini zorla
