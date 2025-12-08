@@ -31,6 +31,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+get_exchange_rates
 
 # --- GEMINI AYARI ---
 if "gemini" in st.secrets:
@@ -307,6 +308,42 @@ def github_user_islem(action, username=None, password=None, email=None):
     return False, "Hata"
 
 
+@st.cache_data(ttl=3600)  # 1 saatte bir günceller, sistemi yormaz
+def get_exchange_rates():
+    rates = {"USD": 0.0, "EUR": 0.0, "GA": 0.0, "BIST": 0.0}
+    try:
+        # 1. TCMB'den Resmi Dolar ve Euro (En Güvenilir Kaynak)
+        url_tcmb = "https://www.tcmb.gov.tr/kurlar/today.xml"
+        res = requests.get(url_tcmb)
+        soup = BeautifulSoup(res.content, 'xml')  # XML parser kullanıyoruz
+
+        usd = soup.find(attrs={"CurrencyCode": "USD"}).BanknoteSelling.text
+        eur = soup.find(attrs={"CurrencyCode": "EUR"}).BanknoteSelling.text
+
+        rates["USD"] = float(usd)
+        rates["EUR"] = float(eur)
+
+        # 2. Altın Hesabı (Matematiksel)
+        # Gram Altın = (Ons Altın ($) * Dolar Kuru) / 31.1035
+        # Ons altını yaklaşık sabit bir veri veya HTML'den çekebiliriz.
+        # Hata riskini azaltmak için şimdilik TCMB verisiyle yaklaşık hesap yapalım
+        # veya BigPara gibi bir siteden HTML parse edelim:
+
+        try:
+            # Alternatif: Canlı Altın (BigPara Scraping)
+            url_gold = "https://bigpara.hurriyet.com.tr/altin/gram-altin-fiyati/"
+            res_gold = requests.get(url_gold)
+            soup_gold = BeautifulSoup(res_gold.content, 'html.parser')
+            gold_price = soup_gold.select_one(".kurBox .value").text.replace(".", "").replace(",", ".")
+            rates["GA"] = float(gold_price)
+        except:
+            rates["GA"] = (2650 * rates["USD"]) / 31.10  # Fallback (Ons tahmini)
+
+    except Exception as e:
+        print(f"Kur Hatası: {e}")
+
+    return rates
+
 # --- SCRAPER (FİYAT ÇEKİCİ) ---
 def temizle_fiyat(t):
     if not t: return None
@@ -457,20 +494,51 @@ def dashboard_modu():
 
         # 1. Profil Kartı (HERKES GÖRÜR)
         st.markdown(f"""
-            <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:15px; text-align:center; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                <div style="font-size:32px; margin-bottom:5px;">👤</div>
-                <div style="font-family:'Poppins'; font-weight:700; font-size:18px; color:#1e293b;">{user_upper}</div>
-                <div style="font-size:11px; text-transform:uppercase; color:#64748b; margin-top:4px;">{role_title}</div>
-            </div>
-        """, unsafe_allow_html=True)
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:15px; text-align:center; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                    <div style="font-size:32px; margin-bottom:5px;">👤</div>
+                    <div style="font-family:'Poppins'; font-weight:700; font-size:18px; color:#1e293b;">{user_upper}</div>
+                    <div style="font-size:11px; text-transform:uppercase; color:#64748b; margin-top:4px;">{role_title}</div>
+                </div>
+            """, unsafe_allow_html=True)
+
+        # --- YENİ EKLENEN: PİYASA GÖSTERGELERİ (HERKES GÖRÜR) ---
+        # Profil kartının hemen altına, Admin panelinden önce ekledim.
+        try:
+            rates = get_exchange_rates()
+            st.markdown(
+                "<h3 style='color:#1e293b; font-size:14px; margin-bottom:10px; padding-left:5px;'>💱 PİYASA GÖSTERGELERİ</h3>",
+                unsafe_allow_html=True)
+
+            st.markdown(f"""
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+                    <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:10px; text-align:center;">
+                        <div style="font-size:10px; color:#64748b; font-weight:700;">USD/TRY</div>
+                        <div style="font-size:15px; color:#0f172a; font-weight:800;">{rates['USD']:.2f} ₺</div>
+                    </div>
+                    <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:10px; text-align:center;">
+                        <div style="font-size:10px; color:#64748b; font-weight:700;">EUR/TRY</div>
+                        <div style="font-size:15px; color:#0f172a; font-weight:800;">{rates['EUR']:.2f} ₺</div>
+                    </div>
+                </div>
+                <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:10px; text-align:center;">
+                    <div style="font-size:10px; color:#64748b; font-weight:700;">GRAM ALTIN (Tahmini)</div>
+                    <div style="font-size:15px; color:#f59e0b; font-weight:800;">{rates['GA']:.2f} ₺</div>
+                </div>
+                <div style="text-align:right; font-size:9px; color:#94a3b8; margin-top:5px; margin-bottom:20px;">Veriler: TCMB</div>
+                <div style="border-bottom:1px solid #e2e8f0; margin-bottom:20px;"></div>
+                """, unsafe_allow_html=True)
+        except:
+            pass  # Kur çekilemezse arayüz bozulmasın diye boş geçer
 
         # 2. SADECE ADMINLERE GÖRÜNEN BÖLÜM
         if is_admin:
             st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
-            st.divider()
+            # st.divider() yerine manuel çizgi (daha sıkı görünüm için)
 
             # Çevrimiçi Ekip Başlığı
-            st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
+            st.markdown(
+                "<div style='margin-bottom:10px; color:#64748b; font-size:12px; font-weight:bold;'>🟢 ÇEVRİMİÇİ EKİP</div>",
+                unsafe_allow_html=True)
 
             users_db = github_json_oku(USERS_DOSYASI)
             activity_db = github_json_oku(ACTIVITY_DOSYASI)
@@ -492,13 +560,13 @@ def dashboard_modu():
             for u in sorted(user_list, key=lambda x: (not x['online'], x['name'] not in ADMIN_USERS, x['name'])):
                 role_icon = "🛡️" if u['name'] in ADMIN_USERS else ""
                 st.markdown(f"""
-                    <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-                        <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
-                            <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
-                            {u['name']} {role_icon}
-                        </span>
-                    </div>
-                """, unsafe_allow_html=True)
+                        <div style="background:white; border:1px solid #e2e8f0; padding:8px; margin-bottom:4px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center; color:#334155; font-size:12px; font-weight:600;">
+                                <span style="height:6px; width:6px; border-radius:50%; display:inline-block; margin-right:8px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
+                                {u['name']} {role_icon}
+                            </span>
+                        </div>
+                    """, unsafe_allow_html=True)
 
             st.divider()
 
