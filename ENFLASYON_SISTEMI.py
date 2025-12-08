@@ -62,26 +62,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-else:
-    # Eğer anahtar kapalıysa (Light Mode) Açık Tema renklerini zorla
-    light_theme_css = """
-    <style>
-        /* Ana arka plan */
-        .stApp {
-            background-color: #FFFFFF;
-            color: #000000;
-        }
-        /* Sidebar arka planı */
-        [data-testid="stSidebar"] {
-            background-color: #F0F2F6;
-        }
-        /* Yazı renkleri */
-        h1, h2, h3, h4, h5, h6, p, label {
-            color: #31333F !important;
-        }
-    </style>
-    """
-    st.markdown(light_theme_css, unsafe_allow_html=True)
 
 # --- KUR ÇEKME FONKSİYONU (EN TEPEYE EKLENECEK) ---
 # --- GÜNCELLENMİŞ KUR ÇEKME FONKSİYONU (GERÇEK ALTIN VERİSİ) ---
