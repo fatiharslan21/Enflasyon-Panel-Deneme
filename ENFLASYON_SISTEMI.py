@@ -38,28 +38,48 @@ if "gemini" in st.secrets:
 
 
 # --- KUR ÇEKME FONKSİYONU (EN TEPEYE EKLENECEK) ---
-@st.cache_data(ttl=3600)  # 1 saatte bir günceller
+# --- GÜNCELLENMİŞ KUR ÇEKME FONKSİYONU (GERÇEK ALTIN VERİSİ) ---
+@st.cache_data(ttl=1800)  # 30 dakikada bir yeniler
 def get_exchange_rates():
     rates = {"USD": 0.0, "EUR": 0.0, "GA": 0.0}
+
+    # 1. TCMB'den Resmi Dolar ve Euro (En Güvenilir)
     try:
-        # 1. TCMB'den Resmi Dolar ve Euro
         url_tcmb = "https://www.tcmb.gov.tr/kurlar/today.xml"
-        res = requests.get(url_tcmb, timeout=5)  # Timeout ekledim, takılmasın
+        res = requests.get(url_tcmb, timeout=5)
         soup = BeautifulSoup(res.content, 'xml')
 
-        usd = soup.find(attrs={"CurrencyCode": "USD"}).BanknoteSelling.text
-        eur = soup.find(attrs={"CurrencyCode": "EUR"}).BanknoteSelling.text
+        rates["USD"] = float(soup.find(attrs={"CurrencyCode": "USD"}).BanknoteSelling.text)
+        rates["EUR"] = float(soup.find(attrs={"CurrencyCode": "EUR"}).BanknoteSelling.text)
+    except:
+        pass  # TCMB çekemezse 0 kalır veya eski cache kullanılır
 
-        rates["USD"] = float(usd)
-        rates["EUR"] = float(eur)
+    # 2. BigPara'dan CANLI Gram Altın (Artık Tahmin Değil)
+    try:
+        url_gold = "https://bigpara.hurriyet.com.tr/altin/gram-altin-fiyati/"
+        # User-Agent ekliyoruz ki site bizi robot sanıp engellemesin
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
 
-        # 2. Gram Altın (Yaklaşık hesap)
-        # Ons Altın (Yaklaşık 2650$ kabulü ile) * Dolar / 31.10
-        rates["GA"] = (2650 * rates["USD"]) / 31.10
+        res_gold = requests.get(url_gold, headers=headers, timeout=5)
+        soup_gold = BeautifulSoup(res_gold.content, 'html.parser')
+
+        # Sayfadaki büyük fiyatı buluyoruz
+        # BigPara'da fiyat genelde "text-medium" veya ilgili class içindedir.
+        # En garanti yöntem: "Alış" veya "Satış" kutusunu hedeflemek.
+
+        # BigPara sayfa yapısına özel seçim:
+        fiyat_text = soup_gold.select_one("span.value").text
+
+        # Temizlik: "3.015,50" -> 3015.50 formatına çevir
+        temiz_fiyat = fiyat_text.replace(".", "").replace(",", ".").strip()
+        rates["GA"] = float(temiz_fiyat)
 
     except Exception as e:
-        # Hata olursa sessizce 0 dön, sistemi bozma
-        pass
+        # Eğer site çekilemezse, yine de sistem çökmesin diye Dolar üzerinden hesapla (Yedek Plan)
+        if rates["USD"] > 0:
+            rates["GA"] = (2700 * rates["USD"]) / 31.10  # 2700 güncel ons tahmini
+        print(f"Altın Hatası: {e}")
 
     return rates
 
