@@ -59,7 +59,7 @@ with st.sidebar:
         st.rerun()
 
 
-# --- CSS MOTORU (TAMİR EDİLDİ) ---
+# --- CSS MOTORU (GÜNCELLENDİ) ---
 def apply_theme():
     # Renk Paletleri
     if st.session_state.theme == 'dark':
@@ -75,14 +75,20 @@ def apply_theme():
         }
         st.session_state.plotly_template = "plotly_dark"
 
-        # KARANLIK MOD ÖZEL CSS (İsteklerin buraya entegre edildi)
+        # KARANLIK MOD ÖZEL CSS (İsteklerin buraya işlendi)
         extra_css = """
         /* 1. Sidebar'daki Güvenli Çıkış Butonu (Beyaz Arka Plan, Siyah Yazı) */
         section[data-testid="stSidebar"] .stButton button {
             background-color: #FFFFFF !important;
             color: #000000 !important;
-            border: 1px solid #ccc !important;
-            font-weight: 800 !important;
+            border: 2px solid #ccc !important;
+            font-weight: 900 !important;
+            transition: all 0.3s ease;
+        }
+        section[data-testid="stSidebar"] .stButton button:hover {
+            background-color: #e6e6e6 !important;
+            color: #000000 !important;
+            transform: scale(1.02);
         }
 
         /* 2. KPI Kartlarındaki Değerler (Beyaz Yazı) */
@@ -90,13 +96,15 @@ def apply_theme():
             color: #FFFFFF !important;
         }
 
-        /* 3. Tablolar (Sepet ve Liste - Siyah Arka Plan, Beyaz Yazı) */
+        /* 3. Tablolar (Sepet ve Liste - Siyah Arka Plan, BEYAZ Yazı) */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"], .stDataFrame {
             background-color: #0E1117 !important;
             border: 1px solid #333 !important;
         }
-        [data-testid="stDataFrame"] div, [data-testid="stDataEditor"] div {
-            color: #FAFAFA !important;
+        /* Tablo içindeki yazıların tamamını beyaz yap */
+        [data-testid="stDataFrame"] div, [data-testid="stDataEditor"] div, 
+        [data-testid="stDataFrame"] th, [data-testid="stDataFrame"] td {
+            color: #FFFFFF !important;
             background-color: #0E1117 !important;
         }
 
@@ -1058,6 +1066,10 @@ def dashboard_modu():
                     c1, c2 = st.columns([2, 1])
                     fig_tree = px.treemap(df_analiz, path=[px.Constant("Piyasa"), 'Grup', ad_col], values=agirlik_col,
                                           color='Fark', color_continuous_scale='RdYlGn_r', title="🔥 Isı Haritası")
+
+                    # --- GÜNCELLEME: SİYAH ÇERÇEVE ---
+                    fig_tree.update_traces(marker=dict(line=dict(color='black', width=1)))
+
                     fig_tree.update_layout(
                         template=st.session_state.plotly_template,
                         margin=dict(t=40, l=0, r=0, b=0),
@@ -1065,8 +1077,12 @@ def dashboard_modu():
                         paper_bgcolor='rgba(0,0,0,0)'
                     )
                     c1.plotly_chart(fig_tree, use_container_width=True)
+
                     fig_sun = px.sunburst(df_analiz, path=['Grup', ad_col], values=agirlik_col,
                                           title="Sektörel Ağırlık")
+                    # Sunburst için de ince siyah çizgi eklendi
+                    fig_sun.update_traces(marker=dict(line=dict(color='black', width=1)))
+
                     fig_sun.update_layout(
                         template=st.session_state.plotly_template,
                         margin=dict(t=40, l=0, r=0, b=0),
