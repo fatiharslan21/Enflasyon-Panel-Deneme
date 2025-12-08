@@ -5,6 +5,9 @@ import plotly.graph_objects as go
 from bs4 import BeautifulSoup
 import re
 import calendar
+import requests
+from bs4 import BeautifulSoup
+import re
 from datetime import datetime, timedelta
 import time
 import json
@@ -1052,111 +1055,117 @@ def dashboard_modu():
                     c2.plotly_chart(fig_sun, use_container_width=True)
 
                 with t6:
-                    st.markdown("### 🛍️ Google Shopping Simülatörü")
+                    st.markdown("### 🛍️ Google Shopping Parser (Hack Yöntemi)")
                     st.info(
-                        "Bu modül, arama motorunu sadece **Cimri, Akakçe, Migros, Carrefour ve Trendyol** gibi fiyat odaklı sitelerde aramaya zorlar.")
+                        "Google'ın HTML yapısındaki `aria-label` verisini okuyarak fiyat, satıcı ve ürün adını ayrıştırır.")
 
                     # 1. Ürün Seçimi
                     product_list = sorted(df_analiz[ad_col].unique())
-                    selected_product = st.selectbox("Hangi ürünü canlı piyasada araştıralım?", product_list)
+                    selected_product = st.selectbox("Hangi ürünü Google Shopping'te tarayalım?", product_list)
 
-                    col_btn, col_link = st.columns([1, 1])
+                    if st.button(f"🚀 {selected_product} Fiyatlarını Çek", type="primary"):
 
-                    with col_btn:
-                        start_scan = st.button(f"🚀 {selected_product} Fiyatlarını Getir", type="primary")
-
-                    # Manuel Link (B Planı)
-                    with col_link:
-                        google_shopping_url = f"https://www.google.com/search?q={selected_product}&tbm=shop"
-                        st.markdown(f"""
-                        <a href="{google_shopping_url}" target="_blank" style="display:inline-block; padding:10px 20px; background-color:#ea4335; color:white; text-decoration:none; border-radius:8px; font-weight:bold;">
-                        🛒 Google Shopping'te Manuel Aç ↗
-                        </a>
-                        """, unsafe_allow_html=True)
-
-                    if start_scan:
-                        # A. SENİN VERİ TABANINDAKİ DURUM
+                        # A. SENİN VERİ TABANIN
                         try:
                             my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
                             my_price = my_record[son]
                         except:
                             my_price = 0
 
-                        st.metric(label="Senin Sistemindeki Fiyat", value=f"{my_price:.2f} TL")
+                        st.metric("Senin Fiyatın", f"{my_price:.2f} TL")
 
-                        # B. İNTERNET TARAMASI (NOKTA ATIŞI MODU)
-                        search_results = []
+                        # B. GOOGLE SHOPPING SCRAPING (Requests + BeautifulSoup)
+                        results_data = []
 
-                        # BU KISIM ÇOK ÖNEMLİ:
-                        # Arama motorunu sadece bu sitelere bakmaya zorluyoruz.
-                        # Böylece makale, pdf, haber gelme ihtimali SIFIRLANIYOR.
-                        target_sites = "site:cimri.com OR site:akakce.com OR site:migros.com.tr OR site:carrefoursa.com OR site:trendyol.com OR site:hepsiburada.com OR site:sokmarket.com.tr OR site:a101.com.tr"
+                        # Google'ı kandırmak için Tarayıcı Kimliği (User-Agent)
+                        headers = {
+                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+                            "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7"
+                        }
 
-                        with st.spinner(f"🔍 {selected_product} için fiyat etiketleri okunuyor..."):
+                        target_url = f"https://www.google.com/search?q={selected_product}&tbm=shop&hl=tr&gl=TR"
+
+                        with st.spinner("🕷️ Google Shopping HTML'i indiriliyor ve ayrıştırılıyor..."):
                             try:
-                                with DDGS() as ddgs:
-                                    # Sorgu: "Fındık Ezmesi (sadece bu sitelerde)"
-                                    query = f"{selected_product} {target_sites}"
+                                response = requests.get(target_url, headers=headers, timeout=10)
 
-                                    # 15 sonuç çekiyoruz
-                                    raw_results = list(ddgs.text(query, region='tr-tr', max_results=15))
+                                if response.status_code == 200:
+                                    soup = BeautifulSoup(response.text, "html.parser")
 
-                                    search_text = ""
-                                    for r in raw_results:
-                                        # Link ve Başlık kontrolü
-                                        title = r.get('title', '')
-                                        body = r.get('body', '')
-                                        href = r.get('href', '')
+                                    # STRATEJİ: Class ismine bakma, "Şu Anki Fiyat" içeren tüm elementleri bul.
+                                    # Google Shopping kartları genellikle div veya span içindedir.
+                                    # aria-label="Domates... Şu Anki Fiyat: ₺44,99. GetirBüyük."
+                                    cards = soup.find_all(attrs={"aria-label": re.compile(r"Şu Anki Fiyat:")})
 
-                                        # Metni Gemini için biriktir
-                                        search_text += f"MARKET/SİTE: {title}\nLİNK: {href}\nAÇIKLAMA: {body}\n\n"
-                                        search_results.append(r)
+                                    for card in cards:
+                                        raw_text = card['aria-label']
+
+                                        # REGEX İLE VERİYİ PARÇALA
+                                        # Mantık: [İsim]. Şu Anki Fiyat: [Fiyat]. [Satıcı].
+                                        # Regex Deseni: (Herhangi bir şey). Şu Anki Fiyat: (Herhangi bir şey). (Herhangi bir şey).
+                                        match = re.search(r"(.*?)\.\s*Şu Anki Fiyat:\s*(.*?)\.\s*(.*)", raw_text)
+
+                                        if match:
+                                            p_name = match.group(1).strip()
+                                            p_price_str = match.group(2).strip()
+                                            p_vendor = match.group(3).strip().rstrip('.')  # Sondaki noktayı sil
+
+                                            # Fiyatı sayıya çevirmeyi dene (₺44,99 -> 44.99)
+                                            try:
+                                                clean_price = float(
+                                                    p_price_str.replace('₺', '').replace('.', '').replace(',',
+                                                                                                          '.').strip())
+                                            except:
+                                                clean_price = 0
+
+                                            results_data.append({
+                                                "Ürün": p_name,
+                                                "Fiyat_Etiketi": p_price_str,
+                                                "Fiyat_Sayi": clean_price,
+                                                "Satıcı": p_vendor
+                                            })
+
+                                    # SONUÇLARI GÖSTER
+                                    if results_data:
+                                        # En ucuzdan pahalıya sırala
+                                        df_res = pd.DataFrame(results_data).sort_values("Fiyat_Sayi")
+
+                                        # Görsel Kartlar Halinde Göster
+                                        for _, row in df_res.iterrows():
+                                            # Renk Ayarı (Bizden ucuzsa yeşil)
+                                            is_cheaper = row['Fiyat_Sayi'] < my_price and row['Fiyat_Sayi'] > 0
+                                            card_bg = "#ecfdf5" if is_cheaper else "#ffffff"
+                                            border_col = "#10b981" if is_cheaper else "#e2e8f0"
+
+                                            st.markdown(f"""
+                                            <div style="background:{card_bg}; border:1px solid {border_col}; padding:15px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                                                <div style="font-weight:bold; color:#1e293b; font-size:16px;">{row['Ürün']}</div>
+                                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                                                    <div style="color:#64748b; font-size:14px;">🏪 {row['Satıcı']}</div>
+                                                    <div style="font-weight:800; font-size:18px; color:#0f172a;">{row['Fiyat_Etiketi']}</div>
+                                                </div>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+
+                                        # Gemini Yorumu (Opsiyonel)
+                                        with st.expander("🧠 Gemini Piyasa Yorumu (Veriler Üzerinden)"):
+                                            prompt_parse = f"Ürün: {selected_product}. Bizim Fiyat: {my_price}. Piyasada Bulunanlar: {str(results_data)}. Kısa bir kıyaslama yap."
+                                            try:
+                                                model_p = genai.GenerativeModel('gemini-2.5-flash')
+                                                st.write(model_p.generate_content(prompt_parse).text)
+                                            except:
+                                                st.write("Yorum yapılamadı.")
+
+                                    else:
+                                        st.warning(
+                                            "Google'dan veri döndü ama 'Fiyat' formatı beklenen yapıda değil veya Google Captcha'ya takıldık.")
+                                        st.code(soup.prettify()[:1000],
+                                                language='html')  # Hata ayıklama için HTML başını göster
+                                else:
+                                    st.error(f"Google Erişim Hatası: Kod {response.status_code}")
 
                             except Exception as e:
-                                st.error(f"Tarama Hatası: {e}")
-                                search_text = ""
-
-                        # C. GEMINI ANALİZİ
-                        if search_text:
-                            prompt_live = f"""
-                            Sen bir Fiyat Karşılaştırma Uzmanısın.
-
-                            ARANAN ÜRÜN: "{selected_product}"
-                            BİZİM FİYATIMIZ: {my_price:.2f} TL
-
-                            AŞAĞIDAKİ ARAMA SONUÇLARINDAN FİYATLARI AYIKLA:
-                            (Bu sonuçlar Cimri, Akakçe, Migros vb. sitelerden gelmektedir)
-
-                            {search_text}
-
-                            GÖREVİN:
-                            1. Metinlerin içindeki rakamları analiz et ve market fiyatlarını bul. (Örn: Cimri başlığında '65 TL' yazıyorsa yakala).
-                            2. En ucuz fiyatı ve hangi sitede olduğunu büyük harfle yaz.
-                            3. "Senin fiyatın piyasaya göre X TL daha ucuz/pahalı" diye kıyasla.
-                            4. Eğer metinlerde hiç fiyat yoksa "Siteleri buldum ama fiyatları metinden okuyamadım, linklere tıklamalısın" de.
-
-                            Tablo formatında veya madde madde özetle.
-                            """
-
-                            with st.spinner("🏷️ Fiyatlar ayıklanıyor..."):
-                                try:
-                                    model_live = genai.GenerativeModel('gemini-2.5-flash')
-                                    response_live = model_live.generate_content(prompt_live)
-
-                                    st.markdown("### 📊 Piyasa Raporu")
-                                    st.markdown(response_live.text)
-
-                                except Exception as e:
-                                    st.error(f"AI Analiz Hatası: {str(e)}")
-
-                                st.divider()
-                                st.caption("🔍 Bulunan Kaynaklar:")
-                                for item in search_results:
-                                    with st.expander(f"{item['title']}"):
-                                        st.write(item['body'])
-                                        st.markdown(f"[Ürüne Git]({item['href']})")
-                        else:
-                            st.warning("Arama motoru sonuç döndüremedi. Ürün ismini kontrol ediniz.")
+                                st.error(f"Sistem Hatası: {e}")
 
                 with t7:
                     st.data_editor(
