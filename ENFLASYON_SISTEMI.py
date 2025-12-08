@@ -766,10 +766,10 @@ def dashboard_modu():
                     c2.plotly_chart(fig_sun, use_container_width=True)
 
                 with t_firsat:
-                    st.markdown("### 🛍️ Ürün Fiyatları Çek ve Karşılaştır")
-                    st.info("Seçili Ürünün Google fiyatlarını anlık tarar.")
+                    st.markdown("### 🛍️ Piyasadaki Benzer Ürünler")
+                    st.info("Piyasadaki Google fiyatlarını anlık tarar.")
                     product_list = sorted(df_analiz[ad_col].unique())
-                    selected_product = st.selectbox("Hangi ürünü  tarayalım?", product_list)
+                    selected_product = st.selectbox("Hangi ürünü Google Shopping'te tarayalım?", product_list)
                     if st.button(f"Piyasa Fiyatlarını Çek", type="primary"):
                         try:
                             my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
@@ -779,7 +779,7 @@ def dashboard_modu():
                         st.metric("Senin Fiyatın", f"{my_price:.2f} TL")
                         results_data = []
                         target_url = f"https://www.google.com/search?q={selected_product}&tbm=shop&hl=tr&gl=TR"
-                        with st.spinner("Tarayıcı Geziliyor..."):
+                        with st.spinner("Google Taranıyor..."):
                             try:
                                 chrome_options = Options()
                                 chrome_options.add_argument("--headless")
@@ -819,42 +819,27 @@ def dashboard_modu():
                                     cards = soup.find_all(attrs={"aria-label": re.compile(r"Şu Anki Fiyat:")})
                                     if not cards: price_elements = soup.find_all(string=re.compile(r"(₺|TL)\s*\d+"))
 
-                                    # --- GÜNCELLENMİŞ AYRIŞTIRMA MANTIĞI ---
-                                    # Google bazen "Şu Anki Fiyat" yazmaz.
-                                    # Strateji: Metnin içindeki "Para Formatını" (örn: 320,00 veya 1.250,50) bul ve metni oradan böl.
-
                                     for card in cards:
                                         raw_text = card['aria-label']
 
-                                        # 1. Temizlik: &nbsp; gibi görünmez boşlukları sil
+                                        # 1. Temizlik
                                         raw_text = raw_text.replace(u'\xa0', ' ').strip()
 
-                                        # 2. Regex ile Fiyat Formatını Bul
-                                        # Açıklama:
-                                        # (?:₺\s?)? -> Başta ₺ olabilir veya olmayabilir
-                                        # (\d{1,3}(?:[.,]\d{3})*[.,]\d{2}) -> Asıl Sayı (320,00 veya 1.200,50 formatı)
-                                        # (?:\s?TL)? -> Sonda TL olabilir veya olmayabilir
+                                        # 2. Regex ile Fiyat Formatını Bul (320,00 veya 1.250,50)
                                         price_pattern = r"(?:₺\s?)?(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s?TL)?"
-
-                                        # Metindeki TÜM fiyat benzeri kalıpları bul
                                         matches = list(re.finditer(price_pattern, raw_text))
 
                                         if matches:
-                                            # Hangi eşleşme gerçek fiyat?
-                                            # Genellikle ilk eşleşme fiyattır. Ama bazen "1 kg" veya "₺1 taksit" gibi yanıltıcılar olabilir.
-                                            # Basit kural: İlk bulunanı al, sayıya çevir.
-
+                                            # İlk bulunanı al
                                             best_match = matches[0]
-                                            p_price_str = best_match.group(1)  # Sadece sayı kısmı (örn: "320,00")
+                                            p_price_str = best_match.group(1)
 
-                                            # Sayıya çevir (Hesaplama için)
                                             try:
                                                 clean_price = float(p_price_str.replace('.', '').replace(',', '.'))
                                             except:
                                                 clean_price = 0
 
-                                            # --- HATA DÜZELTME (Senin ₺1 sorunun için) ---
-                                            # Eğer fiyat 5 TL'den küçükse ve metinde BAŞKA bir sayı daha varsa, muhtemelen ikinci sayı gerçek fiyattır.
+                                            # Hata Düzeltme: ₺1 gibi küçük sayıları ele
                                             if clean_price < 5 and len(matches) > 1:
                                                 best_match = matches[1]
                                                 p_price_str = best_match.group(1)
@@ -863,22 +848,14 @@ def dashboard_modu():
                                                 except:
                                                     pass
 
-                                            # 3. Metni Böl (İsim - Fiyat - Satıcı)
-                                            # Fiyatın başladığı ve bittiği yerleri al
+                                            # 3. Metni Böl
                                             start, end = best_match.span()
-
-                                            # İSİM: Fiyattan önceki kısım
                                             p_name = raw_text[:start].strip().rstrip('.').rstrip(':').replace(
                                                 "Şu Anki Fiyat", "").strip()
 
-                                            # SATICI: Fiyattan sonraki kısım
-                                            # Satıcı bilgisini temizle (₺, TL ve noktaları at)
                                             p_vendor_raw = raw_text[end:].strip()
                                             p_vendor = re.sub(r'^(TL|₺|\.|,)\s*', '', p_vendor_raw).strip()
-
-                                            # Satıcı metni çok uzunsa (yorumlar vb. karışmışsa) kısalt
-                                            if len(p_vendor) > 40:
-                                                p_vendor = p_vendor.split('.')[0]  # İlk noktaya kadar al
+                                            if len(p_vendor) > 40: p_vendor = p_vendor.split('.')[0]
 
                                             results_data.append({
                                                 "Ürün": p_name,
@@ -886,8 +863,7 @@ def dashboard_modu():
                                                 "Fiyat_Sayi": clean_price,
                                                 "Satıcı": p_vendor
                                             })
-                                            except:
-                                                pass
+
                                     if results_data:
                                         df_res = pd.DataFrame(results_data).sort_values("Fiyat_Sayi")
                                         for _, row in df_res.iterrows():
@@ -903,8 +879,7 @@ def dashboard_modu():
                                                 </div>
                                             </div>""", unsafe_allow_html=True)
                                     else:
-                                        st.warning(
-                                            "Google Shopping'den veri okunamadı. Genellikle Google Bot koruması veya Çerez duvarı sebebiyle olur.")
+                                        st.warning("Google Shopping'den veri okunamadı.")
                             except Exception as e:
                                 st.error(f"Sistem Hatası: {e}")
 
