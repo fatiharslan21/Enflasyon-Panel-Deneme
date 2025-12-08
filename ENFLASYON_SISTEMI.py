@@ -59,34 +59,15 @@ with st.sidebar:
         st.rerun()
 
 
-# --- CSS MOTORU (TAM UYUMLU RENKLER) ---
+# --- CSS MOTORU (TAMİR EDİLDİ) ---
 def apply_theme():
-    # 1. Ortak Ayarlar (Header Gizleme, Sidebar Sabitleme)
-    base_css = """
-    <style>
-        /* Üst Header ve Çizgiyi Gizle */
-        header[data-testid="stHeader"] { display: none !important; }
-        [data-testid="stDecoration"] { display: none !important; }
-
-        /* Sidebar Kapatma Tuşunu Gizle (Kalıcı Sidebar) */
-        [data-testid="collapsedControl"] { display: none !important; }
-
-        /* Sayfa üst boşluğunu al */
-        .block-container { padding-top: 1rem !important; }
-
-        /* Footer Gizle */
-        footer { visibility: hidden; }
-        .stDeployButton { display: none; }
-    </style>
-    """
-
-    # 2. Renk Paletleri ve Özel Ayarlar
+    # Renk Paletleri
     if st.session_state.theme == 'dark':
         colors = {
             "bg": "#0E1117",
             "sidebar": "#262730",
             "text": "#FAFAFA",
-            "input_bg": "#000000",  # Daha koyu siyah
+            "input_bg": "#000000",
             "input_border": "#4A4A4A",
             "card_bg": "#1A1C24",
             "success_bg": "rgba(34, 197, 94, 0.2)",
@@ -94,58 +75,52 @@ def apply_theme():
         }
         st.session_state.plotly_template = "plotly_dark"
 
-        # SADECE KARANLIK MOD İÇİN EKSTRA CSS (İsteklerin)
-        extra_dark_css = """
-        <style>
-            /* 1. Sidebar'daki Güvenli Çıkış Butonu (Beyaz Arka Plan, Siyah Yazı) */
-            section[data-testid="stSidebar"] .stButton button {
-                background-color: #FFFFFF !important;
-                color: #000000 !important;
-                border: 1px solid #ccc !important;
-                font-weight: bold !important;
-            }
+        # KARANLIK MOD ÖZEL CSS (İsteklerin buraya entegre edildi)
+        extra_css = """
+        /* 1. Sidebar'daki Güvenli Çıkış Butonu (Beyaz Arka Plan, Siyah Yazı) */
+        section[data-testid="stSidebar"] .stButton button {
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+            border: 1px solid #ccc !important;
+            font-weight: 800 !important;
+        }
 
-            /* 2. KPI Kartlarındaki Değerler (Beyaz Yazı) */
-            .metric-val {
-                color: #FFFFFF !important;
-            }
-            div[data-testid="stMetricValue"] {
-                color: #FFFFFF !important;
-            }
+        /* 2. KPI Kartlarındaki Değerler (Beyaz Yazı) */
+        .metric-val, div[data-testid="stMetricValue"], .metric-label {
+            color: #FFFFFF !important;
+        }
 
-            /* 3. Tablolar (Sepet ve Liste - Siyah Arka Plan, Beyaz Yazı) */
-            [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
-                background-color: #0E1117 !important;
-                border: 1px solid #333 !important;
-            }
-            [data-testid="stDataFrame"] div, [data-testid="stDataEditor"] div {
-                color: #FAFAFA !important;
-                background-color: #0E1117 !important; /* Hücre arka planları */
-            }
+        /* 3. Tablolar (Sepet ve Liste - Siyah Arka Plan, Beyaz Yazı) */
+        [data-testid="stDataFrame"], [data-testid="stDataEditor"], .stDataFrame {
+            background-color: #0E1117 !important;
+            border: 1px solid #333 !important;
+        }
+        [data-testid="stDataFrame"] div, [data-testid="stDataEditor"] div {
+            color: #FAFAFA !important;
+            background-color: #0E1117 !important;
+        }
 
-            /* 4. Ürün Seçim Kutusu (Multiselect - Siyah Bar) */
-            .stMultiSelect div[data-baseweb="select"] {
-                background-color: #000000 !important;
-                color: white !important;
-                border: 1px solid #444 !important;
-            }
-            .stMultiSelect span {
-                color: white !important;
-            }
+        /* 4. Ürün Seçim Kutusu (Multiselect - Siyah Bar) */
+        .stMultiSelect div[data-baseweb="select"] {
+            background-color: #000000 !important;
+            color: white !important;
+            border: 1px solid #444 !important;
+        }
+        .stMultiSelect span {
+            color: white !important;
+        }
 
-            /* 5. Haberler Butonu (Siyah Arka Plan, Beyaz Yazı) */
-            /* Sidebar dışındaki butonları hedefler */
-            .stMain .stButton button {
-                background-color: #000000 !important;
-                color: #FFFFFF !important;
-                border: 1px solid #444 !important;
-            }
+        /* 5. Haberler Butonu (Siyah Arka Plan, Beyaz Yazı) */
+        .stMain .stButton button {
+            background-color: #000000 !important;
+            color: #FFFFFF !important;
+            border: 1px solid #444 !important;
+        }
 
-            /* 6. Harita ve Genel Arka Planlar */
-            .stPlotlyChart {
-                background-color: transparent !important;
-            }
-        </style>
+        /* 6. Grafik Arka Planları Şeffaf */
+        .stPlotlyChart {
+            background-color: transparent !important;
+        }
         """
     else:
         # AYDINLIK MOD (Dokunulmadı)
@@ -160,29 +135,26 @@ def apply_theme():
             "border_color": "#e2e8f0"
         }
         st.session_state.plotly_template = "plotly_white"
-        extra_dark_css = ""  # Aydınlık modda ekstra müdahale yok
+        extra_css = ""
 
-    # 3. Dinamik CSS Enjeksiyonu
-    dynamic_css = f"""
+    # Tüm CSS'i Tek Bir Stringde Birleştiriyoruz (Hata Önleyici)
+    final_css = f"""
     <style>
-        /* Ana Arka Plan */
-        .stApp {{
-            background-color: {colors['bg']};
-            color: {colors['text']};
-        }}
+        /* TEMEL GİZLEMELER */
+        header[data-testid="stHeader"] {{ display: none !important; }}
+        [data-testid="stDecoration"] {{ display: none !important; }}
+        [data-testid="collapsedControl"] {{ display: none !important; }}
+        .block-container {{ padding-top: 1rem !important; }}
+        footer {{ visibility: hidden; }}
+        .stDeployButton {{ display: none; }}
 
-        /* Sidebar Arka Plan */
-        section[data-testid="stSidebar"] {{
-            background-color: {colors['sidebar']};
-            border-right: 1px solid {colors['border_color']};
-        }}
+        /* RENK ATAMALARI */
+        .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
+        section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
 
-        /* Tüm Başlıklar ve Yazılar */
-        h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown {{
-            color: {colors['text']} !important;
-        }}
+        h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown {{ color: {colors['text']} !important; }}
 
-        /* Input Alanları Genel Ayarı */
+        /* Input Alanları */
         .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {{
             background-color: {colors['input_bg']} !important;
             color: {colors['text']} !important;
@@ -196,19 +168,20 @@ def apply_theme():
         }}
 
         /* Tab Sekmeleri */
-        .stTabs [data-baseweb="tab-list"] button {{
-            color: {colors['text']};
-        }}
+        .stTabs [data-baseweb="tab-list"] button {{ color: {colors['text']}; }}
 
         /* Expander */
         .streamlit-expanderHeader {{
             background-color: {colors['card_bg']} !important;
             color: {colors['text']} !important;
         }}
+
+        /* EKSTRA CSS (Karanlık Mod Özelleştirmeleri) */
+        {extra_css}
     </style>
     """
 
-    st.markdown(base_css + dynamic_css + extra_dark_css, unsafe_allow_html=True)
+    st.markdown(final_css, unsafe_allow_html=True)
 
 
 # Temayı Uygula
@@ -960,7 +933,7 @@ def dashboard_modu():
                         paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(fig_main, use_container_width=True)
-                    # "Alım Gücü Analizi" bölümü buradan silindi.
+                    # "Alım Gücü Analizi" TAMAMEN SİLİNDİ.
 
                 with t_istatistik:
                     st.markdown("### 📊 İstatistiksel Risk ve Dağılım Analizi")
