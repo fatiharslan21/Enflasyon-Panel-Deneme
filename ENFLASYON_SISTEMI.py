@@ -853,6 +853,17 @@ def dashboard_modu():
                     with st.spinner("Yapay zeka gelecek tahmini yapıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
 
+                    # --- TARİH ARALIĞI AYARI (YENİ EKLENEN KISIM) ---
+                    # Başlangıç tarihi mevcut verinin başı
+                    start_date = df_trend['Tarih'].min()
+
+                    # Bitiş tarihi: Eğer tahmin varsa tahminin son günü, yoksa verinin son günü
+                    if not df_forecast.empty:
+                        end_date = df_forecast['ds'].max()
+                    else:
+                        end_date = df_trend['Tarih'].max()
+                    # ------------------------------------------------
+
                     fig_main = go.Figure()
 
                     fig_main.add_trace(go.Scatter(
@@ -902,7 +913,10 @@ def dashboard_modu():
                         hovermode="x unified",
                         title="Enflasyon: Geçmiş, Şimdi ve Gelecek",
                         legend=dict(orientation="h", y=1.1),
-                        yaxis=dict(title="TÜFE Endeksi", range=[95, 105]),
+                        # Y eksenini biraz esnek bırakıyoruz
+                        yaxis=dict(title="TÜFE Endeksi"),
+                        # X eksenini hesapladığımız bitiş tarihine kadar zorluyoruz
+                        xaxis=dict(range=[start_date, end_date]),
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)'
                     )
