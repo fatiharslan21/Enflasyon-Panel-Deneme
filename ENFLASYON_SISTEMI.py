@@ -122,26 +122,59 @@ class PDFReport(FPDF):
         self.set_y(-15)
         self.set_font('Arial', 'I', 8)
         self.set_text_color(128, 128, 128)
-        self.cell(0, 10, f'Enflasyon Monitoru AI - Sayfa {self.page_no()}', 0, 0, 'C')
+        self.cell(0, 10, f'Enflasyon Monitoru - Sayfa {self.page_no()}', 0, 0, 'C')
 
 
 def create_pdf_report(text_content, filename="Rapor.pdf"):
     pdf = PDFReport()
     pdf.add_page()
-    tr_map = {'ğ': 'g', 'Ğ': 'G', 'ş': 's', 'Ş': 'S', 'ı': 'i', 'İ': 'I', 'ü': 'u', 'Ü': 'U', 'ö': 'o', 'Ö': 'O',
-              'ç': 'c', 'Ç': 'C', '₺': 'TL', 'â': 'a', 'î': 'i'}
+
+    # --- KARAKTER DÜZELTME MOTORU (CRITICAL FIX) ---
+    # 1. Adım: Yapay Zeka'nın özel karakterlerini (tire, tırnak) düzelt
+    replacements = {
+        '\u2013': '-',  # Uzun tire (–) -> Normal tire (-)
+        '\u2014': '-',  # Çok uzun tire (—) -> Normal tire (-)
+        '“': '"', '”': '"',  # Akıllı çift tırnaklar -> Düz tırnak
+        '’': "'", '‘': "'",  # Akıllı tek tırnaklar -> Düz tek tırnak
+        '…': '...',  # Üç nokta -> 3 tane nokta
+        '₺': 'TL',  # TL simgesi -> TL yazısı
+    }
+
+    # 2. Adım: FPDF'in standart fontunun desteklemediği Türkçe karakterleri İngilizce'ye çevir
+    # (Not: Harici font dosyası yüklemeden çökmemesi için en garanti yol budur)
+    tr_map = {
+        'ğ': 'g', 'Ğ': 'G',
+        'ş': 's', 'Ş': 'S',
+        'ı': 'i', 'İ': 'I',
+        'ü': 'u', 'Ü': 'U',
+        'ö': 'o', 'Ö': 'O',
+        'ç': 'c', 'Ç': 'C',
+        'â': 'a', 'î': 'i', 'û': 'u'
+    }
+
+    # Metni temizle
     clean_text = text_content
+    for k, v in replacements.items():
+        clean_text = clean_text.replace(k, v)
+
     for k, v in tr_map.items():
         clean_text = clean_text.replace(k, v)
+
+    # 3. Adım: SON GÜVENLİK AĞI (Latin-1 hatasını %100 engeller)
+    # Hala tanınmayan bir karakter varsa yerine '?' koyar, programı çökertmez.
+    clean_text = clean_text.encode('latin-1', 'replace').decode('latin-1')
+
+    # PDF Yazdır
     pdf.set_font("Arial", size=11)
     pdf.multi_cell(0, 7, clean_text)
+
     pdf.ln(10)
     pdf.set_font("Arial", 'I', 9)
     pdf.set_text_color(100, 100, 100)
     pdf.multi_cell(0, 5,
-                   "Bu rapor yapay zeka destekli piyasa analiz sistemi tarafindan otomatik olarak olusturulmustur.")
-    return pdf.output(dest='S').encode('latin-1')
+                   "Bu rapor piyasa analiz sistemi tarafından otomatik olarak oluşturulmustur.")
 
+    return pdf.output(dest='S').encode('latin-1', 'ignore')
 
 # --- HABER MOTORU ---
 def get_market_sentiment():
@@ -532,7 +565,7 @@ def dashboard_modu():
                     </div>
                 </div>
                 <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:10px; text-align:center;">
-                    <div style="font-size:10px; color:#64748b; font-weight:700;">GRAM ALTIN (Tahmini)</div>
+                    <div style="font-size:10px; color:#64748b; font-weight:700;">GRAM ALTIN </div>
                     <div style="font-size:15px; color:#f59e0b; font-weight:800;">{rates['GA']:.2f} ₺</div>
                 </div>
                 <div style="text-align:right; font-size:9px; color:#94a3b8; margin-top:5px; margin-bottom:20px;">Veriler: TCMB</div>
@@ -786,7 +819,7 @@ def dashboard_modu():
                     df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
                     df_resmi, msg = get_official_inflation()
 
-                    with st.spinner("Yapay zeka gelecek tahmini yapıyor..."):
+                    with st.spinner("Gelecek tahmini yapıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
 
                     # --- TARİH VE EKSEN AYARI ---
@@ -1021,9 +1054,9 @@ def dashboard_modu():
 
                 with t_firsat:
                     st.markdown("### 🛍️ Piyasadaki Benzer Ürünler")
-                    st.info("Piyasadaki Google fiyatlarını anlık tarar.")
+                    st.info("Piyasadaki Benzer ürün fiyatlarını anlık tarar.")
                     product_list = sorted(df_analiz[ad_col].unique())
-                    selected_product = st.selectbox("Hangi ürünü Google Shopping'te tarayalım?", product_list)
+                    selected_product = st.selectbox("Hangi ürünü tarayalım?", product_list)
                     if st.button(f"Piyasa Fiyatlarını Çek", type="primary"):
                         try:
                             my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
@@ -1151,7 +1184,7 @@ def dashboard_modu():
                                                 </div>
                                             </div>""", unsafe_allow_html=True)
                                     else:
-                                        st.warning("Google Shopping'den veri okunamadı.")
+                                        st.warning("Veri okunamadı.")
                             except Exception as e:
                                 st.error(f"Sistem Hatası: {e}")
 
@@ -1172,14 +1205,14 @@ def dashboard_modu():
                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 with t_haber:
-                    st.markdown("### 🌍 Yapay Zeka Destekli Piyasa Gündemi")
+                    st.markdown("### 🌍 Piyasa Gündemi")
                     if st.button("Haberleri Tara ve Analiz Et", key="btn_news"):
-                        with st.spinner("İnternet taranıyor, Gemini yorumluyor..."):
+                        with st.spinner("İnternet taranıyor, yorumlanıyor..."):
                             analysis_text, headlines = get_market_sentiment()
                             c_news1, c_news2 = st.columns([2, 1])
 
                             with c_news1:
-                                st.markdown("#### 🧠 Gemini Piyasa Yorumu")
+                                st.markdown("#### 🧠 Piyasa Yorumu")
                                 st.success(analysis_text)
 
                             with c_news2:
@@ -1193,13 +1226,13 @@ def dashboard_modu():
                     col_gen, col_download = st.columns(2)
                     if 'report_text' not in st.session_state: st.session_state['report_text'] = ""
                     with col_gen:
-                        if st.button("✍️ Raporu Yazdır (AI)", type="primary"):
+                        if st.button("✍️ Raporu Yazdır", type="primary"):
                             with st.spinner("Veriler derleniyor, rapor yazılıyor..."):
                                 sepet_dagilimi = df_analiz.groupby('Grup')['Fark'].mean().sort_values(ascending=False)
                                 kategori_metni = ""
                                 for kat, oran in sepet_dagilimi.items(): durum = "YÜKSELİŞ" if oran > 0 else "DÜŞÜŞ"; kategori_metni += f"- {kat}: %{oran * 100:.2f} ({durum})\n"
                                 report_summary = f"Tarih: {datetime.now().strftime('%d-%m-%Y')}\nGenel Enflasyon: %{enf_genel:.2f}\nGıda Enflasyonu: %{enf_gida:.2f}\nEn Çok Artan: {top[ad_col]} (%{top['Fark'] * 100:.2f})\nTahmin: %{month_end_forecast:.2f}"
-                                prompt_report = f"Sen kıdemli bir analistsin. Şu verilere göre PROFESYONEL bir rapor yaz:\nVERİLER:\n{report_summary}\nSEKTÖREL:\n{kategori_metni}\nŞABLON: 1.GİRİŞ 2.DETAYLAR 3.ÖNGÖRÜ. İmza: Enflasyon Monitörü AI"
+                                prompt_report = f"Sen kıdemli bir analistsin. Şu verilere göre PROFESYONEL bir rapor yaz:\nVERİLER:\n{report_summary}\nSEKTÖREL:\n{kategori_metni}\nŞABLON: 1.GİRİŞ 2.DETAYLAR 3.ÖNGÖRÜ. İmza: Enflasyon Monitörü Ekibi"
                                 model_rep = genai.GenerativeModel('gemini-2.5-flash')
                                 st.session_state['report_text'] = model_rep.generate_content(prompt_report).text
                                 st.success("Rapor oluşturuldu!")
