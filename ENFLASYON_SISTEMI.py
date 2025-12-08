@@ -135,7 +135,10 @@ def create_pdf_report(text_content, filename="Rapor.pdf"):
     pdf.multi_cell(0, 5,
                    "Bu rapor yapay zeka destekli piyasa analiz sistemi tarafindan otomatik olarak olusturulmustur.")
 
-    return bytes(pdf.output(dest='S'))
+    # --- HATA DÜZELTME KISMI BURASI ---
+    # Eski kod: return bytes(pdf.output(dest='S'))
+    # Yeni kod: Çıktıyı latin-1 formatında encode ediyoruz (PDF binary verisi için standarttır)
+    return pdf.output(dest='S').encode('latin-1')
 
 
 def get_github_repo():
