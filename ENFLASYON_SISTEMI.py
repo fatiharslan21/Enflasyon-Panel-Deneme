@@ -1052,9 +1052,9 @@ def dashboard_modu():
                     c2.plotly_chart(fig_sun, use_container_width=True)
 
                 with t6:
-                    st.markdown("### 🌐 Canlı Piyasa Ajanı (Filtreli & Akıllı)")
+                    st.markdown("### 🌐 Canlı Piyasa Ajanı (Gelişmiş & Esnek)")
                     st.info(
-                        "İnternetteki akademik makaleleri ve gereksiz PDF'leri filtreler, sadece market ve alışveriş sitelerini (Cimri, Migros, Trendyol vb.) tarar.")
+                        "İnterneti tarar, PDF/Akademik yayınları eler, tüm e-ticaret ve market sonuçlarını getirir.")
 
                     # 1. Ürün Seçimi
                     product_list = sorted(df_analiz[ad_col].unique())
@@ -1066,103 +1066,107 @@ def dashboard_modu():
                         try:
                             my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
                             my_price = my_record[son]
-                            my_date = son
                         except:
                             my_price = 0
-                            my_date = "Bilinmiyor"
 
                         c_res1, c_res2 = st.columns([1, 1])
                         with c_res1:
                             st.metric(label="Senin Veri Tabanın", value=f"{my_price:.2f} TL", delta="Referans Fiyat")
 
-                        # B. İNTERNET TARAMASI (AKILLI FİLTRE MODU)
+                        # B. İNTERNET TARAMASI (ESNEK MOD)
                         search_results = []
-                        valid_sites = ["cimri", "akakce", "migros", "sokmarket", "a101", "carrefoursa", "trendyol",
-                                       "hepsiburada", "amazon", "pttavm", "epey", "bim"]
 
-                        with st.spinner("🌍 Alışveriş siteleri taranıyor... (Gereksizler eleniyor)"):
+                        # Bu kelimeler linkte veya başlıkta geçerse YASAKLI (Bunları asla alma)
+                        block_list = ['.pdf', '.doc', '.xls', '.gov', '.edu', 'nber.org', 'hoover.org', 'supremecourt',
+                                      'dergipark', 'academic', 'researchgate']
+
+                        # Bu kelimeler geçerse KESİN AL (Alışveriş sinyali)
+                        shopping_keywords = ['tl', 'fiyat', 'satın al', 'sepet', 'market', 'sipariş', 'indirim', 'ucuz']
+
+                        with st.spinner(f"🌍 '{selected_product}' için internetin altı üstüne getiriliyor..."):
                             try:
                                 with DDGS() as ddgs:
-                                    # 1. Arama sorgusunu alışverişe zorluyoruz
-                                    # "satın al", "market", "fiyatı" kelimelerini ekleyerek akademik makalelerden kaçıyoruz.
-                                    query = f"{selected_product} fiyatı en ucuz satın al market cimri akakçe"
+                                    # Aramayı biraz daha genişletiyoruz, "market" ve "fiyat" kelimeleri yeterli.
+                                    query = f"{selected_product} fiyat market satın al"
 
-                                    # Daha fazla sonuç çekip (20 tane), içinden işe yarayanları süzeceğiz
-                                    raw_results = list(ddgs.text(query, region='tr-tr', max_results=20))
+                                    # Daha çok sonuç çekelim (25 tane) ki aradan iyileri seçebilelim
+                                    raw_results = list(ddgs.text(query, region='tr-tr', max_results=25))
 
-                                    search_text = ""
                                     count = 0
+                                    search_text = ""
 
                                     for r in raw_results:
                                         link = r.get('href', '').lower()
                                         title = r.get('title', '').lower()
-                                        body = r.get('body', '')
+                                        body = r.get('body', '').lower()
 
-                                        # --- FİLTRELEME MEKANİZMASI ---
-                                        # 1. PDF ve Akademik uzantıları yasakla
-                                        if any(x in link for x in
-                                               ['.pdf', '.doc', '.gov', '.edu', 'hoover.org', 'nber.org',
-                                                'supremecourt']):
+                                        # 1. YASAKLI KONTROLÜ (PDF vb. ise atla)
+                                        if any(b in link for b in block_list):
                                             continue
 
-                                        # 2. Sadece Türkçe alışveriş sitelerine odaklanmaya çalış
-                                        # (Link veya başlıkta bilindik market isimleri veya 'fiyat', 'tl' geçiyor mu?)
-                                        is_shopping = any(site in link for site in
-                                                          valid_sites) or "fiyat" in title or "tl" in title or "satın al" in title
+                                        # 2. PUANLAMA SİSTEMİ
+                                        # Alışveriş sitesi olma ihtimalini hesapla
+                                        score = 0
+                                        if any(k in title for k in shopping_keywords): score += 2
+                                        if any(k in body for k in shopping_keywords): score += 1
+                                        if "soru" in title or "nedir" in title: score -= 5  # Bilgi sitesi ise puan kır
 
-                                        if is_shopping and count < 6:  # En alakalı 6 tanesini al
-                                            search_text += f"- Kaynak: {r['title']}\n  Link: {r['href']}\n  Özet: {body}\n\n"
+                                        # Eğer yasaklı değilse ve az çok alakalıysa listeye ekle
+                                        if score > 0 and count < 8:
+                                            # Gemini'ye gidecek metni temizle
+                                            search_text += f"- Ürün/Site: {r['title']}\n  Link: {r['href']}\n  Detay: {r['body']}\n\n"
                                             search_results.append(r)
                                             count += 1
 
                             except Exception as e:
-                                st.error(f"Arama Hatası: {e}")
+                                st.error(f"Arama Motoru Hatası: {e}")
                                 search_text = ""
 
                         # C. GEMINI ANALİZİ
                         if search_text:
                             prompt_live = f"""
-                            Sen bir alışveriş asistanısın. ASLA ekonomi makalesi veya yasa analizi yapma. Sadece ürün fiyatına odaklan.
+                            Sen yetenekli bir alışveriş asistanısın.
 
-                            ÜRÜN: "{selected_product}"
-                            BİZİM FİYATIMIZ: {my_price:.2f} TL
+                            ARANAN ÜRÜN: "{selected_product}"
+                            BİZİM SİSTEMDEKİ FİYAT: {my_price:.2f} TL
 
-                            BULUNAN GÜNCEL MARKET FİYATLARI:
+                            İNTERNET ARAMA SONUÇLARI (Karmaşık olabilir, sen içinden fiyatları ayıkla):
                             {search_text}
 
                             GÖREVİN:
-                            1. Sadece yukarıdaki linklerde geçen GERÇEK FİYATLARI dikkate al.
-                            2. "En ucuz X sitesinde Y TL" şeklinde net bilgi ver.
-                            3. Bizim fiyatımızla kıyasla (Ucuz mu kaldık, pahalı mı?).
-                            4. Eğer sonuçlarda net bir fiyat yoksa "Net fiyat bilgisi bulamadım" de, uydurma.
+                            1. Bu metinler arasındaki GERÇEK market fiyatlarını bul. (Örn: 'Migros'ta 50 TL', 'Trendyol'da 45 TL' gibi).
+                            2. Eğer metinde fiyat yazmıyorsa o siteyi yoksay.
+                            3. Bizim fiyatımızla kıyasla.
+                            4. En ucuzunun nerede olduğunu söyle.
 
-                            Kısa, net ve samimi ol. Emoji kullan.
+                            NOT: Eğer hiç mantıklı fiyat bulamazsan dürüstçe "İnternette net bir fiyat göremedim" de.
                             """
 
-                            with st.spinner("🧠 Gemini fiyatları kıyaslıyor..."):
+                            with st.spinner("🧠 Gemini fiyatları ayıklıyor..."):
                                 try:
                                     model_live = genai.GenerativeModel('gemini-2.5-flash')
                                     response_live = model_live.generate_content(prompt_live)
 
                                     st.markdown(f"""
-                                    <div style="background-color:#eff6ff; padding:20px; border-radius:10px; border-left:5px solid #3b82f6; color:#1e3a8a; margin-top:20px;">
-                                        <div style="font-weight:bold; margin-bottom:10px; font-size:18px;">🧠 Piyasa Analizi:</div>
+                                    <div style="background-color:#fffbeb; padding:20px; border-radius:10px; border-left:5px solid #f59e0b; color:#92400e; margin-top:20px;">
+                                        <div style="font-weight:bold; margin-bottom:10px; font-size:18px;">🔎 Piyasa Dedektifi:</div>
                                         {response_live.text}
                                     </div>
                                     """, unsafe_allow_html=True)
                                 except Exception as e:
-                                    st.error(f"Gemini Hatası: {str(e)}")
+                                    st.error(f"AI Analiz Hatası: {str(e)}")
 
-                                with st.expander("🔗 Kullanılan Kaynaklar"):
-                                    if not search_results:
-                                        st.warning("Uygun alışveriş sitesi bulunamadı.")
+                                with st.expander("🔗 İncelenen Siteler (Ham Sonuçlar)"):
                                     for item in search_results:
-                                        st.markdown(f"**{item['title']}**")
-                                        st.caption(f"{item['href']}")
-                                        st.divider()
+                                        col_img, col_txt = st.columns([1, 10])
+                                        with col_img:
+                                            st.markdown("🌐")
+                                        with col_txt:
+                                            st.markdown(f"[{item['title']}]({item['href']})")
+                                            st.caption(item['body'][:150] + "...")
                         else:
                             st.warning(
-                                "Bu ürün için uygun fiyat verisi içeren site bulunamadı. Ürün ismini daha genel yazmayı deneyebilirsiniz.")
+                                "🔍 Arama motoru bu ürün için anlamlı bir alışveriş sonucu döndüremedi. Ürün ismini kontrol edip tekrar dener misin?")
 
                 with t7:
                     st.data_editor(
