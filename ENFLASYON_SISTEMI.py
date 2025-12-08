@@ -129,51 +129,52 @@ def create_pdf_report(text_content, filename="Rapor.pdf"):
     pdf = PDFReport()
     pdf.add_page()
 
-    # --- KARAKTER DÜZELTME MOTORU (CRITICAL FIX) ---
-    # 1. Adım: Yapay Zeka'nın özel karakterlerini (tire, tırnak) düzelt
-    replacements = {
-        '\u2013': '-',  # Uzun tire (–) -> Normal tire (-)
-        '\u2014': '-',  # Çok uzun tire (—) -> Normal tire (-)
-        '“': '"', '”': '"',  # Akıllı çift tırnaklar -> Düz tırnak
-        '’': "'", '‘': "'",  # Akıllı tek tırnaklar -> Düz tek tırnak
-        '…': '...',  # Üç nokta -> 3 tane nokta
-        '₺': 'TL',  # TL simgesi -> TL yazısı
-    }
+    # --- KESİN ÇÖZÜM: Karakter Dönüştürme Motoru ---
+    def clean_text_for_pdf(text):
+        if not text: return ""
 
-    # 2. Adım: FPDF'in standart fontunun desteklemediği Türkçe karakterleri İngilizce'ye çevir
-    # (Not: Harici font dosyası yüklemeden çökmemesi için en garanti yol budur)
-    tr_map = {
-        'ğ': 'g', 'Ğ': 'G',
-        'ş': 's', 'Ş': 'S',
-        'ı': 'i', 'İ': 'I',
-        'ü': 'u', 'Ü': 'U',
-        'ö': 'o', 'Ö': 'O',
-        'ç': 'c', 'Ç': 'C',
-        'â': 'a', 'î': 'i', 'û': 'u'
-    }
+        # 1. Manuel Türkçe -> İngilizce Haritası
+        # Özellikle \u0131 (noktasız ı) hatasını burada çözüyoruz
+        replacements = {
+            'ı': 'i', 'İ': 'I', '\u0131': 'i',  # Noktasız ı
+            'ğ': 'g', 'Ğ': 'G',
+            'ü': 'u', 'Ü': 'U',
+            'ş': 's', 'Ş': 'S',
+            'ö': 'o', 'Ö': 'O',
+            'ç': 'c', 'Ç': 'C',
+            'â': 'a', 'î': 'i', 'û': 'u',  # Şapkalı harfler
+            '₺': 'TL',
+            '“': '"', '”': '"',  # Akıllı tırnaklar
+            '’': "'", '‘': "'",
+            '–': '-', '—': '-',  # Uzun tireler
+            '…': '...'
+        }
 
-    # Metni temizle
-    clean_text = text_content
-    for k, v in replacements.items():
-        clean_text = clean_text.replace(k, v)
+        temp_text = text
+        for tr, en in replacements.items():
+            temp_text = temp_text.replace(tr, en)
 
-    for k, v in tr_map.items():
-        clean_text = clean_text.replace(k, v)
+        # 2. Kademeli Temizlik (Encode/Decode)
+        # Bu işlem, yukarıdaki listede olmayan ama yine de sorun çıkaran
+        # emoji, çince karakter veya garip sembolleri '?' işaretine çevirir.
+        # Bu satır sayesinde kodun 'crash' olma ihtimali KALMAZ.
+        return temp_text.encode('latin-1', 'replace').decode('latin-1')
 
-    # 3. Adım: SON GÜVENLİK AĞI (Latin-1 hatasını %100 engeller)
-    # Hala tanınmayan bir karakter varsa yerine '?' koyar, programı çökertmez.
-    clean_text = clean_text.encode('latin-1', 'replace').decode('latin-1')
+    # Temizlenmiş metni al
+    final_text = clean_text_for_pdf(text_content)
 
     # PDF Yazdır
     pdf.set_font("Arial", size=11)
-    pdf.multi_cell(0, 7, clean_text)
+    # multi_cell içindeki metnin temiz olduğundan artık eminiz
+    pdf.multi_cell(0, 7, final_text)
 
     pdf.ln(10)
     pdf.set_font("Arial", 'I', 9)
     pdf.set_text_color(100, 100, 100)
     pdf.multi_cell(0, 5,
-                   "Bu rapor piyasa analiz sistemi tarafından otomatik olarak oluşturulmustur.")
+                   "Bu rapor piyasa analiz sistemi tarafindan otomatik olarak olusturulmustur.")
 
+    # Çıktı alırken de 'ignore' diyerek son bir güvenlik önlemi alıyoruz
     return pdf.output(dest='S').encode('latin-1', 'ignore')
 
 # --- HABER MOTORU ---
