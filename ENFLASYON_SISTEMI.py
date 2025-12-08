@@ -654,7 +654,7 @@ def dashboard_modu():
 
                 # --- SEKMELER (DÜZENLENDİ) ---
                 t_analiz, t_istatistik, t_sepet, t_harita, t_firsat, t_liste, t_haber, t_rapor = st.tabs(
-                    ["📊 ANALİZ", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 FIRSATLAR", "📋 LİSTE", "📰 HABERLER",
+                    ["📊 ANALİZ", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 PİYASA VERİLERİ", "📋 LİSTE", "📰 HABERLER",
                      "📝 PRO RAPOR"])
 
                 with t_analiz:
@@ -825,12 +825,12 @@ def dashboard_modu():
                                         # 1. Temizlik
                                         raw_text = raw_text.replace(u'\xa0', ' ').strip()
 
-                                        # 2. Regex ile Fiyat Formatını Bul (320,00 veya 1.250,50)
+                                        # 2. Regex ile Fiyat Formatını Bul
                                         price_pattern = r"(?:₺\s?)?(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s?TL)?"
                                         matches = list(re.finditer(price_pattern, raw_text))
 
                                         if matches:
-                                            # İlk bulunanı al
+                                            # En iyi fiyat eşleşmesini seç
                                             best_match = matches[0]
                                             p_price_str = best_match.group(1)
 
@@ -848,14 +848,32 @@ def dashboard_modu():
                                                 except:
                                                     pass
 
-                                            # 3. Metni Böl
+                                            # 3. Metni Böl ve Temizle
                                             start, end = best_match.span()
+
+                                            # İSİM ALANI
                                             p_name = raw_text[:start].strip().rstrip('.').rstrip(':').replace(
                                                 "Şu Anki Fiyat", "").strip()
 
+                                            # SATICI ALANI
                                             p_vendor_raw = raw_text[end:].strip()
-                                            p_vendor = re.sub(r'^(TL|₺|\.|,)\s*', '', p_vendor_raw).strip()
-                                            if len(p_vendor) > 40: p_vendor = p_vendor.split('.')[0]
+                                            # "ve daha fazlası" gibi Google eklerini temizle
+                                            p_vendor = re.sub(r'^(TL|₺|\.|,)\s*', '', p_vendor_raw)
+                                            p_vendor = p_vendor.replace("ve daha fazlası", "").replace(
+                                                "ve diğer satıcılar", "").strip()
+
+                                            # Satıcı çok uzunsa (muhtemelen yorum metni karışmıştır) kısalt
+                                            if len(p_vendor) > 30: p_vendor = p_vendor.split('.')[0]
+
+                                            # --- 🛑 KATI FİLTRELEME (SORUNU ÇÖZEN KISIM) ---
+                                            # 1. İsim boşsa EKLEME
+                                            if not p_name or len(p_name) < 2: continue
+
+                                            # 2. Satıcı boşsa EKLEME
+                                            if not p_vendor or len(p_vendor) < 2: continue
+
+                                            # 3. İsim sadece rakamlardan oluşuyorsa (Google hatası) EKLEME
+                                            if p_name.replace('.', '').replace(',', '').isdigit(): continue
 
                                             results_data.append({
                                                 "Ürün": p_name,
