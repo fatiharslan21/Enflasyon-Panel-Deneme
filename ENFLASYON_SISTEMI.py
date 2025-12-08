@@ -59,7 +59,6 @@ with st.sidebar:
         st.rerun()
 
 
-# --- CSS MOTORU (GÜNCELLENDİ) ---
 # --- CSS MOTORU (KESİN ÇÖZÜM V3: RENK ZORLAMA) ---
 def apply_theme():
     # Renk Paletleri
@@ -79,27 +78,22 @@ def apply_theme():
         # KARANLIK MOD İÇİN ÖZEL "ZORLAYICI" CSS
         extra_css = """
         /* 1. BUTONLARIN YAZISI KESİN SİYAH OLACAK */
-        /* Normal Butonlar (Sidebar'daki Çıkış vb.) */
         div.stButton > button {
             background-color: #FFFFFF !important;
             border: 2px solid #ccc !important;
-            color: #000000 !important; /* Buton yazısı SİYAH */
+            color: #000000 !important;
         }
         div.stButton > button p {
-            color: #000000 !important; /* Buton içindeki paragraf da SİYAH */
+            color: #000000 !important;
         }
-
-        /* İndirme Butonu (Excel Raporu İndir) */
         [data-testid="stDownloadButton"] button {
             background-color: #FFFFFF !important;
             border: 2px solid #ccc !important;
-            color: #000000 !important; /* Buton yazısı SİYAH */
+            color: #000000 !important;
         }
         [data-testid="stDownloadButton"] button p {
-            color: #000000 !important; /* Buton içindeki paragraf da SİYAH */
+            color: #000000 !important;
         }
-
-        /* Hover (Mouse ile üzerine gelince) */
         div.stButton > button:hover, [data-testid="stDownloadButton"] button:hover {
             background-color: #f0f0f0 !important;
             border-color: #fff !important;
@@ -110,41 +104,29 @@ def apply_theme():
         }
 
         /* 2. TABLO İÇİNDEKİ YAZILAR KESİN BEYAZ OLACAK */
-        /* Dataframe ve DataEditor kapsayıcıları */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
             background-color: #0E1117 !important;
             border: 1px solid #333 !important;
         }
-
-        /* Tablonun içindeki tüm metin elementlerini hedefle */
         [data-testid="stDataFrame"] div, [data-testid="stDataFrame"] span, [data-testid="stDataFrame"] p, 
         [data-testid="stDataEditor"] div, [data-testid="stDataEditor"] span, [data-testid="stDataEditor"] p,
         [data-testid="stDataFrame"] td, [data-testid="stDataEditor"] td {
-            color: #FFFFFF !important; /* Hücre yazıları BEYAZ */
+            color: #FFFFFF !important;
         }
-
-        /* Tablo Başlıkları (Header) */
         [data-testid="stDataFrame"] th, [data-testid="stDataEditor"] th {
-            color: #FFFFFF !important; /* Başlık yazıları BEYAZ */
+            color: #FFFFFF !important;
             background-color: #262730 !important;
             border-bottom: 1px solid #444 !important;
         }
-
-        /* İndex sütunu (Sol baştaki numaralar) */
         [data-testid="stDataFrame"] th[data-testid="stHeader"] {
              color: #FFFFFF !important;
         }
 
         /* 3. DİĞER GÖRÜNÜM AYARLARI */
-        /* KPI Değerleri */
         .metric-val, div[data-testid="stMetricValue"], .metric-label {
             color: #FFFFFF !important;
         }
-
-        /* Grafik Arka Planı */
         .stPlotlyChart { background-color: transparent !important; }
-
-        /* Multiselect Kutusu */
         .stMultiSelect div[data-baseweb="select"] {
             background-color: #000000 !important;
             border: 1px solid #444 !important;
@@ -152,7 +134,7 @@ def apply_theme():
         .stMultiSelect span { color: white !important; }
         """
     else:
-        # AYDINLIK MOD (Standart Ayarlar - Değişiklik Yok)
+        # AYDINLIK MOD
         colors = {
             "bg": "#FFFFFF",
             "sidebar": "#F0F2F6",
@@ -166,7 +148,6 @@ def apply_theme():
         st.session_state.plotly_template = "plotly_white"
         extra_css = ""
 
-    # CSS BİRLEŞTİRME VE UYGULAMA
     final_css = f"""
     <style>
         /* Gizlemeler */
@@ -945,18 +926,18 @@ def dashboard_modu():
                                        name='Resmi TÜİK', line=dict(color='#ef4444', width=2),
                                        marker=dict(symbol='square')))
 
+                    # --- DÜZELTİLDİ: BURADA VIRGUL EKSIKTI ---
                     fig_main.update_layout(
                         template=st.session_state.plotly_template,
                         title="Enflasyon: Geçmiş, Şimdi ve Gelecek",
                         title_font=dict(color='white', size=22),
-                        legend=dict(orientation="h", y=1.1, font=dict(color="white"))
+                        legend=dict(orientation="h", y=1.1, font=dict(color="white")),
                         yaxis=dict(title="TÜFE Endeksi", range=[95, 105]),
                         xaxis=dict(range=[start_date, end_date_fixed]),
                         plot_bgcolor='rgba(0,0,0,0)',
                         paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(fig_main, use_container_width=True)
-                    # "Alım Gücü Analizi" TAMAMEN SİLİNDİ.
 
                 with t_istatistik:
                     st.markdown("### 📊 İstatistiksel Risk ve Dağılım Analizi")
