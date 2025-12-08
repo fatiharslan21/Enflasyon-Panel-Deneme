@@ -693,9 +693,10 @@ def dashboard_modu():
                 st.markdown("<br>", unsafe_allow_html=True)
 
                 # --- SEKMELER (DÜZENLENDİ) ---
-                t_analiz, t_istatistik, t_sepet, t_harita, t_firsat, t_liste, t_haber, t_rapor = st.tabs(
+                # Mevcut satırı bul ve t_alarm'ı ekle:
+                t_analiz, t_istatistik, t_sepet, t_harita, t_firsat, t_liste, t_haber, t_rapor, t_alarm = st.tabs(
                     ["📊 ANALİZ", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 PİYASA VERİLERİ", "📋 LİSTE", "📰 HABERLER",
-                     "📝 PRO RAPOR"])
+                     "📝 PRO RAPOR", "🔔 FİYAT ALARMI"])
 
                 with t_analiz:
                     st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
@@ -746,6 +747,54 @@ def dashboard_modu():
                                            plot_bgcolor='rgba(0,0,0,0)',
                                            paper_bgcolor='rgba(0,0,0,0)')
                     st.plotly_chart(fig_main, use_container_width=True)
+                    # t_analiz sekmesinin en alt kısmına eklenecek:
+                    st.markdown("---")
+                    st.markdown("### 📉 Ekonomik Gerçeklik: Alım Gücü Analizi")
+                    st.caption(
+                        "Döviz kurlarındaki anlık dalgalanmalar yerine, doğrudan gelirinizin satın alma gücündeki değişime odaklanır.")
+
+                    col_maas1, col_maas2, col_sonuc = st.columns([1, 1, 2])
+
+                    # Maaş Giriş Alanları (Varsayılan olarak asgari ücreti koydum, kullanıcı değiştirebilir)
+                    with col_maas1:
+                        gelir_baslangic = st.number_input(f"📅 {baz} Tarihindeki Gelirin (TL)", value=17002, step=500)
+                    with col_maas2:
+                        gelir_guncel = st.number_input(f"📅 {son} Tarihindeki Gelirin (TL)", value=17002, step=500)
+
+                    # Hesaplama Motoru
+                    # 1. Sepet Fiyatı Endeksi (Genel Enflasyon üzerinden sepet maliyeti simülasyonu)
+                    # Basitlik için: Başlangıçta 1000 TL'lik bir market alışverişi şimdi kaç TL oldu?
+                    sepet_baz_tutar = 1000
+                    sepet_son_tutar = sepet_baz_tutar * (1 + (enf_genel / 100))
+
+                    # 2. Alım Gücü (Kaç adet sepet alabiliyorsun?)
+                    alim_gucu_baz = gelir_baslangic / sepet_baz_tutar
+                    alim_gucu_son = gelir_guncel / sepet_son_tutar
+
+                    degisim_orani = ((alim_gucu_son - alim_gucu_baz) / alim_gucu_baz) * 100
+
+                    with col_sonuc:
+                        st.markdown("#### 📊 Sonuç")
+                        if degisim_orani < 0:
+                            # Alım gücü düşmüş
+                            st.metric("Alım Gücü Kaybı", f"%{degisim_orani:.1f}",
+                                      f"{abs(degisim_orani):.1f}% daha fakirleşildi", delta_color="inverse")
+                            st.error(
+                                f"⚠️ Enflasyon gelirinizi yendi. {baz} tarihinde maaşınızla **{alim_gucu_baz:.1f}** birim alışveriş yapabilirken, şu an sadece **{alim_gucu_son:.1f}** birim yapabiliyorsunuz.")
+
+                            # Dolar/Altın Simülasyonu (Stabil Yöntem)
+                            # Kullanıcıya "Eğer paranı dolarda tutsaydın" bilgisini vermek yerine
+                            # "Erimemesi için maaşın ne olmalıydı?" bilgisini veriyoruz. (Çok daha değerli bir veri)
+                            olmasi_gereken_maas = gelir_baslangic * (sepet_son_tutar / sepet_baz_tutar)
+                            st.info(
+                                f"💡 Alım gücünü korumak için maaşın şu an en az **{olmasi_gereken_maas:,.0f} TL** olmalıydı.")
+
+                        elif degisim_orani > 0:
+                            st.metric("Alım Gücü Artışı", f"%{degisim_orani:.1f}", "Reel Gelir Arttı",
+                                      delta_color="normal")
+                            st.success("🎉 Tebrikler! Gelir artışınız enflasyonun üzerinde, alım gücünüzü korudunuz.")
+                        else:
+                            st.metric("Durum", "Nötr", "Değişim Yok", delta_color="off")
 
                 with t_istatistik:
                     st.markdown("### 📊 İstatistiksel Risk ve Dağılım Analizi")
@@ -1082,6 +1131,76 @@ def dashboard_modu():
                         with col_download: st.download_button(label="📥 PDF Olarak İndir (Kurumsal)", data=pdf_bytes,
                                                               file_name=f"Enflasyon_Raporu_{bugun}.pdf",
                                                               mime="application/pdf")
+                with t_alarm:
+                    st.markdown("### 🔔 Akıllı Fiyat Alarmı Kur")
+                    st.info(
+                        "Takip ettiğin ürün belirlediğin fiyatın **altına** düşerse sana otomatik e-posta atarız.")
+
+                    # 1. Alarm Veritabanını Oku (Yoksa oluşturur)
+                    ALARMS_DOSYASI = "user_alarms.json"
+                    alarms_db = github_json_oku(ALARMS_DOSYASI)
+                    if not isinstance(alarms_db, list): alarms_db = []
+
+                    # 2. Ürün Seçimi
+                    product_list = sorted(df_analiz[ad_col].unique())
+                    secilen_urun = st.selectbox("Hangi ürün için alarm kurulsun?", product_list,
+                                                key="alarm_product")
+
+                    # Seçilen ürünün şu anki fiyatını bul
+                    curr_price = df_analiz[df_analiz[ad_col] == secilen_urun][son].values[0]
+
+                    c_al1, c_al2, c_al3 = st.columns(3)
+                    with c_al1:
+                        st.metric("Şu Anki Fiyat", f"{curr_price:.2f} TL")
+                    with c_al2:
+                        target_price = st.number_input("Hedef Fiyat (TL)", min_value=1.0,
+                                                       value=float(curr_price) * 0.9, step=1.0,
+                                                       help="Fiyat bu seviyenin altına inerse mail atılır.")
+                    with c_al3:
+                        # Giriş yapmış kullanıcının mailini bulmaya çalış, yoksa elle girdir
+                        user_email = ""
+                        users_db = github_json_oku(USERS_DOSYASI)
+                        if st.session_state['username'] in users_db:
+                            user_data = users_db[st.session_state['username']]
+                            if isinstance(user_data, dict): user_email = user_data.get("email", "")
+
+                        target_email = st.text_input("Bildirim E-Postası", value=user_email)
+
+                    # 3. Alarmı Kaydet
+                    if st.button("🔔 Alarmı Kur", type="primary"):
+                        if target_price < curr_price:
+                            new_alarm = {
+                                "user": st.session_state['username'],
+                                "email": target_email,
+                                "kod": df_analiz[df_analiz[ad_col] == secilen_urun]['Kod'].values[0],
+                                "urun_adi": secilen_urun,
+                                "hedef_fiyat": target_price,
+                                "durum": "aktif",
+                                "olusturma_tarihi": datetime.now().strftime("%Y-%m-%d")
+                            }
+                            alarms_db.append(new_alarm)
+                            if github_json_yaz(ALARMS_DOSYASI, alarms_db, "New Alarm"):
+                                st.success(
+                                    f"✅ Alarm kuruldu! {secilen_urun} fiyatı {target_price} TL altına düşerse mail gelecek.")
+                            else:
+                                st.error("Kayıt hatası.")
+                        else:
+                            st.warning("Hedef fiyat, şu anki fiyattan düşük olmalıdır.")
+
+                    # 4. Mevcut Alarmlarım Listesi
+                    st.divider()
+                    st.markdown("#### 📋 Aktif Alarmların")
+                    my_alarms = [a for a in alarms_db if a.get('user') == st.session_state['username']]
+                    if my_alarms:
+                        st.dataframe(
+                            pd.DataFrame(my_alarms)[['urun_adi', 'hedef_fiyat', 'durum', 'olusturma_tarihi']],
+                            use_container_width=True)
+                        if st.button("🗑️ Tüm Alarmlarımı Temizle"):
+                            alarms_db = [a for a in alarms_db if a.get('user') != st.session_state['username']]
+                            github_json_yaz(ALARMS_DOSYASI, alarms_db, "Clear Alarms")
+                            st.rerun()
+                    else:
+                        st.info("Henüz kurulu bir alarmın yok.")
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
     st.markdown(
