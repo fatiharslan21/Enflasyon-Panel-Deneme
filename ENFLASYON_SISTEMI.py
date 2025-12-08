@@ -45,7 +45,8 @@ st.set_page_config(
 )
 
 # --- ADMIN AYARI ---
-ADMIN_USER = "fatih"
+# Buraya yetkili olmasını istediğiniz kullanıcı adlarını yazın
+ADMIN_USERS = ["fatih", "ahmet", "mehmet"]
 
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
@@ -442,7 +443,12 @@ def dashboard_modu():
     # --- SIDEBAR ---
     with st.sidebar:
         user_upper = st.session_state['username'].upper()
-        role_title = "SYSTEM ADMIN" if st.session_state['username'] == ADMIN_USER else "VERİ ANALİSTİ"
+
+        # --- YENİ EKLENEN KISIM ---
+        is_admin = st.session_state['username'] in ADMIN_USERS
+        role_title = "SYSTEM ADMIN" if is_admin else "VERİ ANALİSTİ"
+        # ---------------------------
+
         st.markdown(f"""
             <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:15px; text-align:center; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
                 <div style="font-size:32px; margin-bottom:5px;">👤</div>
@@ -451,8 +457,12 @@ def dashboard_modu():
             </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
-        st.divider()
+        if is_admin:
+            st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
+            st.divider()
+
+            # Çevrimiçi ekip herkes görsün mü yoksa sadece admin mi?
+            # Eğer sadece admin görsün isterseniz bu bloğu da if is_admin içine alın.
         st.markdown("<h3 style='color:#1e293b; font-size:16px;'>🟢 Çevrimiçi Ekip</h3>", unsafe_allow_html=True)
 
         users_db = github_json_oku(USERS_DOSYASI)
@@ -470,7 +480,7 @@ def dashboard_modu():
             user_list.append({"name": u, "online": is_online})
 
         for u in sorted(user_list, key=lambda x: (not x['online'], x['name'] != ADMIN_USER, x['name'])):
-            role_icon = "🛡️" if u['name'] == ADMIN_USER else ""
+            role_icon = "🛡️" if u['name'] in ADMIN_USERS else ""
             st.markdown(f"""
                 <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
@@ -543,30 +553,35 @@ def dashboard_modu():
         st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
         st.session_state['toast_shown'] = True
 
-    st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
-    if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
-        with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
-            st.write("📡 GitHub bağlantısı kuruluyor...")
-            time.sleep(0.5)
-            st.write("📦 ZIP dosyaları taranıyor...")
-            log_ph = st.empty();
-            log_msgs = []
+    if is_admin:
+        st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
+        if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
+            with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
+                st.write("📡 GitHub bağlantısı kuruluyor...")
+                time.sleep(0.5)
+                st.write("📦 ZIP dosyaları taranıyor...")
+                log_ph = st.empty();
+                log_msgs = []
 
-            def logger(m):
-                log_msgs.append(f"> {m}");
-                log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
+                def logger(m):
+                    log_msgs.append(f"> {m}");
+                    log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
 
-            res = html_isleyici(logger)
-            status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
-        if "OK" in res:
-            st.toast('Veritabanı Güncellendi!', icon='🎉')
-            st.success("✅ Sistem Başarıyla Senkronize Edildi!");
-            time.sleep(2);
-            st.rerun()
-        else:
-            st.error(res)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
+                res = html_isleyici(logger)
+                status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
+            if "OK" in res:
+                st.toast('Veritabanı Güncellendi!', icon='🎉')
+                st.success("✅ Sistem Başarıyla Senkronize Edildi!");
+                time.sleep(2);
+                st.rerun()
+            else:
+                st.error(res)
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+    else:
+        # Admin değilse sadece boşluk bırak veya bilgilendirme mesajı yaz
+        st.info("👋 Hoşgeldiniz. Veriler otomatik olarak sunulmaktadır.")
+        st.markdown("<br>", unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
         try:
