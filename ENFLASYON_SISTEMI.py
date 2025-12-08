@@ -80,21 +80,75 @@ def apply_theme():
     </style>
     """
 
-    # 2. Renk Paletleri
+    # 2. Renk Paletleri ve Özel Ayarlar
     if st.session_state.theme == 'dark':
         colors = {
             "bg": "#0E1117",
             "sidebar": "#262730",
             "text": "#FAFAFA",
-            "input_bg": "#1E1E1E",
+            "input_bg": "#000000",  # Daha koyu siyah
             "input_border": "#4A4A4A",
             "card_bg": "#1A1C24",
             "success_bg": "rgba(34, 197, 94, 0.2)",
             "border_color": "#414141"
         }
-        # Plotly Teması
         st.session_state.plotly_template = "plotly_dark"
+
+        # SADECE KARANLIK MOD İÇİN EKSTRA CSS (İsteklerin)
+        extra_dark_css = """
+        <style>
+            /* 1. Sidebar'daki Güvenli Çıkış Butonu (Beyaz Arka Plan, Siyah Yazı) */
+            section[data-testid="stSidebar"] .stButton button {
+                background-color: #FFFFFF !important;
+                color: #000000 !important;
+                border: 1px solid #ccc !important;
+                font-weight: bold !important;
+            }
+
+            /* 2. KPI Kartlarındaki Değerler (Beyaz Yazı) */
+            .metric-val {
+                color: #FFFFFF !important;
+            }
+            div[data-testid="stMetricValue"] {
+                color: #FFFFFF !important;
+            }
+
+            /* 3. Tablolar (Sepet ve Liste - Siyah Arka Plan, Beyaz Yazı) */
+            [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
+                background-color: #0E1117 !important;
+                border: 1px solid #333 !important;
+            }
+            [data-testid="stDataFrame"] div, [data-testid="stDataEditor"] div {
+                color: #FAFAFA !important;
+                background-color: #0E1117 !important; /* Hücre arka planları */
+            }
+
+            /* 4. Ürün Seçim Kutusu (Multiselect - Siyah Bar) */
+            .stMultiSelect div[data-baseweb="select"] {
+                background-color: #000000 !important;
+                color: white !important;
+                border: 1px solid #444 !important;
+            }
+            .stMultiSelect span {
+                color: white !important;
+            }
+
+            /* 5. Haberler Butonu (Siyah Arka Plan, Beyaz Yazı) */
+            /* Sidebar dışındaki butonları hedefler */
+            .stMain .stButton button {
+                background-color: #000000 !important;
+                color: #FFFFFF !important;
+                border: 1px solid #444 !important;
+            }
+
+            /* 6. Harita ve Genel Arka Planlar */
+            .stPlotlyChart {
+                background-color: transparent !important;
+            }
+        </style>
+        """
     else:
+        # AYDINLIK MOD (Dokunulmadı)
         colors = {
             "bg": "#FFFFFF",
             "sidebar": "#F0F2F6",
@@ -105,8 +159,8 @@ def apply_theme():
             "success_bg": "#ecfdf5",
             "border_color": "#e2e8f0"
         }
-        # Plotly Teması
         st.session_state.plotly_template = "plotly_white"
+        extra_dark_css = ""  # Aydınlık modda ekstra müdahale yok
 
     # 3. Dinamik CSS Enjeksiyonu
     dynamic_css = f"""
@@ -123,24 +177,19 @@ def apply_theme():
             border-right: 1px solid {colors['border_color']};
         }}
 
-        /* Tüm Yazılar */
-        h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown, .stMetricValue {{
+        /* Tüm Başlıklar ve Yazılar */
+        h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown {{
             color: {colors['text']} !important;
         }}
 
-        /* Input Alanları (Text input, Number input vb.) */
+        /* Input Alanları Genel Ayarı */
         .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {{
             background-color: {colors['input_bg']} !important;
             color: {colors['text']} !important;
             border: 1px solid {colors['input_border']} !important;
         }}
 
-        /* Tablolar (Dataframes) */
-        [data-testid="stDataFrame"] {{
-            background-color: {colors['card_bg']} !important;
-        }}
-
-        /* Metric Kartları (Dashboard Modunda Kullanılanlar) */
+        /* Kartlar */
         .metric-card {{
             background: {colors['card_bg']} !important;
             border: 1px solid {colors['border_color']} !important;
@@ -151,7 +200,7 @@ def apply_theme():
             color: {colors['text']};
         }}
 
-        /* Expander (Açılır kutular) */
+        /* Expander */
         .streamlit-expanderHeader {{
             background-color: {colors['card_bg']} !important;
             color: {colors['text']} !important;
@@ -159,7 +208,7 @@ def apply_theme():
     </style>
     """
 
-    st.markdown(base_css + dynamic_css, unsafe_allow_html=True)
+    st.markdown(base_css + dynamic_css + extra_dark_css, unsafe_allow_html=True)
 
 
 # Temayı Uygula
@@ -687,7 +736,7 @@ def dashboard_modu():
             st.query_params.clear()
             st.rerun()
 
-    # --- CSS: Global Styles ---
+    # --- CSS: Global Styles (Aydınlık modda düzgün görünmesi için) ---
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -911,39 +960,7 @@ def dashboard_modu():
                         paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(fig_main, use_container_width=True)
-                    st.markdown("---")
-                    st.markdown("### 📉 Ekonomik Gerçeklik: Alım Gücü Analizi")
-                    st.caption(
-                        "Döviz kurlarındaki anlık dalgalanmalar yerine, doğrudan gelirinizin satın alma gücündeki değişime odaklanır.")
-
-                    col_maas1, col_maas2, col_sonuc = st.columns([1, 1, 2])
-                    with col_maas1:
-                        gelir_baslangic = st.number_input(f"📅 {baz} Tarihindeki Gelirin (TL)", value=17002, step=500)
-                    with col_maas2:
-                        gelir_guncel = st.number_input(f"📅 {son} Tarihindeki Gelirin (TL)", value=17002, step=500)
-
-                    sepet_baz_tutar = 1000
-                    sepet_son_tutar = sepet_baz_tutar * (1 + (enf_genel / 100))
-                    alim_gucu_baz = gelir_baslangic / sepet_baz_tutar
-                    alim_gucu_son = gelir_guncel / sepet_son_tutar
-                    degisim_orani = ((alim_gucu_son - alim_gucu_baz) / alim_gucu_baz) * 100
-
-                    with col_sonuc:
-                        st.markdown("#### 📊 Sonuç")
-                        if degisim_orani < 0:
-                            st.metric("Alım Gücü Kaybı", f"%{degisim_orani:.1f}",
-                                      f"{abs(degisim_orani):.1f}% daha fakirleşildi", delta_color="inverse")
-                            st.error(
-                                f"⚠️ Enflasyon gelirinizi yendi. {baz} tarihinde maaşınızla **{alim_gucu_baz:.1f}** birim alışveriş yapabilirken, şu an sadece **{alim_gucu_son:.1f}** birim yapabiliyorsunuz.")
-                            olmasi_gereken_maas = gelir_baslangic * (sepet_son_tutar / sepet_baz_tutar)
-                            st.info(
-                                f"💡 Alım gücünü korumak için maaşın şu an en az **{olmasi_gereken_maas:,.0f} TL** olmalıydı.")
-                        elif degisim_orani > 0:
-                            st.metric("Alım Gücü Artışı", f"%{degisim_orani:.1f}", "Reel Gelir Arttı",
-                                      delta_color="normal")
-                            st.success("🎉 Tebrikler! Gelir artışınız enflasyonun üzerinde, alım gücünüzü korudunuz.")
-                        else:
-                            st.metric("Durum", "Nötr", "Değişim Yok", delta_color="off")
+                    # "Alım Gücü Analizi" bölümü buradan silindi.
 
                 with t_istatistik:
                     st.markdown("### 📊 İstatistiksel Risk ve Dağılım Analizi")
@@ -981,7 +998,6 @@ def dashboard_modu():
                         fig_vol.add_hline(y=df_vol['Volatilite'].mean(), line_dash="dash", line_color="red",
                                           annotation_text="Ortalama Risk")
 
-                        # Hata veren parantez kısmı düzeltildi
                         fig_vol.update_layout(
                             template=st.session_state.plotly_template,
                             plot_bgcolor='rgba(0,0,0,0)',
@@ -1069,11 +1085,21 @@ def dashboard_modu():
                     c1, c2 = st.columns([2, 1])
                     fig_tree = px.treemap(df_analiz, path=[px.Constant("Piyasa"), 'Grup', ad_col], values=agirlik_col,
                                           color='Fark', color_continuous_scale='RdYlGn_r', title="🔥 Isı Haritası")
-                    fig_tree.update_layout(margin=dict(t=40, l=0, r=0, b=0))
+                    fig_tree.update_layout(
+                        template=st.session_state.plotly_template,
+                        margin=dict(t=40, l=0, r=0, b=0),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)'
+                    )
                     c1.plotly_chart(fig_tree, use_container_width=True)
                     fig_sun = px.sunburst(df_analiz, path=['Grup', ad_col], values=agirlik_col,
                                           title="Sektörel Ağırlık")
-                    fig_sun.update_layout(margin=dict(t=40, l=0, r=0, b=0))
+                    fig_sun.update_layout(
+                        template=st.session_state.plotly_template,
+                        margin=dict(t=40, l=0, r=0, b=0),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)'
+                    )
                     c2.plotly_chart(fig_sun, use_container_width=True)
 
                 with t_firsat:
