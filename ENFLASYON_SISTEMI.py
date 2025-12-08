@@ -32,6 +32,13 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import time
+import shutil
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+import time
+import requests
 
 # --- GEMINI AYARI ---
 if "gemini" in st.secrets:
@@ -1060,9 +1067,9 @@ def dashboard_modu():
                     c2.plotly_chart(fig_sun, use_container_width=True)
 
                 with t6:
-                    st.markdown("### 🛍️ Google Shopping (Selenium Modu)")
+                    st.markdown("### 🛍️ Google Shopping (Cloud Uyumlu Mod)")
                     st.info(
-                        "Bu modül, gerçek bir tarayıcı simüle ederek Google'ın 'Javascript Kapalı' hatasını aşar ve fiyatları okur.")
+                        "Bu modül, Streamlit Cloud sunucusunda Chromium tarayıcısını kullanarak Google fiyatlarını okur.")
 
                     # 1. Ürün Seçimi
                     product_list = sorted(df_analiz[ad_col].unique())
@@ -1079,43 +1086,50 @@ def dashboard_modu():
 
                         st.metric("Senin Fiyatın", f"{my_price:.2f} TL")
 
-                        # B. SELENIUM İLE SCRAPING
+                        # B. SELENIUM İLE SCRAPING (GÜÇLENDİRİLMİŞ AYARLAR)
                         results_data = []
                         target_url = f"https://www.google.com/search?q={selected_product}&tbm=shop&hl=tr&gl=TR"
 
-                        with st.spinner("🕷️ Sanal tarayıcı açılıyor ve Google Shopping taranıyor..."):
+                        with st.spinner("🕷️ Sunucu üzerinde tarayıcı başlatılıyor..."):
                             try:
-                                # Tarayıcı Ayarları (Gizli Mod / Headless)
                                 chrome_options = Options()
-                                chrome_options.add_argument("--headless")  # Arka planda çalış (Pencere açma)
+                                chrome_options.add_argument("--headless")  # Pencere açma
                                 chrome_options.add_argument("--no-sandbox")
                                 chrome_options.add_argument("--disable-dev-shm-usage")
+                                chrome_options.add_argument("--disable-gpu")
                                 chrome_options.add_argument(
                                     "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
 
-                                # Tarayıcıyı Başlat
+                                # --- KRİTİK DÜZELTME: CHROME YOLUNU BULMA ---
+                                # Streamlit Cloud'da Chromium genellikle /usr/bin/chromium altındadır.
+                                # shutil.which ile sistemdeki 'chromium' veya 'google-chrome' yolunu buluyoruz.
+                                chrome_path = shutil.which("chromium") or shutil.which(
+                                    "chromium-browser") or shutil.which("google-chrome")
+
+                                if chrome_path:
+                                    chrome_options.binary_location = chrome_path
+                                else:
+                                    st.warning("⚠️ Chrome binary bulunamadı, varsayılan yollar deneniyor...")
+
+                                # Driver Başlatma
                                 driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),
                                                           options=chrome_options)
 
                                 # Siteye Git
                                 driver.get(target_url)
-                                time.sleep(3)  # Sayfanın ve JS'in yüklenmesi için bekle
+                                time.sleep(3)  # Sayfanın yüklenmesi için bekle
 
-                                # HTML'i Al
                                 page_source = driver.page_source
-                                driver.quit()  # Tarayıcıyı kapat
+                                driver.quit()
 
-                                # BeautifulSoup ile Parçala
+                                # BeautifulSoup ile İşleme
                                 soup = BeautifulSoup(page_source, "html.parser")
 
-                                # --- AYNI MANTIK DEVAM EDİYOR ---
                                 # "Şu Anki Fiyat" içeren aria-label'ları bul
                                 cards = soup.find_all(attrs={"aria-label": re.compile(r"Şu Anki Fiyat:")})
 
                                 for card in cards:
                                     raw_text = card['aria-label']
-
-                                    # REGEX İLE VERİYİ PARÇALA
                                     match = re.search(r"(.*?)\.\s*Şu Anki Fiyat:\s*(.*?)\.\s*(.*)", raw_text)
 
                                     if match:
@@ -1136,10 +1150,8 @@ def dashboard_modu():
                                             "Satıcı": p_vendor
                                         })
 
-                                # SONUÇLARI GÖSTER
                                 if results_data:
                                     df_res = pd.DataFrame(results_data).sort_values("Fiyat_Sayi")
-
                                     for _, row in df_res.iterrows():
                                         is_cheaper = row['Fiyat_Sayi'] < my_price and row['Fiyat_Sayi'] > 0
                                         card_bg = "#ecfdf5" if is_cheaper else "#ffffff"
@@ -1154,13 +1166,14 @@ def dashboard_modu():
                                             </div>
                                         </div>
                                         """, unsafe_allow_html=True)
-
                                 else:
                                     st.warning(
-                                        "Google Shopping sayfası yüklendi ama fiyat kartları bulunamadı. Google yapıyı değiştirmiş olabilir.")
+                                        "Veri çekilemedi. Google HTML yapısı farklı olabilir veya Captcha çıktı.")
 
                             except Exception as e:
-                                st.error(f"Selenium Hatası: {e}")
+                                st.error(f"Kritik Hata: {str(e)}")
+                                st.info(
+                                    "Eğer 'binary not found' hatası alıyorsanız, packages.txt dosyasına 'chromium' ve 'chromium-driver' eklediğinizden emin olun.")
 
                 with t7:
                     st.data_editor(
