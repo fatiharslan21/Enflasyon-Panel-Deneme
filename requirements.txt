@@ -18,5 +18,3 @@ fpdf2
 duckduckgo-search
 selenium
 webdriver-manager
-chromium
-chromium-driver
