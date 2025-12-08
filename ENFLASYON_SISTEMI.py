@@ -23,6 +23,7 @@ import requests
 from prophet import Prophet
 import feedparser
 from fpdf import FPDF
+from duckduckgo_search import DDGS
 
 # --- GEMINI AYARI ---
 if "gemini" in st.secrets:
@@ -192,9 +193,16 @@ def get_official_inflation():
 
 
 # --- 3. ÖZELLİK: PROPHET İLE GELECEK TAHMİNİ ---
+# --- ESKİ HALİ ---
+# def predict_inflation_prophet(df_trend):
+#     ...
+
+# --- YENİ HALİ (Bunu Yapıştır) ---
+@st.cache_data(ttl=3600, show_spinner=False) # Tahmini 1 saat hafızada tutar
 def predict_inflation_prophet(df_trend):
     try:
         df_p = df_trend.rename(columns={'Tarih': 'ds', 'TÜFE': 'y'})
+        # ... kodun geri kalanı aynı kalsın ...
         m = Prophet(daily_seasonality=True, yearly_seasonality=False)
         m.fit(df_p)
         future = m.make_future_dataframe(periods=90)
@@ -376,6 +384,7 @@ def github_user_islem(action, username=None, password=None, email=None):
     return False, "Hata"
 
 
+@st.cache_data(ttl=600, show_spinner=False)  # 10 Dakika boyunca hafızada tutar
 def github_excel_oku(dosya_adi, sayfa_adi=None):
     repo = get_github_repo()
     if not repo: return pd.DataFrame()
@@ -1043,14 +1052,86 @@ def dashboard_modu():
                     c2.plotly_chart(fig_sun, use_container_width=True)
 
                 with t6:
-                    st.markdown("##### 📉 En Çok Düşenler (Fırsatlar)")
-                    low = df_analiz[df_analiz['Fark'] < 0].sort_values('Fark').head(10)
-                    if not low.empty:
-                        low_disp = low[[ad_col, 'Grup', 'Fark', son]].copy()
-                        low_disp['Fark'] = low_disp['Fark'].apply(lambda x: f"%{x * 100:.2f}")
-                        st.table(low_disp)
-                    else:
-                        st.info("Şu an indirimde ürün yok, her şey zamlanmış görünüyor.")
+                    st.markdown("### 🌐 Canlı Piyasa Ajanı (Real-Time)")
+                    st.info(
+                        "Bu modül, senin veri tabanındaki fiyatı alır, **o an internette** (Cimri, Akakçe, Trendyol vb.) arama yapar ve senin fiyatınla piyasayı kıyaslar.")
+
+                    # 1. Ürün Seçimi
+                    product_list = sorted(df_analiz[ad_col].unique())
+                    selected_product = st.selectbox("Hangi ürünü canlı piyasada araştıralım?", product_list)
+
+                    if st.button(f"🚀 {selected_product} İçin İnterneti Tara", type="primary"):
+
+                        # A. SENİN VERİ TABANINDAKİ DURUM
+                        my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
+                        my_price = my_record[son]  # En son tarihli fiyat sütunu
+                        my_date = son
+
+                        c_res1, c_res2 = st.columns([1, 1])
+
+                        # Senin Fiyatını Göster
+                        with c_res1:
+                            st.metric(label="Senin Veri Tabanın", value=f"{my_price:.2f} TL", delta="Referans Fiyat")
+
+                        # B. İNTERNET TARAMASI (DuckDuckGo Ajanı)
+                        search_results = []
+                        with st.spinner("🌍 İnternet taranıyor... (Cimri, Akakçe, Marketler)"):
+                            try:
+                                with DDGS() as ddgs:
+                                    # "Ürün adı fiyat" şeklinde arama yapıyoruz
+                                    query = f"{selected_product} fiyat"
+                                    # İlk 6 sonucu çekiyoruz
+                                    results = list(ddgs.text(query, region='tr-tr', max_results=6))
+
+                                    # Sonuçları temiz bir metne dönüştür
+                                    search_text = ""
+                                    for r in results:
+                                        search_text += f"- Başlık: {r['title']}\n  Link: {r['href']}\n  Özet: {r['body']}\n\n"
+                                        search_results.append(r)
+
+                            except Exception as e:
+                                st.error(f"Arama Hatası: {e}")
+                                search_text = "İnternet araması başarısız oldu."
+
+                        # C. GEMINI ANALİZİ
+                        if search_text:
+                            prompt_live = f"""
+                            Sen kıdemli bir piyasa analistisin.
+
+                            ELİMİZDEKİ ÜRÜN: "{selected_product}"
+
+                            1. BİZİM VERİ TABANIMIZDAKİ FİYAT: {my_price:.2f} TL (Tarih: {my_date})
+
+                            2. AZ ÖNCE İNTERNETTEN BULDUĞUMUZ GÜNCEL SONUÇLAR:
+                            {search_text}
+
+                            GÖREVİN:
+                            Bu verileri karşılaştır ve kullanıcıya kısa, net bir rapor ver.
+                            - Bizim fiyatımız piyasaya göre ucuz mu, pahalı mı?
+                            - İnternette daha ucuza bir yer var mı? Varsa neresi (Linkteki site ismini söyle)?
+                            - Fiyat farkı çok mu büyük?
+                            - Sonuç olarak: "Senin verin güncel/eski" veya "Piyasada X TL'ye var" gibi net konuş.
+
+                            Cevabında emoji kullan ve samimi ol.
+                            """
+
+                            with st.spinner("🧠 Gemini piyasayı yorumluyor..."):
+                                model_live = genai.GenerativeModel('gemini-2.5-flash')
+                                response_live = model_live.generate_content(prompt_live)
+
+                                st.markdown(f"""
+                                <div style="background-color:#eff6ff; padding:20px; border-radius:10px; border-left:5px solid #3b82f6; color:#1e3a8a; margin-top:20px;">
+                                    <div style="font-weight:bold; margin-bottom:10px; font-size:18px;">🧠 Canlı Piyasa Analizi:</div>
+                                    {response_live.text}
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                                # Kaynak Linkleri Göster (Kanıt olarak)
+                                with st.expander("🔗 İnternetten Bulunan Kaynaklar (Kanıtlar)"):
+                                    for item in search_results:
+                                        st.markdown(f"**{item['title']}**")
+                                        st.caption(f"{item['href']}")
+                                        st.divider()
 
                 with t7:
                     st.data_editor(
