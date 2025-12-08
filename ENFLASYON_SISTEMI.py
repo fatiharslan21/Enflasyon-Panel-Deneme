@@ -84,33 +84,11 @@ def get_exchange_rates():
     return rates
 
 # --- 1. AYARLAR ---
-# 1. TEMEL AYARLAR (En üste gelecek)
 st.set_page_config(
-    page_title="Enflasyon Monitörü",
+    page_title="Enflasyon Analizi",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
-
-# 2. GİZLEME VE SABİTLEME CSS'i (Renkleri bozmadan)
-st.markdown("""
-    <style>
-        /* Sidebar kapatma okunu (x) gizle -> Sidebar sabit kalır */
-        [data-testid="collapsedControl"] {
-            display: none !important;
-        }
-
-        /* Üstteki Header (Share, Deploy) şeridini gizle */
-        header[data-testid="stHeader"] {
-            display: none !important;
-        }
-
-        /* Sayfa içeriğini yukarı hizala */
-        .block-container {
-            padding-top: 2rem;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
 # --- ADMIN AYARI ---
 # Buraya yetkili olmasını istediğiniz kullanıcı adlarını yazın
 ADMIN_USERS = ["fatih", "ahmet", "mehmet"]
