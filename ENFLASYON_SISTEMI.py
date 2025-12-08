@@ -887,7 +887,7 @@ def dashboard_modu():
                 # --- SEKMELER ---
                 t_analiz, t_istatistik, t_sepet, t_harita, t_firsat, t_liste, t_haber, t_rapor, t_alarm = st.tabs(
                     ["📊 ANALİZ", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 PİYASA VERİLERİ", "📋 LİSTE", "📰 HABERLER",
-                     "📝 PRO RAPOR", "🔔 FİYAT ALARMI"])
+                     "📝 RAPOR", "🔔 FİYAT ALARMI"])
 
                 with t_analiz:
                     st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
@@ -991,7 +991,7 @@ def dashboard_modu():
                         col_vol.error(f"Volatilite hesaplanamadı: {e}")
 
                 with t_sepet:
-                    st.markdown("### 🛒 Kişisel Enflasyon Sepeti (Laspeyres Endeksi)")
+                    st.markdown("### 🛒 Kişisel Enflasyon Sepeti")
                     st.info(
                         "💡 **Nasıl Çalışır?** Aşağıdan ürünleri seçip **aylık tüketim miktarını (adet/kg)** girdiğinde, sistem senin gerçek enflasyonunu hesaplar.")
 
