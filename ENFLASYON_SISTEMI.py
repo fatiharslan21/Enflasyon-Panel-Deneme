@@ -60,7 +60,7 @@ with st.sidebar:
 
 
 # --- CSS MOTORU (GÜNCELLENDİ) ---
-# --- CSS MOTORU (KESİN ÇÖZÜM: TABLO VE BUTON RENKLERİ) ---
+# --- CSS MOTORU (KESİN ÇÖZÜM V3: RENK ZORLAMA) ---
 def apply_theme():
     # Renk Paletleri
     if st.session_state.theme == 'dark':
@@ -78,68 +78,81 @@ def apply_theme():
 
         # KARANLIK MOD İÇİN ÖZEL "ZORLAYICI" CSS
         extra_css = """
-        /* 1. BUTONLAR (GÜVENLİ ÇIKIŞ & EXCEL İNDİR) */
-        /* Normal Butonlar ve İndirme Butonları için Kapsamlı Kural */
-        div.stButton > button, div[data-testid="stDownloadButton"] > button {
-            background-color: #FFFFFF !important; /* Arka plan BEYAZ */
+        /* 1. BUTONLARIN YAZISI KESİN SİYAH OLACAK */
+        /* Normal Butonlar (Sidebar'daki Çıkış vb.) */
+        div.stButton > button {
+            background-color: #FFFFFF !important;
             border: 2px solid #ccc !important;
+            color: #000000 !important; /* Buton yazısı SİYAH */
+        }
+        div.stButton > button p {
+            color: #000000 !important; /* Buton içindeki paragraf da SİYAH */
         }
 
-        /* Butonun İÇİNDEKİ her türlü yazıyı SİYAH yap (p etiketi, span etiketi vs.) */
-        div.stButton > button *, div[data-testid="stDownloadButton"] > button * {
-            color: #000000 !important; 
+        /* İndirme Butonu (Excel Raporu İndir) */
+        [data-testid="stDownloadButton"] button {
+            background-color: #FFFFFF !important;
+            border: 2px solid #ccc !important;
+            color: #000000 !important; /* Buton yazısı SİYAH */
+        }
+        [data-testid="stDownloadButton"] button p {
+            color: #000000 !important; /* Buton içindeki paragraf da SİYAH */
         }
 
-        /* Butonun kendi yazı rengini de SİYAH yap */
-        div.stButton > button, div[data-testid="stDownloadButton"] > button {
-            color: #000000 !important;
-        }
-
-        /* Hover (Üzerine gelince) durumunda da bozulmasın */
-        div.stButton > button:hover, div[data-testid="stDownloadButton"] > button:hover {
+        /* Hover (Mouse ile üzerine gelince) */
+        div.stButton > button:hover, [data-testid="stDownloadButton"] button:hover {
             background-color: #f0f0f0 !important;
-            color: #000000 !important;
             border-color: #fff !important;
+            color: #000000 !important;
         }
-        div.stButton > button:hover *, div[data-testid="stDownloadButton"] > button:hover * {
+        div.stButton > button:hover p, [data-testid="stDownloadButton"] button:hover p {
             color: #000000 !important;
         }
 
-        /* 2. TABLO VE DATAFRAME (KARA DELİK DÜZELTMESİ) */
-        /* Tablo alanının içindeki TÜM yazı elementlerini BEYAZ yap */
-        [data-testid="stDataFrame"] *, [data-testid="stDataEditor"] * {
-            color: #ffffff !important;
-            fill: #ffffff !important; /* SVG ikonları için */
-        }
-
-        /* Tablo başlıkları (Header) */
-        [data-testid="stDataFrame"] th, [data-testid="stDataEditor"] th {
-            color: #ffffff !important;
-            background-color: #262730 !important; /* Başlıklar ayırt edilsin */
-        }
-
-        /* Tablo arka planı */
+        /* 2. TABLO İÇİNDEKİ YAZILAR KESİN BEYAZ OLACAK */
+        /* Dataframe ve DataEditor kapsayıcıları */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
             background-color: #0E1117 !important;
+            border: 1px solid #333 !important;
         }
 
-        /* 3. DİĞER DÜZELTMELER */
-        /* Multiselect (Ürün seçimi) */
+        /* Tablonun içindeki tüm metin elementlerini hedefle */
+        [data-testid="stDataFrame"] div, [data-testid="stDataFrame"] span, [data-testid="stDataFrame"] p, 
+        [data-testid="stDataEditor"] div, [data-testid="stDataEditor"] span, [data-testid="stDataEditor"] p,
+        [data-testid="stDataFrame"] td, [data-testid="stDataEditor"] td {
+            color: #FFFFFF !important; /* Hücre yazıları BEYAZ */
+        }
+
+        /* Tablo Başlıkları (Header) */
+        [data-testid="stDataFrame"] th, [data-testid="stDataEditor"] th {
+            color: #FFFFFF !important; /* Başlık yazıları BEYAZ */
+            background-color: #262730 !important;
+            border-bottom: 1px solid #444 !important;
+        }
+
+        /* İndex sütunu (Sol baştaki numaralar) */
+        [data-testid="stDataFrame"] th[data-testid="stHeader"] {
+             color: #FFFFFF !important;
+        }
+
+        /* 3. DİĞER GÖRÜNÜM AYARLARI */
+        /* KPI Değerleri */
+        .metric-val, div[data-testid="stMetricValue"], .metric-label {
+            color: #FFFFFF !important;
+        }
+
+        /* Grafik Arka Planı */
+        .stPlotlyChart { background-color: transparent !important; }
+
+        /* Multiselect Kutusu */
         .stMultiSelect div[data-baseweb="select"] {
             background-color: #000000 !important;
             border: 1px solid #444 !important;
         }
         .stMultiSelect span { color: white !important; }
-
-        /* KPI Kart Değerleri */
-        .metric-val, div[data-testid="stMetricValue"], .metric-label {
-            color: #FFFFFF !important;
-        }
-
-        .stPlotlyChart { background-color: transparent !important; }
         """
     else:
-        # AYDINLIK MOD (Standart Ayarlar)
+        # AYDINLIK MOD (Standart Ayarlar - Değişiklik Yok)
         colors = {
             "bg": "#FFFFFF",
             "sidebar": "#F0F2F6",
@@ -153,7 +166,7 @@ def apply_theme():
         st.session_state.plotly_template = "plotly_white"
         extra_css = ""
 
-    # CSS BİRLEŞTİRME
+    # CSS BİRLEŞTİRME VE UYGULAMA
     final_css = f"""
     <style>
         /* Gizlemeler */
@@ -164,7 +177,7 @@ def apply_theme():
         footer {{ visibility: hidden; }}
         .stDeployButton {{ display: none; }}
 
-        /* Ana Renkler */
+        /* Ana Renk Atamaları */
         .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
         section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
         h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown {{ color: {colors['text']} !important; }}
