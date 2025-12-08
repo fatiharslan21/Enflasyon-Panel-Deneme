@@ -36,6 +36,36 @@ from webdriver_manager.chrome import ChromeDriverManager
 if "gemini" in st.secrets:
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
+st.set_page_config(
+    page_title="Enflasyon Analizi",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# 2. İstenmeyen elemanları gizleyen CSS
+st.markdown("""
+    <style>
+        /* Sidebar kapatma (ok işareti) butonunu gizler. 
+           Böylece sidebar hep açık kalır, kullanıcı kapatamaz. */
+        [data-testid="collapsedControl"] {
+            display: none;
+        }
+
+        /* En üstteki Header şeridini (Share, Deploy, Hamburger menü) gizler */
+        header[data-testid="stHeader"] {
+            display: none;
+        }
+
+        /* Header gidince içerik çok yukarı yapışmasın diye üst boşluk ayarı */
+        .block-container {
+            padding-top: 2rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# ... Kodunuz buradan devam eder ...
+st.sidebar.title("Menü")
+st.title("Ana Sayfa")
 
 # --- KUR ÇEKME FONKSİYONU (EN TEPEYE EKLENECEK) ---
 # --- GÜNCELLENMİŞ KUR ÇEKME FONKSİYONU (GERÇEK ALTIN VERİSİ) ---
