@@ -1067,15 +1067,15 @@ def dashboard_modu():
                     c2.plotly_chart(fig_sun, use_container_width=True)
 
                 with t6:
-                    st.markdown("### 🛍️ Google Shopping (Cloud Uyumlu Mod)")
+                    st.markdown("### 🛍️ Google Shopping (Sistem Sürücüsü Modu)")
                     st.info(
-                        "Bu modül, Streamlit Cloud sunucusunda Chromium tarayıcısını kullanarak Google fiyatlarını okur.")
+                        "Bu modül, versiyon uyuşmazlığını önlemek için doğrudan sistemin kendi sürücüsünü kullanır.")
 
                     # 1. Ürün Seçimi
                     product_list = sorted(df_analiz[ad_col].unique())
                     selected_product = st.selectbox("Hangi ürünü Google Shopping'te tarayalım?", product_list)
 
-                    if st.button(f"🚀 {selected_product} Fiyatlarını Çek", type="primary"):
+                    if st.button(f"Piyasa Fiyatlarını Çek", type="primary"):
 
                         # A. SENİN VERİ TABANIN
                         try:
@@ -1086,94 +1086,94 @@ def dashboard_modu():
 
                         st.metric("Senin Fiyatın", f"{my_price:.2f} TL")
 
-                        # B. SELENIUM İLE SCRAPING (GÜÇLENDİRİLMİŞ AYARLAR)
+                        # B. SELENIUM İLE SCRAPING (SİSTEM SÜRÜCÜSÜ)
                         results_data = []
                         target_url = f"https://www.google.com/search?q={selected_product}&tbm=shop&hl=tr&gl=TR"
 
-                        with st.spinner("🕷️ Sunucu üzerinde tarayıcı başlatılıyor..."):
+                        with st.spinner("🕷️ Sistem sürücüsü ile tarayıcı başlatılıyor..."):
                             try:
                                 chrome_options = Options()
-                                chrome_options.add_argument("--headless")  # Pencere açma
+                                chrome_options.add_argument("--headless")
                                 chrome_options.add_argument("--no-sandbox")
                                 chrome_options.add_argument("--disable-dev-shm-usage")
                                 chrome_options.add_argument("--disable-gpu")
                                 chrome_options.add_argument(
                                     "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36")
 
-                                # --- KRİTİK DÜZELTME: CHROME YOLUNU BULMA ---
-                                # Streamlit Cloud'da Chromium genellikle /usr/bin/chromium altındadır.
-                                # shutil.which ile sistemdeki 'chromium' veya 'google-chrome' yolunu buluyoruz.
+                                # 1. CHROMIUM YOLUNU BUL
                                 chrome_path = shutil.which("chromium") or shutil.which(
                                     "chromium-browser") or shutil.which("google-chrome")
-
                                 if chrome_path:
                                     chrome_options.binary_location = chrome_path
+
+                                # 2. CHROMEDRIVER YOLUNU BUL (KRİTİK DÜZELTME BURADA)
+                                # WebdriverManager kullanmıyoruz, sistemin driver'ını buluyoruz.
+                                driver_path = shutil.which("chromedriver") or shutil.which(
+                                    "chromium-driver") or "/usr/bin/chromedriver"
+
+                                if not driver_path:
+                                    st.error(
+                                        "⚠️ Sistemde 'chromedriver' bulunamadı. packages.txt dosyasını kontrol et.")
                                 else:
-                                    st.warning("⚠️ Chrome binary bulunamadı, varsayılan yollar deneniyor...")
+                                    # Servisi doğrudan sistem yoluyla başlat
+                                    service = Service(executable_path=driver_path)
+                                    driver = webdriver.Chrome(service=service, options=chrome_options)
 
-                                # Driver Başlatma
-                                driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),
-                                                          options=chrome_options)
+                                    # Siteye Git
+                                    driver.get(target_url)
+                                    time.sleep(3)
 
-                                # Siteye Git
-                                driver.get(target_url)
-                                time.sleep(3)  # Sayfanın yüklenmesi için bekle
+                                    page_source = driver.page_source
+                                    driver.quit()
 
-                                page_source = driver.page_source
-                                driver.quit()
+                                    # BeautifulSoup İşlemleri
+                                    soup = BeautifulSoup(page_source, "html.parser")
+                                    cards = soup.find_all(attrs={"aria-label": re.compile(r"Şu Anki Fiyat:")})
 
-                                # BeautifulSoup ile İşleme
-                                soup = BeautifulSoup(page_source, "html.parser")
+                                    for card in cards:
+                                        raw_text = card['aria-label']
+                                        match = re.search(r"(.*?)\.\s*Şu Anki Fiyat:\s*(.*?)\.\s*(.*)", raw_text)
 
-                                # "Şu Anki Fiyat" içeren aria-label'ları bul
-                                cards = soup.find_all(attrs={"aria-label": re.compile(r"Şu Anki Fiyat:")})
+                                        if match:
+                                            p_name = match.group(1).strip()
+                                            p_price_str = match.group(2).strip()
+                                            p_vendor = match.group(3).strip().rstrip('.')
 
-                                for card in cards:
-                                    raw_text = card['aria-label']
-                                    match = re.search(r"(.*?)\.\s*Şu Anki Fiyat:\s*(.*?)\.\s*(.*)", raw_text)
+                                            try:
+                                                clean_price = float(
+                                                    p_price_str.replace('₺', '').replace('.', '').replace(',',
+                                                                                                          '.').strip())
+                                            except:
+                                                clean_price = 0
 
-                                    if match:
-                                        p_name = match.group(1).strip()
-                                        p_price_str = match.group(2).strip()
-                                        p_vendor = match.group(3).strip().rstrip('.')
+                                            results_data.append({
+                                                "Ürün": p_name,
+                                                "Fiyat_Etiketi": p_price_str,
+                                                "Fiyat_Sayi": clean_price,
+                                                "Satıcı": p_vendor
+                                            })
 
-                                        try:
-                                            clean_price = float(
-                                                p_price_str.replace('₺', '').replace('.', '').replace(',', '.').strip())
-                                        except:
-                                            clean_price = 0
+                                    if results_data:
+                                        df_res = pd.DataFrame(results_data).sort_values("Fiyat_Sayi")
+                                        for _, row in df_res.iterrows():
+                                            is_cheaper = row['Fiyat_Sayi'] < my_price and row['Fiyat_Sayi'] > 0
+                                            card_bg = "#ecfdf5" if is_cheaper else "#ffffff"
+                                            border_col = "#10b981" if is_cheaper else "#e2e8f0"
 
-                                        results_data.append({
-                                            "Ürün": p_name,
-                                            "Fiyat_Etiketi": p_price_str,
-                                            "Fiyat_Sayi": clean_price,
-                                            "Satıcı": p_vendor
-                                        })
-
-                                if results_data:
-                                    df_res = pd.DataFrame(results_data).sort_values("Fiyat_Sayi")
-                                    for _, row in df_res.iterrows():
-                                        is_cheaper = row['Fiyat_Sayi'] < my_price and row['Fiyat_Sayi'] > 0
-                                        card_bg = "#ecfdf5" if is_cheaper else "#ffffff"
-                                        border_col = "#10b981" if is_cheaper else "#e2e8f0"
-
-                                        st.markdown(f"""
-                                        <div style="background:{card_bg}; border:1px solid {border_col}; padding:15px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                                            <div style="font-weight:bold; color:#1e293b; font-size:16px;">{row['Ürün']}</div>
-                                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
-                                                <div style="color:#64748b; font-size:14px;">🏪 {row['Satıcı']}</div>
-                                                <div style="font-weight:800; font-size:18px; color:#0f172a;">{row['Fiyat_Etiketi']}</div>
+                                            st.markdown(f"""
+                                            <div style="background:{card_bg}; border:1px solid {border_col}; padding:15px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                                                <div style="font-weight:bold; color:#1e293b; font-size:16px;">{row['Ürün']}</div>
+                                                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                                                    <div style="color:#64748b; font-size:14px;">🏪 {row['Satıcı']}</div>
+                                                    <div style="font-weight:800; font-size:18px; color:#0f172a;">{row['Fiyat_Etiketi']}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        """, unsafe_allow_html=True)
-                                else:
-                                    st.warning(
-                                        "Veri çekilemedi. Google HTML yapısı farklı olabilir veya Captcha çıktı.")
+                                            """, unsafe_allow_html=True)
+                                    else:
+                                        st.warning("Google Shopping'den veri okunamadı (Yapı değişmiş olabilir).")
 
                             except Exception as e:
-                                st.error(f"Kritik Hata: {str(e)}")
-                                st.info(
-                                    "Eğer 'binary not found' hatası alıyorsanız, packages.txt dosyasına 'chromium' ve 'chromium-driver' eklediğinizden emin olun.")
+                                st.error(f"Sistem Hatası: {e}")
 
                 with t7:
                     st.data_editor(
