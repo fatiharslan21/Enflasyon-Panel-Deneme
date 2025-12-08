@@ -36,36 +36,96 @@ from webdriver_manager.chrome import ChromeDriverManager
 if "gemini" in st.secrets:
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
+# 1. Sayfa Ayarı: Sidebar varsayılan olarak açık başlasın
 st.set_page_config(
     page_title="Enflasyon Analizi",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# 2. İstenmeyen elemanları gizleyen CSS
-st.markdown("""
+# 2. Sidebar'a Dark Mode Anahtarı Ekleme
+with st.sidebar:
+    st.title("Ayarlar")
+    # Kullanıcı buradan modu seçer
+    is_dark_mode = st.toggle("🌙 Karanlık Mod", value=True)
+
+# 3. Temel Gizleme CSS'i (Sidebar butonu ve Header)
+# [data-testid="collapsedControl"] -> Sidebar kapatma tuşudur.
+# !important ekleyerek görünmesini zorla engelliyoruz.
+hide_elements_css = """
+<style>
+    /* Üstteki Header'ı gizle */
+    header[data-testid="stHeader"] {
+        display: none;
+    }
+
+    /* Sidebar kapatma okunu (toggle button) gizle */
+    [data-testid="collapsedControl"] {
+        display: none !important;
+    }
+
+    /* Header gizlenince oluşan üst boşluğu azalt */
+    .block-container {
+        padding-top: 1rem;
+    }
+</style>
+"""
+st.markdown(hide_elements_css, unsafe_allow_html=True)
+
+# 4. Dinamik Dark Mode Mantığı (CSS Enjeksiyonu)
+if is_dark_mode:
+    # Eğer anahtar açıksa Koyu Tema renklerini zorla
+    dark_theme_css = """
     <style>
-        /* Sidebar kapatma (ok işareti) butonunu gizler. 
-           Böylece sidebar hep açık kalır, kullanıcı kapatamaz. */
-        [data-testid="collapsedControl"] {
-            display: none;
+        /* Ana arka plan */
+        .stApp {
+            background-color: #0E1117;
+            color: #FAFAFA;
         }
-
-        /* En üstteki Header şeridini (Share, Deploy, Hamburger menü) gizler */
-        header[data-testid="stHeader"] {
-            display: none;
+        /* Sidebar arka planı */
+        [data-testid="stSidebar"] {
+            background-color: #262730;
         }
-
-        /* Header gidince içerik çok yukarı yapışmasın diye üst boşluk ayarı */
-        .block-container {
-            padding-top: 2rem;
+        /* Yazı renkleri ve başlıklar */
+        h1, h2, h3, h4, h5, h6, p, label {
+            color: #FAFAFA !important;
+        }
+        /* Metrik değerleri vb. */
+        [data-testid="stMetricValue"] {
+            color: #FAFAFA !important;
         }
     </style>
-""", unsafe_allow_html=True)
+    """
+    st.markdown(dark_theme_css, unsafe_allow_html=True)
 
-# ... Kodunuz buradan devam eder ...
-st.sidebar.title("Menü")
-st.title("Ana Sayfa")
+else:
+    # Eğer anahtar kapalıysa (Light Mode) Açık Tema renklerini zorla
+    light_theme_css = """
+    <style>
+        /* Ana arka plan */
+        .stApp {
+            background-color: #FFFFFF;
+            color: #000000;
+        }
+        /* Sidebar arka planı */
+        [data-testid="stSidebar"] {
+            background-color: #F0F2F6;
+        }
+        /* Yazı renkleri */
+        h1, h2, h3, h4, h5, h6, p, label {
+            color: #31333F !important;
+        }
+    </style>
+    """
+    st.markdown(light_theme_css, unsafe_allow_html=True)
+
+# --- UYGULAMA İÇERİĞİ ---
+
+st.title("Ana Sayfa Analizi")
+st.write("Şu an seçili mod:", "Karanlık" if is_dark_mode else "Aydınlık")
+
+st.metric(label="Enflasyon", value="%65.4", delta="1.2%")
+st.line_chart([1, 2, 3, 2, 4])
 
 # --- KUR ÇEKME FONKSİYONU (EN TEPEYE EKLENECEK) ---
 # --- GÜNCELLENMİŞ KUR ÇEKME FONKSİYONU (GERÇEK ALTIN VERİSİ) ---
