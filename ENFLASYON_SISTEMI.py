@@ -119,14 +119,6 @@ else:
     """
     st.markdown(light_theme_css, unsafe_allow_html=True)
 
-# --- UYGULAMA İÇERİĞİ ---
-
-st.title("Ana Sayfa Analizi")
-st.write("Şu an seçili mod:", "Karanlık" if is_dark_mode else "Aydınlık")
-
-st.metric(label="Enflasyon", value="%65.4", delta="1.2%")
-st.line_chart([1, 2, 3, 2, 4])
-
 # --- KUR ÇEKME FONKSİYONU (EN TEPEYE EKLENECEK) ---
 # --- GÜNCELLENMİŞ KUR ÇEKME FONKSİYONU (GERÇEK ALTIN VERİSİ) ---
 @st.cache_data(ttl=1800)  # 30 dakikada bir yeniler
