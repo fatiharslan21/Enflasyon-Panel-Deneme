@@ -3,3 +3,5 @@ libx11-xcb1
 libdbus-glib-1-2
 libxt6
 libpci-dev
+chromium
+chromium-driver
