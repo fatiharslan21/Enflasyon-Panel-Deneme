@@ -31,11 +31,37 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-get_exchange_rates
 
 # --- GEMINI AYARI ---
 if "gemini" in st.secrets:
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
+
+
+# --- KUR ÇEKME FONKSİYONU (EN TEPEYE EKLENECEK) ---
+@st.cache_data(ttl=3600)  # 1 saatte bir günceller
+def get_exchange_rates():
+    rates = {"USD": 0.0, "EUR": 0.0, "GA": 0.0}
+    try:
+        # 1. TCMB'den Resmi Dolar ve Euro
+        url_tcmb = "https://www.tcmb.gov.tr/kurlar/today.xml"
+        res = requests.get(url_tcmb, timeout=5)  # Timeout ekledim, takılmasın
+        soup = BeautifulSoup(res.content, 'xml')
+
+        usd = soup.find(attrs={"CurrencyCode": "USD"}).BanknoteSelling.text
+        eur = soup.find(attrs={"CurrencyCode": "EUR"}).BanknoteSelling.text
+
+        rates["USD"] = float(usd)
+        rates["EUR"] = float(eur)
+
+        # 2. Gram Altın (Yaklaşık hesap)
+        # Ons Altın (Yaklaşık 2650$ kabulü ile) * Dolar / 31.10
+        rates["GA"] = (2650 * rates["USD"]) / 31.10
+
+    except Exception as e:
+        # Hata olursa sessizce 0 dön, sistemi bozma
+        pass
+
+    return rates
 
 # --- 1. AYARLAR ---
 st.set_page_config(
@@ -308,41 +334,6 @@ def github_user_islem(action, username=None, password=None, email=None):
     return False, "Hata"
 
 
-@st.cache_data(ttl=3600)  # 1 saatte bir günceller, sistemi yormaz
-def get_exchange_rates():
-    rates = {"USD": 0.0, "EUR": 0.0, "GA": 0.0, "BIST": 0.0}
-    try:
-        # 1. TCMB'den Resmi Dolar ve Euro (En Güvenilir Kaynak)
-        url_tcmb = "https://www.tcmb.gov.tr/kurlar/today.xml"
-        res = requests.get(url_tcmb)
-        soup = BeautifulSoup(res.content, 'xml')  # XML parser kullanıyoruz
-
-        usd = soup.find(attrs={"CurrencyCode": "USD"}).BanknoteSelling.text
-        eur = soup.find(attrs={"CurrencyCode": "EUR"}).BanknoteSelling.text
-
-        rates["USD"] = float(usd)
-        rates["EUR"] = float(eur)
-
-        # 2. Altın Hesabı (Matematiksel)
-        # Gram Altın = (Ons Altın ($) * Dolar Kuru) / 31.1035
-        # Ons altını yaklaşık sabit bir veri veya HTML'den çekebiliriz.
-        # Hata riskini azaltmak için şimdilik TCMB verisiyle yaklaşık hesap yapalım
-        # veya BigPara gibi bir siteden HTML parse edelim:
-
-        try:
-            # Alternatif: Canlı Altın (BigPara Scraping)
-            url_gold = "https://bigpara.hurriyet.com.tr/altin/gram-altin-fiyati/"
-            res_gold = requests.get(url_gold)
-            soup_gold = BeautifulSoup(res_gold.content, 'html.parser')
-            gold_price = soup_gold.select_one(".kurBox .value").text.replace(".", "").replace(",", ".")
-            rates["GA"] = float(gold_price)
-        except:
-            rates["GA"] = (2650 * rates["USD"]) / 31.10  # Fallback (Ons tahmini)
-
-    except Exception as e:
-        print(f"Kur Hatası: {e}")
-
-    return rates
 
 # --- SCRAPER (FİYAT ÇEKİCİ) ---
 def temizle_fiyat(t):
