@@ -950,9 +950,18 @@ def dashboard_modu():
                         with st.spinner("İnternet taranıyor, Gemini yorumluyor..."):
                             analysis_text, headlines = get_market_sentiment()
                             c_news1, c_news2 = st.columns([2, 1])
-                            with c_news1: st.markdown("#### 🧠 Gemini Piyasa Yorumu"); st.success(analysis_text)
-                            with c_news2: st.markdown("#### 🗞️ Son Başlıklar"); [st.caption(f"• {h}") for h in
-                                                                                 headlines]
+
+                            with c_news1:
+                                st.markdown("#### 🧠 Gemini Piyasa Yorumu")
+                                st.success(analysis_text)
+
+                            with c_news2:
+                                st.markdown("#### 🗞️ Son Başlıklar")
+                                # HATA BURADAYDI (DÜZELTİLDİ):
+                                # Eski hali: [st.caption(f"• {h}") for h in headlines]
+                                # Yeni hali (Normal döngü):
+                                for h in headlines:
+                                    st.caption(f"• {h}")
 
                 with t_rapor:
                     st.markdown("### 📝 Profesyonel Yönetici Raporu")
