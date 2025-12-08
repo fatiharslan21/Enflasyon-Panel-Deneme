@@ -36,13 +36,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 if "gemini" in st.secrets:
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
-# 1. KURTARMA ADIMI: Sidebar'ı zorla "AÇIK" (expanded) olarak başlatıyoruz.
-# Bu satır sidebar'ın kapalı kalma sorununu çözer.
-st.set_page_config(
-    page_title="Enflasyon Analizi",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # --- KUR ÇEKME FONKSİYONU (EN TEPEYE EKLENECEK) ---
 # --- GÜNCELLENMİŞ KUR ÇEKME FONKSİYONU (GERÇEK ALTIN VERİSİ) ---
@@ -91,12 +84,32 @@ def get_exchange_rates():
     return rates
 
 # --- 1. AYARLAR ---
+# 1. TEMEL AYARLAR (En üste gelecek)
 st.set_page_config(
-    page_title="ENFLASYON MONİTÖRÜ",
-    page_icon="💎",
+    page_title="Enflasyon Monitörü",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# 2. GİZLEME VE SABİTLEME CSS'i (Renkleri bozmadan)
+st.markdown("""
+    <style>
+        /* Sidebar kapatma okunu (x) gizle -> Sidebar sabit kalır */
+        [data-testid="collapsedControl"] {
+            display: none !important;
+        }
+
+        /* Üstteki Header (Share, Deploy) şeridini gizle */
+        header[data-testid="stHeader"] {
+            display: none !important;
+        }
+
+        /* Sayfa içeriğini yukarı hizala */
+        .block-container {
+            padding-top: 2rem;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # --- ADMIN AYARI ---
 # Buraya yetkili olmasını istediğiniz kullanıcı adlarını yazın
