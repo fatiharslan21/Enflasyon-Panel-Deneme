@@ -479,16 +479,16 @@ def dashboard_modu():
             is_online = (datetime.now() - last_seen).total_seconds() < 300
             user_list.append({"name": u, "online": is_online})
 
-        for u in sorted(user_list, key=lambda x: (not x['online'], x['name'] != ADMIN_USER, x['name'])):
+        for u in sorted(user_list, key=lambda x: (not x['online'], x['name'] not in ADMIN_USERS, x['name'])):
             role_icon = "🛡️" if u['name'] in ADMIN_USERS else ""
             st.markdown(f"""
-                <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
-                        <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
-                        {u['name']} {role_icon}
-                    </span>
-                </div>
-            """, unsafe_allow_html=True)
+                        <div style="background:white; border:1px solid #e2e8f0; padding:10px; margin-bottom:6px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center; color:#0f172a; font-size:13px; font-weight:600;">
+                                <span style="height:8px; width:8px; border-radius:50%; display:inline-block; margin-right:10px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
+                                {u['name']} {role_icon}
+                            </span>
+                        </div>
+                    """, unsafe_allow_html=True)
         st.divider()
         if st.button("Güvenli Çıkış", use_container_width=True):
             st.session_state['logged_in'] = False
