@@ -949,7 +949,7 @@ def dashboard_modu():
                         template=st.session_state.plotly_template,
                         title="Enflasyon: Geçmiş, Şimdi ve Gelecek",
                         title_font=dict(color='white', size=22),
-                        legend=dict(orientation="h", y=1.1),
+                        legend=dict(orientation="h", y=1.1, font=dict(color="white"))
                         yaxis=dict(title="TÜFE Endeksi", range=[95, 105]),
                         xaxis=dict(range=[start_date, end_date_fixed]),
                         plot_bgcolor='rgba(0,0,0,0)',
@@ -997,6 +997,7 @@ def dashboard_modu():
 
                         fig_vol.update_layout(
                             template=st.session_state.plotly_template,
+                            title_font=dict(color='white', size=22),
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)'
                         )
