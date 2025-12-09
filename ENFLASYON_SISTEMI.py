@@ -88,7 +88,8 @@ def apply_theme():
         }
         st.session_state.plotly_template = "plotly_white"
 
-    # CSS KODLARININ TAMAMI BURADA (Tırnakların içine dikkat!)
+    # --- CSS BAŞLANGICI ---
+    # Not: Buradaki f""" ... """ yapısı çok önemlidir.
     final_css = f"""
     <style>
         /* GİZLEMELER */
@@ -111,7 +112,7 @@ def apply_theme():
             border: 1px solid {colors['input_border']} !important;
         }}
 
-        /* --- AÇILIR MENÜLER (Dropdown) --- */
+        /* DROPDOWN MENÜLER */
         div[data-baseweb="popover"] {{
             background-color: #FFFFFF !important;
             border: 1px solid #ccc !important;
@@ -121,22 +122,15 @@ def apply_theme():
         div[data-baseweb="popover"] span {{
             color: #000000 !important; 
         }}
-        div[data-baseweb="popover"] li:hover {{
-            background-color: #3b82f6 !important;
-            color: #ffffff !important;
-        }}
 
-        /* --- TOAST MESAJLARI --- */
+        /* TOAST MESAJLARI */
         div[data-baseweb="toast"] {{
             background-color: #FFFFFF !important;
             border: 1px solid #ccc !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
         }}
         div[data-baseweb="toast"] div, 
-        div[data-baseweb="toast"] p, 
-        div[data-baseweb="toast"] span {{
+        div[data-baseweb="toast"] p {{
             color: #000000 !important;
-            font-weight: 500 !important;
         }}
         div[data-baseweb="toast"] svg {{
             fill: #000000 !important;
@@ -151,7 +145,7 @@ def apply_theme():
         .stMultiSelect div[data-baseweb="tag"] {{ background-color: #3b82f6 !important; }}
         .stMultiSelect div[data-baseweb="tag"] span {{ color: #ffffff !important; }}
 
-        /* TABLO VE DATAFRAME */
+        /* TABLOLAR */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
             background-color: {colors['card_bg']} !important;
             border: 1px solid {colors['border_color']} !important;
@@ -162,24 +156,27 @@ def apply_theme():
             background-color: {colors['sidebar']} !important;
         }}
 
-        /* --- NORMAL BUTONLAR --- */
+        /* NORMAL BUTONLAR */
         div.stButton > button {{
             background-color: #ffffff !important;
             color: #000000 !important;
             border: 1px solid #ccc !important;
         }}
-        div.stButton > button p {{ color: #000000 !important; }}
 
-        /* --- İNDİRME BUTONLARI (PDF İNDİR - SİYAH YAZI İÇİN) --- */
+        /* --- BURASI SENİN SORUNUNU ÇÖZEN KISIM --- */
+        /* İndirme Butonları (Download Button) */
         [data-testid="stDownloadButton"] button {{
-            color: #000000 !important;
-            background-color: #ffffff !important;
-            border: 1px solid #ccc !important;
+            background-color: #ffffff !important;  /* Zemin BEYAZ */
+            color: #000000 !important;             /* Yazı SİYAH */
+            border: 1px solid #cccccc !important;  /* Çerçeve GRİ */
         }}
+
         [data-testid="stDownloadButton"] button:hover {{
-            border-color: #3b82f6 !important;
-            color: #000000 !important;
+            background-color: #f0f2f6 !important;  /* Üzerine gelince hafif gri */
+            color: #000000 !important;             /* Yazı hala siyah */
+            border-color: #3b82f6 !important;      /* Çerçeve MAVİ */
         }}
+        /* ----------------------------------------- */
 
         /* METRİKLER */
         .metric-card {{ background: {colors['card_bg']} !important; border: 1px solid {colors['border_color']} !important; }}
@@ -187,6 +184,8 @@ def apply_theme():
 
     </style>
     """
+    # --- CSS BİTİŞİ ---
+
     st.markdown(final_css, unsafe_allow_html=True)
 
 # Temayı Uygula
