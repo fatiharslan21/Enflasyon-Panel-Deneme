@@ -24,6 +24,7 @@ from prophet import Prophet
 import feedparser
 from fpdf import FPDF
 import shutil
+import random
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -425,6 +426,43 @@ def update_user_status(username):
         pass
 
 
+def send_verification_email(to_email, code):
+    try:
+        sender_email = st.secrets["email"]["sender"]
+        sender_password = st.secrets["email"]["password"]
+
+        # Görünen İsim Ayarı
+        display_name = "Enflasyon Monitörü"
+        from_header = f"{display_name} <{sender_email}>"
+
+        subject = "🔐 Doğrulama Kodun"
+
+        body = f"""
+        Merhaba,
+
+        Enflasyon Monitörü'ne kayıt olmak için doğrulama kodun:
+
+        CODE: {code}
+
+        Bu kodu kimseyle paylaşma.
+        Sevgiler.
+        """
+
+        msg = MIMEMultipart()
+        msg['From'] = from_header
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, to_email, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        return False
+
 def send_reset_email(to_email, username):
     try:
         sender_email = st.secrets["email"]["sender"]
@@ -434,7 +472,7 @@ def send_reset_email(to_email, username):
         subject = "🔐 Şifre Sıfırlama - Enflasyon Monitörü"
         body = f"Merhaba {username},\n\nŞifreni sıfırlamak için:\n{reset_link}\n\nSevgiler."
         msg = MIMEMultipart()
-        msg['From'] = sender_email
+        msg['From'] = f"Enflasyon Monitörü <{sender_email}>"
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
@@ -1553,23 +1591,88 @@ def main():
                         else:
                             st.error(msg)
             with t_reg:
-                with st.form("reg_f"):
-                    r_u = st.text_input("Kullanıcı Adı Belirle")
-                    r_e = st.text_input("E-Posta Adresi")
-                    r_p = st.text_input("Şifre Belirle", type="password")
-                    if st.form_submit_button("HESAP OLUŞTUR", use_container_width=True):
-                        if r_u and r_p and r_e:
-                            ok, msg = github_user_islem("register", r_u, r_p, r_e)
+                # --- KAYIT SÜRECİ STATE YÖNETİMİ ---
+                if 'reg_stage' not in st.session_state:
+                    st.session_state.reg_stage = 1  # 1: Bilgi Girişi, 2: Kod Doğrulama
+                if 'reg_temp_data' not in st.session_state:
+                    st.session_state.reg_temp_data = {}  # Bilgileri geçici tutacağımız yer
+
+                # --- AŞAMA 1: BİLGİ GİRİŞİ ---
+                if st.session_state.reg_stage == 1:
+                    st.markdown("### 📝 Hesap Oluştur")
+                    with st.form("reg_step1_form"):
+                        r_u = st.text_input("Kullanıcı Adı Belirle")
+                        r_e = st.text_input("E-Posta Adresi")
+                        r_p = st.text_input("Şifre Belirle", type="password")
+
+                        # Butona basınca kodu gönderip 2. aşamaya geçeceğiz
+                        if st.form_submit_button("DOĞRULAMA KODU GÖNDER", use_container_width=True):
+                            if r_u and r_p and r_e:
+                                # Kullanıcı adı zaten var mı kontrol et (GitHub'a sormadan önce basit kontrol)
+                                users_check = github_json_oku(USERS_DOSYASI)
+                                if r_u in users_check:
+                                    st.error("Bu kullanıcı adı zaten alınmış.")
+                                else:
+                                    # 1. Kodu Üret (100000 ile 999999 arası)
+                                    code = str(random.randint(100000, 999999))
+
+                                    # 2. Mail Gönder
+                                    with st.spinner("Kod gönderiliyor..."):
+                                        if send_verification_email(r_e, code):
+                                            # 3. Bilgileri State'e Kaydet
+                                            st.session_state.reg_temp_data = {
+                                                "username": r_u,
+                                                "email": r_e,
+                                                "password": r_p,
+                                                "code": code
+                                            }
+                                            st.session_state.reg_stage = 2  # Diğer ekrana geç
+                                            st.rerun()
+                                        else:
+                                            st.error("Mail gönderilemedi. E-posta adresini kontrol et.")
+                            else:
+                                st.warning("Lütfen tüm alanları doldurunuz.")
+
+                # --- AŞAMA 2: KOD DOĞRULAMA ---
+                elif st.session_state.reg_stage == 2:
+                    st.markdown(f"### 🔐 Kodu Gir")
+                    st.info(f"**{st.session_state.reg_temp_data['email']}** adresine 6 haneli bir kod gönderdik.")
+
+                    with st.form("reg_step2_form"):
+                        entered_code = st.text_input("Doğrulama Kodu", max_chars=6)
+
+                        col_verify, col_back = st.columns(2)
+                        with col_verify:
+                            btn_verify = st.form_submit_button("✅ ONAYLA VE KAYDOL", use_container_width=True)
+                        with col_back:
+                            # Geri dön butonu (Form içinde buton zor olduğu için logic ile yapıyoruz)
+                            pass
+
+                            # Form dışı butonlar (Daha düzgün hizalama için)
+                    if st.button("⬅️ Geri Dön / E-postayı Düzenle"):
+                        st.session_state.reg_stage = 1
+                        st.rerun()
+
+                    if btn_verify:
+                        real_code = st.session_state.reg_temp_data.get("code")
+                        if entered_code == real_code:
+                            # KOD DOĞRU! ŞİMDİ KAYIT İŞLEMİNİ YAP.
+                            data = st.session_state.reg_temp_data
+                            ok, msg = github_user_islem("register", data["username"], data["password"], data["email"])
+
                             if ok:
-                                st.success("Kayıt Başarılı! Otomatik giriş yapılıyor...")
+                                st.success("✅ Doğrulama Başarılı! Hesap oluşturuldu.")
                                 st.session_state['logged_in'] = True
-                                st.session_state['username'] = r_u
+                                st.session_state['username'] = data["username"]
+                                # Temizlik
+                                st.session_state.reg_stage = 1
+                                st.session_state.reg_temp_data = {}
                                 time.sleep(2)
                                 st.rerun()
                             else:
                                 st.error(msg)
                         else:
-                            st.warning("Tüm alanları doldurunuz.")
+                            st.error("❌ Hatalı Kod! Lütfen tekrar kontrol et.")
             with t_forgot:
                 with st.form("forgot_f"):
                     f_email = st.text_input("Kayıtlı E-Posta Adresi")
