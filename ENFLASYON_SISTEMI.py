@@ -338,7 +338,7 @@ def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
 
 
 # --- HIZLANDIRILMIŞ (CACHED) VERİ OKUMA ---
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False)
 def github_excel_oku(dosya_adi, sayfa_adi=None):
     repo = get_github_repo()
     if not repo: return pd.DataFrame()
@@ -910,7 +910,26 @@ def dashboard_modu():
 
             pivot = df_f.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat', aggfunc='last').ffill(
                 axis=1).bfill(axis=1).reset_index()
+            # --- OTOMATİK ALARM KONTROLÜ (BAŞLANGIÇ) ---
+            # Sayfa her yenilendiğinde sadece 1 kez çalışır
+            if 'alarm_auto_check' not in st.session_state:
+                st.session_state['alarm_auto_check'] = True  # İşaretle ki tekrar tekrar çalışmasın
 
+                # Kullanıcıyı yormadan arka planda kontrol et
+                try:
+                    # check_alarms_and_notify fonksiyonunu çağırıyoruz (önceki adımda eklediğini varsayıyorum)
+                    # Not: pivot tablosunu doğrudan kullanıyoruz, tekrar dosya okumuyoruz.
+                    sonuc_msg = check_alarms_and_notify(pivot)
+
+                    # Sadece mail gönderildiyse bildirim göster
+                    if "0 adet" not in sonuc_msg:
+                        st.toast(f"Otomatik Kontrol: {sonuc_msg}", icon="📧")
+                    else:
+                        print("Otomatik kontrol yapıldı: Mail atılacak durum yok.")
+
+                except Exception as e:
+                    print(f"Otomatik alarm hatası: {e}")
+            # --- OTOMATİK ALARM KONTROLÜ (BİTİŞ) ---
             if not pivot.empty:
                 if 'Grup' not in df_s.columns:
                     grup_map = {"01": "Gıda", "02": "Alkol", "03": "Giyim", "04": "Konut", "05": "Ev", "06": "Sağlık",
