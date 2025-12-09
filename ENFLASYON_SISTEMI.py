@@ -772,25 +772,32 @@ def dashboard_modu():
 
     if is_admin:
         st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
+        # --- MEVCUT KOD BLOKUNU BUL VE BUNUNLA DEĞİŞTİR ---
         if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
             with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
                 st.write("📡 GitHub bağlantısı kuruluyor...")
                 time.sleep(0.5)
                 st.write("📦 ZIP dosyaları taranıyor...")
-                log_ph = st.empty();
+                log_ph = st.empty()
                 log_msgs = []
 
                 def logger(m):
-                    log_msgs.append(f"> {m}");
+                    log_msgs.append(f"> {m}")
                     log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
 
                 res = html_isleyici(logger)
                 status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
+
             if "OK" in res:
+                # KRİTİK EKLEME: CACHE TEMİZLEME
+                st.cache_data.clear()  # <--- BU SATIRI EKLE
+
                 st.toast('Veritabanı Güncellendi!', icon='🎉')
-                st.success("✅ Sistem Başarıyla Senkronize Edildi!");
-                time.sleep(2);
+                st.success("✅ Sistem Başarıyla Senkronize Edildi!")
+                time.sleep(2)
                 st.rerun()
+            elif "Veri bulunamadı" in res:
+                st.warning("⚠️ Yeni fiyat verisi bulunamadı. ZIP dosyalarını kontrol et.")
             else:
                 st.error(res)
         st.markdown('</div>', unsafe_allow_html=True)
