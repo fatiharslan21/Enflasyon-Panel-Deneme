@@ -1558,7 +1558,7 @@ def main():
         """, unsafe_allow_html=True)
 
         st.markdown(
-            "<div style='text-align: center; margin-top:60px; margin-bottom:20px;'><h1 style='font-size:42px;'>ENFLASYON MONİTÖRÜ</h1><p style='font-size:14px; color:#94a3b8 !important;'>KURUMSAL PİYASA ANALİZ SİSTEMİ</p></div>",
+            "<div style='text-align: center; margin-top:60px; margin-bottom:20px;'><h1 style='font-size:42px;'>ENFLASYON MONİTÖRÜ</h1><p style='font-size:14px; color:#94a3b8 !important;'>PİYASA ANALİZ SİSTEMİ</p></div>",
             unsafe_allow_html=True)
 
         c1, c2, c3 = st.columns([1, 2, 1])
@@ -1568,7 +1568,7 @@ def main():
                 with st.form("login_f"):
                     l_u = st.text_input("Kullanıcı Adı")
                     l_p = st.text_input("Şifre", type="password")
-                    beni_hatirla = st.checkbox("Beni Hatırla (Oturumu Açık Tut)")
+                    beni_hatirla = st.checkbox("Beni Hatırla")
                     if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
                         ok, msg = github_user_islem("login", l_u, l_p)
                         if ok:
