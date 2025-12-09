@@ -61,7 +61,6 @@ with st.sidebar:
 
 
 # --- CSS MOTORU (KESİN ÇÖZÜM V3: RENK ZORLAMA) ---
-# --- CSS MOTORU (DÜZELTİLMİŞ VERSİYON: DROPDOWN MENÜLER İÇİN) ---
 def apply_theme():
     # Renk Paletleri
     if st.session_state.theme == 'dark':
@@ -88,8 +87,6 @@ def apply_theme():
         }
         st.session_state.plotly_template = "plotly_white"
 
-    # --- CSS BAŞLANGICI ---
-    # Not: Buradaki f""" ... """ yapısı çok önemlidir.
     final_css = f"""
     <style>
         /* GİZLEMELER */
@@ -113,37 +110,13 @@ def apply_theme():
         }}
 
         /* DROPDOWN MENÜLER */
-        div[data-baseweb="popover"] {{
-            background-color: #FFFFFF !important;
-            border: 1px solid #ccc !important;
-        }}
-        div[data-baseweb="popover"] li, 
-        div[data-baseweb="popover"] div, 
-        div[data-baseweb="popover"] span {{
-            color: #000000 !important; 
-        }}
+        div[data-baseweb="popover"] {{ background-color: #FFFFFF !important; border: 1px solid #ccc !important; }}
+        div[data-baseweb="popover"] li, div[data-baseweb="popover"] div, div[data-baseweb="popover"] span {{ color: #000000 !important; }}
 
         /* TOAST MESAJLARI */
-        div[data-baseweb="toast"] {{
-            background-color: #FFFFFF !important;
-            border: 1px solid #ccc !important;
-        }}
-        div[data-baseweb="toast"] div, 
-        div[data-baseweb="toast"] p {{
-            color: #000000 !important;
-        }}
-        div[data-baseweb="toast"] svg {{
-            fill: #000000 !important;
-        }}
-
-        /* MULTISELECT */
-        .stMultiSelect div[data-baseweb="select"], .stSelectbox div[data-baseweb="select"] {{
-            background-color: {colors['input_bg']} !important;
-            border: 1px solid {colors['input_border']} !important;
-            color: {colors['text']} !important;
-        }}
-        .stMultiSelect div[data-baseweb="tag"] {{ background-color: #3b82f6 !important; }}
-        .stMultiSelect div[data-baseweb="tag"] span {{ color: #ffffff !important; }}
+        div[data-baseweb="toast"] {{ background-color: #FFFFFF !important; border: 1px solid #ccc !important; }}
+        div[data-baseweb="toast"] div, div[data-baseweb="toast"] p {{ color: #000000 !important; }}
+        div[data-baseweb="toast"] svg {{ fill: #000000 !important; }}
 
         /* TABLOLAR */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
@@ -156,27 +129,46 @@ def apply_theme():
             background-color: {colors['sidebar']} !important;
         }}
 
-        /* NORMAL BUTONLAR */
+        /* ============================================================ */
+        /* --- BUTON DÜZELTMELERİ (KESİN ÇÖZÜM) --- */
+        /* ============================================================ */
+
+        /* 1. NORMAL BUTONLAR (Sistemi Güncelle, Alarm Kur vb.) */
+        /* Bunları temanın kendi haline bırakıyoruz ki bozulmasın, sadece yazı rengini garantiye alıyoruz */
         div.stButton > button {{
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            border: 1px solid #ccc !important;
+            border: 1px solid {colors['border_color']} !important;
+            color: {colors['text']} !important;
+        }}
+        /* Butonun içindeki yazı (p etiketi) */
+        div.stButton > button p {{
+            color: {colors['text']} !important;
         }}
 
-        /* --- BURASI SENİN SORUNUNU ÇÖZEN KISIM --- */
-        /* İndirme Butonları (Download Button) */
+        /* 2. PRIMARY (TURUNCU/MAVİ) BUTONLAR */
+        div.stButton > button[kind="primary"] {{
+            background-color: #ff4b4b !important;
+            color: white !important;
+            border: none !important;
+        }}
+        div.stButton > button[kind="primary"] p {{
+            color: white !important;
+        }}
+
+        /* 3. İNDİRME BUTONLARI (PDF İndir - Özel İstek) */
+        /* Sadece indirme butonlarını Beyaz Zemin + Siyah Yazı yapıyoruz */
         [data-testid="stDownloadButton"] button {{
-            background-color: #ffffff !important;  /* Zemin BEYAZ */
-            color: #000000 !important;             /* Yazı SİYAH */
-            border: 1px solid #cccccc !important;  /* Çerçeve GRİ */
+            background-color: #ffffff !important;
+            border: 1px solid #cccccc !important;
         }}
-
+        /* İndirme butonunun içindeki TÜM yazıları siyah yap */
+        [data-testid="stDownloadButton"] button * {{
+            color: #000000 !important;
+        }}
         [data-testid="stDownloadButton"] button:hover {{
-            background-color: #f0f2f6 !important;  /* Üzerine gelince hafif gri */
-            color: #000000 !important;             /* Yazı hala siyah */
-            border-color: #3b82f6 !important;      /* Çerçeve MAVİ */
+            border-color: #3b82f6 !important;
+            background-color: #f0f2f6 !important;
         }}
-        /* ----------------------------------------- */
+        /* ============================================================ */
 
         /* METRİKLER */
         .metric-card {{ background: {colors['card_bg']} !important; border: 1px solid {colors['border_color']} !important; }}
@@ -184,8 +176,6 @@ def apply_theme():
 
     </style>
     """
-    # --- CSS BİTİŞİ ---
-
     st.markdown(final_css, unsafe_allow_html=True)
 
 # Temayı Uygula
