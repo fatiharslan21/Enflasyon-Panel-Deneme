@@ -216,7 +216,7 @@ USERS_DOSYASI = "kullanicilar.json"
 ACTIVITY_DOSYASI = "user_activity.json"
 SEPETLER_DOSYASI = "user_baskets.json"
 SAYFA_ADI = "Madde_Sepeti"
-DM_DOSYASI = "private_messages.json"
+
 
 # --- PDF RAPOR MOTORU ---
 class PDFReport(FPDF):
@@ -332,6 +332,7 @@ def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
 
 
 # --- HIZLANDIRILMIŞ (CACHED) VERİ OKUMA ---
+@st.cache_data(ttl=60, show_spinner=False)
 def github_excel_oku(dosya_adi, sayfa_adi=None):
     repo = get_github_repo()
     if not repo: return pd.DataFrame()
@@ -603,44 +604,6 @@ def fiyat_bul_siteye_gore(soup, url):
             if v := temizle_fiyat(m.group(1)): fiyat = v; kaynak = "Regex"
     return fiyat, kaynak
 
-
-# --- ÖZEL MESAJLAŞMA MOTORU (DM) ---
-def get_dm_history(user1, user2):
-    """Sadece iki kullanıcı arasındaki mesajları getirir."""
-    all_msgs = github_json_oku(DM_DOSYASI)
-    if not isinstance(all_msgs, list):
-        return []
-
-    # Sadece bu iki kişi arasındaki konuşmaları filtrele
-    conversation = []
-    for m in all_msgs:
-        if (m.get('from') == user1 and m.get('to') == user2) or \
-                (m.get('from') == user2 and m.get('to') == user1):
-            conversation.append(m)
-
-    # Son 50 mesajı getir
-    return conversation[-50:]
-
-
-def send_dm_message(sender, receiver, message):
-    if not message.strip(): return False
-    all_msgs = github_json_oku(DM_DOSYASI)
-    if not isinstance(all_msgs, list): all_msgs = []
-
-    new_msg = {
-        "from": sender,
-        "to": receiver,
-        "msg": message,
-        "time": datetime.now().strftime("%d-%m %H:%M"),
-        "timestamp": time.time()
-    }
-
-    all_msgs.append(new_msg)
-    # Toplam veritabanı şişmesin diye en son 500 mesajı tutalım (Genel temizlik)
-    if len(all_msgs) > 500:
-        all_msgs = all_msgs[-500:]
-
-    return github_json_yaz(DM_DOSYASI, all_msgs, f"DM: {sender} -> {receiver}")
 
 def html_isleyici(log_callback):
     repo = get_github_repo()
@@ -1065,7 +1028,7 @@ def dashboard_modu():
                 st.markdown("<br>", unsafe_allow_html=True)
 
                 # --- SEKMELER ---
-                t_analiz, t_istatistik, t_sepet, t_harita, t_firsat, t_liste, t_haber, t_rapor, t_alarm, t_sohbet = st.tabs(
+                t_analiz, t_istatistik, t_sepet, t_harita, t_firsat, t_liste, t_haber, t_rapor, t_alarm = st.tabs(
                     ["📊 ANALİZ", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 PİYASA VERİLERİ", "📋 LİSTE", "📰 HABERLER",
                      "📝 RAPOR", "🔔 FİYAT ALARMI"])
 
@@ -1488,7 +1451,7 @@ def dashboard_modu():
     st.markdown(
         '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">DESIGNED BY FATIH ARSLAN © 2025</div>',
         unsafe_allow_html=True)
-    
+
 
 # --- 5. ANA GİRİŞ SİSTEMİ (MAIN) ---
 def main():
