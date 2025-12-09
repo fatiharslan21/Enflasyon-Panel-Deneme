@@ -1067,7 +1067,7 @@ def dashboard_modu():
                 # --- SEKMELER ---
                 t_analiz, t_istatistik, t_sepet, t_harita, t_firsat, t_liste, t_haber, t_rapor, t_alarm, t_sohbet = st.tabs(
                     ["📊 ANALİZ", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 PİYASA VERİLERİ", "📋 LİSTE", "📰 HABERLER",
-                     "📝 RAPOR", "🔔 FİYAT ALARMI", "💬 SOHBET"])
+                     "📝 RAPOR", "🔔 FİYAT ALARMI"])
 
                 with t_analiz:
                     st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
@@ -1488,129 +1488,7 @@ def dashboard_modu():
     st.markdown(
         '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">DESIGNED BY FATIH ARSLAN © 2025</div>',
         unsafe_allow_html=True)
-    with t_sohbet:
-        st.markdown("### 🔒 Gizli Mesajlaşma (DM)")
-        st.info("Buradaki konuşmaları sadece sen ve seçtiğin kişi görebilir.")
-
-        # 1. Kullanıcı Listesini Çek (Kendisi hariç)
-        users_db = github_json_oku(USERS_DOSYASI)
-        all_users = list(users_db.keys())
-        current_user = st.session_state['username']
-
-        # Listeden kendisini çıkar
-        if current_user in all_users:
-            all_users.remove(current_user)
-
-        if not all_users:
-            st.warning("Sistemde mesajlaşacak başka kullanıcı yok.")
-        else:
-            # 2. Kiminle Konuşacağını Seç
-            col_select, col_refresh = st.columns([3, 1])
-            with col_select:
-                target_user = st.selectbox("Kiminle Konuşacaksın?", all_users, index=0)
-            with col_refresh:
-                st.write("")  # Boşluk
-                st.write("")
-                if st.button("🔄 Sohbeti Yenile", use_container_width=True):
-                    st.rerun()
-
-            st.divider()
-
-            # 3. CSS (Senin Siyah/Beyaz Tema Kurallarınla)
-            st.markdown("""
-            <style>
-                .chat-container {
-                    height: 400px;
-                    overflow-y: auto;
-                    background-color: #ffffff;
-                    border: 1px solid #e2e8f0;
-                    border-radius: 10px;
-                    padding: 20px;
-                    margin-bottom: 20px;
-                    display: flex;
-                    flex-direction: column-reverse;
-                }
-                @media (prefers-color-scheme: dark) {
-                    .chat-container { background-color: #1e293b; border-color: #334155; }
-                }
-                .msg-row { margin-bottom: 12px; display: flex; flex-direction: column; }
-                .msg-bubble {
-                    padding: 12px 16px;
-                    border-radius: 12px;
-                    max-width: 75%;
-                    font-size: 14px;
-                    line-height: 1.5;
-                    position: relative;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-                }
-                /* BENİM MESAJLARIM (SAĞDA) */
-                .msg-mine {
-                    align-self: flex-end;
-                    background-color: #1e293b; /* Koyu Lacivert */
-                    color: white;
-                    border-bottom-right-radius: 2px;
-                }
-                /* KARŞI TARAFIN MESAJLARI (SOLDA) */
-                .msg-other {
-                    align-self: flex-start;
-                    background-color: #f1f5f9; /* Açık Gri */
-                    color: #0f172a;
-                    border-bottom-left-radius: 2px;
-                    border: 1px solid #e2e8f0;
-                }
-                .msg-time {
-                    font-size: 10px;
-                    margin-top: 4px;
-                    color: #94a3b8;
-                }
-                .msg-mine .msg-time { text-align: right; }
-            </style>
-            """, unsafe_allow_html=True)
-
-            # 4. Seçilen Kişiyle Olan Mesajları Getir
-            messages = get_dm_history(current_user, target_user)
-
-            # 5. Mesajları Göster
-            chat_html = '<div class="chat-container">'
-
-            if not messages:
-                chat_html += f'<div style="text-align:center; color:#94a3b8; margin-top:50px;">{target_user} ile henüz bir konuşman yok.<br>İlk mesajı sen at! 👋</div>'
-
-            for m in reversed(messages):
-                is_me = m['from'] == current_user
-                bubble_class = "msg-mine" if is_me else "msg-other"
-
-                chat_html += f"""
-                <div class="msg-row" style="align-items: {'flex-end' if is_me else 'flex-start'};">
-                    <div class="msg-bubble {bubble_class}">
-                        {m['msg']}
-                    </div>
-                    <div class="msg-time">
-                        {m['time']}
-                    </div>
-                </div>
-                """
-            chat_html += '</div>'
-            st.markdown(chat_html, unsafe_allow_html=True)
-
-            # 6. Mesaj Gönderme Formu
-            with st.form("dm_form", clear_on_submit=True):
-                col_input, col_btn = st.columns([4, 1])
-                with col_input:
-                    new_msg = st.text_input("Mesaj", placeholder=f"{target_user} kişisine mesaj yaz...",
-                                            label_visibility="collapsed")
-                with col_btn:
-                    # Siyah Çerçeve / Beyaz Buton kuralı zaten global CSS'te var
-                    submitted = st.form_submit_button("GÖNDER ➤", use_container_width=True)
-
-                if submitted and new_msg:
-                    with st.spinner("İletiliyor..."):
-                        if send_dm_message(current_user, target_user, new_msg):
-                            st.success("İletildi!")
-                            time.sleep(0.5)
-                            st.rerun()
-                        else:
-                            st.error("Hata oluştu.")
+    
 
 # --- 5. ANA GİRİŞ SİSTEMİ (MAIN) ---
 def main():
