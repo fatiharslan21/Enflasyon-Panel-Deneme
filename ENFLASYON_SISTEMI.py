@@ -61,6 +61,7 @@ with st.sidebar:
 
 # --- CSS MOTORU (KESİN ÇÖZÜM V3: RENK ZORLAMA) ---
 # --- CSS MOTORU (DÜZELTİLMİŞ VERSİYON: DROPDOWN MENÜLER İÇİN) ---
+# --- CSS MOTORU (V5: DROPDOWN + TOAST DÜZELTMESİ) ---
 def apply_theme():
     # Renk Paletleri
     if st.session_state.theme == 'dark':
@@ -68,10 +69,9 @@ def apply_theme():
             "bg": "#0E1117",
             "sidebar": "#262730",
             "text": "#FAFAFA",
-            "input_bg": "#1A1C24",  # Input içi biraz daha açık gri
+            "input_bg": "#1A1C24",
             "input_border": "#4A4A4A",
             "card_bg": "#1A1C24",
-            "success_bg": "rgba(34, 197, 94, 0.2)",
             "border_color": "#414141"
         }
         st.session_state.plotly_template = "plotly_dark"
@@ -84,12 +84,10 @@ def apply_theme():
             "input_bg": "#FFFFFF",
             "input_border": "#D1D5DB",
             "card_bg": "#FFFFFF",
-            "success_bg": "#ecfdf5",
             "border_color": "#e2e8f0"
         }
         st.session_state.plotly_template = "plotly_white"
 
-    # CSS BLOKU
     final_css = f"""
     <style>
         /* GİZLEMELER */
@@ -105,64 +103,63 @@ def apply_theme():
         section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
         h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown, .stRadio label {{ color: {colors['text']} !important; }}
 
-        /* INPUT VE SELECTBOX GENEL AYARLARI */
+        /* INPUT VE SELECTBOX */
         .stTextInput input, .stNumberInput input {{
             background-color: {colors['input_bg']} !important;
             color: {colors['text']} !important;
             border: 1px solid {colors['input_border']} !important;
         }}
 
-        /* --- KRİTİK DÜZELTME: AÇILIR MENÜ (POPOVER) --- */
-        /* MultiSelect ve Selectbox listesi açıldığında burası devreye girer */
+        /* --- 1. DÜZELTME: AÇILIR MENÜLER (Dropdown) --- */
         div[data-baseweb="popover"] {{
-            background-color: #FFFFFF !important; /* Arka plan hep beyaz olsun */
+            background-color: #FFFFFF !important;
             border: 1px solid #ccc !important;
         }}
         div[data-baseweb="popover"] li, 
         div[data-baseweb="popover"] div, 
         div[data-baseweb="popover"] span {{
-            color: #000000 !important; /* Yazılar hep siyah olsun */
+            color: #000000 !important; /* Menü içi siyah yazı */
         }}
-        /* Menüde üzerine gelince (Hover) */
-        div[data-baseweb="popover"] li:hover, div[data-baseweb="popover"] div[aria-selected="true"] {{
+        div[data-baseweb="popover"] li:hover {{
             background-color: #3b82f6 !important;
             color: #ffffff !important;
         }}
 
-        /* MULTISELECT KUTUSUNUN KENDİSİ (KAPALI HALİ) */
+        /* --- 2. DÜZELTME: TOAST MESAJLARI (Bildirimler) --- */
+        div[data-baseweb="toast"] {{
+            background-color: #FFFFFF !important; /* Arka plan BEYAZ */
+            border: 1px solid #ccc !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        }}
+        div[data-baseweb="toast"] div, 
+        div[data-baseweb="toast"] p, 
+        div[data-baseweb="toast"] span {{
+            color: #000000 !important; /* Yazı rengi SİYAH */
+            font-weight: 500 !important;
+        }}
+        /* Toast ikonlarını da görünür yapalım */
+        div[data-baseweb="toast"] svg {{
+            fill: #000000 !important;
+        }}
+
+        /* MULTISELECT KUTUSU */
         .stMultiSelect div[data-baseweb="select"], .stSelectbox div[data-baseweb="select"] {{
             background-color: {colors['input_bg']} !important;
             border: 1px solid {colors['input_border']} !important;
             color: {colors['text']} !important;
         }}
-        /* Kutunun içindeki seçili değerler (Tags) */
-        .stMultiSelect div[data-baseweb="tag"] {{
-            background-color: #3b82f6 !important;
-        }}
-        .stMultiSelect div[data-baseweb="tag"] span {{
-            color: #ffffff !important;
-        }}
+        .stMultiSelect div[data-baseweb="tag"] {{ background-color: #3b82f6 !important; }}
+        .stMultiSelect div[data-baseweb="tag"] span {{ color: #ffffff !important; }}
 
-        /* TABLO VE DATAFRAME DÜZELTMELERİ */
+        /* TABLO VE DATAFRAME */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
             background-color: {colors['card_bg']} !important;
             border: 1px solid {colors['border_color']} !important;
         }}
-        [data-testid="stDataFrame"] td, [data-testid="stDataEditor"] td {{
-            color: {colors['text']} !important;
-        }}
+        [data-testid="stDataFrame"] td, [data-testid="stDataEditor"] td {{ color: {colors['text']} !important; }}
         [data-testid="stDataFrame"] th, [data-testid="stDataEditor"] th {{
             color: {colors['text']} !important;
             background-color: {colors['sidebar']} !important;
-        }}
-
-        /* DİĞER KART VE METRİK AYARLARI */
-        .metric-card {{
-            background: {colors['card_bg']} !important;
-            border: 1px solid {colors['border_color']} !important;
-        }}
-        .metric-val, div[data-testid="stMetricValue"] {{
-            color: {colors['text']} !important;
         }}
 
         /* BUTONLAR */
@@ -172,7 +169,10 @@ def apply_theme():
             border: 1px solid #ccc !important;
         }}
         div.stButton > button p {{ color: #000000 !important; }}
-        div.stButton > button:hover {{ border-color: #3b82f6 !important; }}
+
+        /* METRİKLER */
+        .metric-card {{ background: {colors['card_bg']} !important; border: 1px solid {colors['border_color']} !important; }}
+        .metric-val, div[data-testid="stMetricValue"] {{ color: {colors['text']} !important; }}
 
     </style>
     """
