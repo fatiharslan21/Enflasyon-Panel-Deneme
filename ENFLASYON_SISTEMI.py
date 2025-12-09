@@ -1111,9 +1111,9 @@ def dashboard_modu():
 
                         fig_vol = px.scatter(df_vol, x="Fark_Yuzde", y="Volatilite", color="Grup",
                                              hover_data=[ad_col],
-                                             title="⚡ Risk Analizi: Fiyat Oynaklığı vs Değişim",
+                                             title="⚡ Risk Analizi: Fiyat Hareketliliği vs Değişim",
                                              labels={"Fark_Yuzde": "Fiyat Değişimi (%)",
-                                                     "Volatilite": "Oynaklık Endeksi (Risk)"})
+                                                     "Volatilite": "Hareketlilik Endeksi (Risk)"})
 
                         fig_vol.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.5)
                         fig_vol.add_hline(y=df_vol['Volatilite'].mean(), line_dash="dash", line_color="red",
