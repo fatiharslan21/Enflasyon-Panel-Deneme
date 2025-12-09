@@ -856,18 +856,28 @@ def dashboard_modu():
                 # KRİTİK EKLEME: CACHE TEMİZLEME
                 st.cache_data.clear()  # <--- BU SATIRI EKLE
                 with st.spinner("🔔 Alarmlar kontrol ediliyor..."):
-                    # Veriyi yeniden okuyup analiz formatına getirmen gerekebilir veya
-                    # yukarıda oluşturduğun df_analiz varsa onu kullanabilirsin.
-                    # Ancak sayfa yenilenmeden önce ham veriyi çekip bakmak daha garanti:
+                    try:
+                        # 1. Veriyi Taze Oku
+                        df_f_new = github_excel_oku(FIYAT_DOSYASI)
 
-                    bugun = datetime.now().strftime("%Y-%m-%d")
-                    df_f_new = github_excel_oku(FIYAT_DOSYASI)
-                    # Pivot işlemi (basitleştirilmiş)
-                    pivot_new = df_f_new.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat',
-                                                     aggfunc='last').ffill(axis=1).reset_index()
+                        # 2. TARİH FORMATLAMA (Eksik olan kısım burasıydı)
+                        df_f_new['Tarih_DT'] = pd.to_datetime(df_f_new['Tarih'], errors='coerce')
+                        df_f_new = df_f_new.dropna(subset=['Tarih_DT']).sort_values('Tarih_DT')
+                        df_f_new['Tarih_Str'] = df_f_new['Tarih_DT'].dt.strftime('%Y-%m-%d')
 
-                    alarm_sonuc = check_alarms_and_notify(pivot_new)
-                    st.success(alarm_sonuc)
+                        # 3. Fiyatı Sayıya Çevir
+                        df_f_new['Fiyat'] = pd.to_numeric(df_f_new['Fiyat'], errors='coerce')
+
+                        # 4. Pivot İşlemi (Artık Tarih_Str var, hata vermez)
+                        pivot_new = df_f_new.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat',
+                                                         aggfunc='last').ffill(axis=1).reset_index()
+
+                        # 5. Alarm Fonksiyonunu Çağır
+                        alarm_sonuc = check_alarms_and_notify(pivot_new)
+                        st.success(alarm_sonuc)
+
+                    except Exception as e:
+                        st.warning(f"Alarm kontrolü sırasında hata: {e}")
                 st.toast('Veritabanı Güncellendi!', icon='🎉')
                 st.success("✅ Sistem Başarıyla Senkronize Edildi!")
                 time.sleep(2)
