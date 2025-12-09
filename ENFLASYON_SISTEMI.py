@@ -449,6 +449,41 @@ def send_reset_email(to_email, username):
         return False, f"Mail Hatası: {str(e)}"
 
 
+def send_notification_email(to_email, product_name, current_price, target_price):
+    try:
+        sender_email = st.secrets["email"]["sender"]
+        sender_password = st.secrets["email"]["password"]
+        subject = f"🔔 FİYAT DÜŞTÜ: {product_name}"
+
+        body = f"""
+        Merhaba,
+
+        Takip ettiğin "{product_name}" ürününün fiyatı düştü!
+
+        📉 Şu Anki Fiyat: {current_price:.2f} TL
+        🎯 Hedeflediğin Fiyat: {target_price:.2f} TL
+
+        Fırsatı kaçırmamak için sisteme giriş yapabilirsin.
+        Sevgiler,
+        Enflasyon Monitörü Ekibi
+        """
+
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, to_email, msg.as_string())
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Mail Hatası: {e}")
+        return False
+
 def github_user_islem(action, username=None, password=None, email=None):
     users_db = github_json_oku(USERS_DOSYASI)
     if action == "login":
@@ -614,6 +649,44 @@ def html_isleyici(log_callback):
     except Exception as e:
         return f"Hata: {str(e)}"
 
+
+def check_alarms_and_notify(df_son_fiyatlar):
+    alarms_db = github_json_oku("user_alarms.json")
+    if not isinstance(alarms_db, list): return "Alarm veritabanı boş."
+
+    updated = False
+    sent_count = 0
+
+    # DataFrame'den kod ve fiyat eşleşmesi (Son fiyat sütunu)
+    # df_son_fiyatlar, analiz tablosundaki son verileri içermeli
+
+    for alarm in alarms_db:
+        # Sadece aktif ve henüz bildirim gitmemiş alarmlara bak
+        if alarm.get("durum") == "aktif":
+            kod = alarm.get("kod")
+            target = float(alarm.get("hedef_fiyat"))
+
+            # Ürünün güncel fiyatını bul
+            row = df_son_fiyatlar[df_son_fiyatlar['Kod'] == kod]
+            if not row.empty:
+                # Son sütunu dinamik buluyoruz (tarih olan sütunların en sonuncusu)
+                cols = [c for c in df_son_fiyatlar.columns if
+                        c not in ['Kod', 'Ad', 'Grup', 'Madde_Adi', 'URL', 'Grup_Kodu', 'Agirlik_2025']]
+                if cols:
+                    last_price_col = cols[-1]  # En son tarihli sütun
+                    current_price = float(row[last_price_col].values[0])
+
+                    if current_price > 0 and current_price <= target:
+                        # BİLDİRİM GÖNDER
+                        if send_notification_email(alarm["email"], alarm["urun_adi"], current_price, target):
+                            alarm["durum"] = "tamamlandi"  # Tekrar tekrar mail atmasın diye durumu değiştiriyoruz
+                            updated = True
+                            sent_count += 1
+
+    if updated:
+        github_json_yaz("user_alarms.json", alarms_db, "Alarm Notifications Sent")
+
+    return f"{sent_count} adet alarm bildirimi gönderildi."
 
 # --- DASHBOARD MODU ---
 def dashboard_modu():
@@ -782,7 +855,19 @@ def dashboard_modu():
             if "OK" in res:
                 # KRİTİK EKLEME: CACHE TEMİZLEME
                 st.cache_data.clear()  # <--- BU SATIRI EKLE
+                with st.spinner("🔔 Alarmlar kontrol ediliyor..."):
+                    # Veriyi yeniden okuyup analiz formatına getirmen gerekebilir veya
+                    # yukarıda oluşturduğun df_analiz varsa onu kullanabilirsin.
+                    # Ancak sayfa yenilenmeden önce ham veriyi çekip bakmak daha garanti:
 
+                    bugun = datetime.now().strftime("%Y-%m-%d")
+                    df_f_new = github_excel_oku(FIYAT_DOSYASI)
+                    # Pivot işlemi (basitleştirilmiş)
+                    pivot_new = df_f_new.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat',
+                                                     aggfunc='last').ffill(axis=1).reset_index()
+
+                    alarm_sonuc = check_alarms_and_notify(pivot_new)
+                    st.success(alarm_sonuc)
                 st.toast('Veritabanı Güncellendi!', icon='🎉')
                 st.success("✅ Sistem Başarıyla Senkronize Edildi!")
                 time.sleep(2)
