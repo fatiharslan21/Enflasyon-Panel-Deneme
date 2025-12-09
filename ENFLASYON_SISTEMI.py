@@ -163,12 +163,28 @@ def apply_theme():
             background-color: {colors['sidebar']} !important;
         }}
 
-        /* BUTONLAR */
-        div.stButton > button {{
+        /* ... (Mevcut CSS kodların) ... */
+
+        /* BUTONLAR (Normal Butonlar) */
+        div.stButton > button {
             background-color: #ffffff !important;
             color: #000000 !important;
             border: 1px solid #ccc !important;
-        }}
+        }
+        
+        /* --- YENİ EKLEME: İNDİRME BUTONLARI (PDF İndir vs.) --- */
+        [data-testid="stDownloadButton"] button {
+            color: #000000 !important;  /* Yazıyı SİYAH yap */
+            background-color: #ffffff !important; /* Arka planı BEYAZ yap */
+            border: 1px solid #ccc !important;
+        }
+        
+        /* İndirme butonunun üzerine gelince */
+        [data-testid="stDownloadButton"] button:hover {
+            border-color: #3b82f6 !important;
+            color: #000000 !important;
+        }
+
         div.stButton > button p {{ color: #000000 !important; }}
 
         /* METRİKLER */
@@ -1390,7 +1406,7 @@ def dashboard_modu():
                         st.markdown("---");
                         st.markdown(st.session_state['report_text'])
                         pdf_bytes = create_pdf_report(st.session_state['report_text'])
-                        with col_download: st.download_button(label="📥 PDF Olarak İndir (Kurumsal)", data=pdf_bytes,
+                        with col_download: st.download_button(label="📥 PDF Olarak İndir", data=pdf_bytes,
                                                               file_name=f"Enflasyon_Raporu_{bugun}.pdf",
                                                               mime="application/pdf")
                 with t_alarm:
