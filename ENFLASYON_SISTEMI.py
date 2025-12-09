@@ -62,7 +62,7 @@ with st.sidebar:
 
 # --- CSS MOTORU (KESİN ÇÖZÜM V3: RENK ZORLAMA) ---
 def apply_theme():
-    # Renk Paletleri
+    # --- TEMA RENK AYARLARI (Sadece Arka Plan ve Menüler İçin) ---
     if st.session_state.theme == 'dark':
         colors = {
             "bg": "#0E1117",
@@ -75,7 +75,6 @@ def apply_theme():
         }
         st.session_state.plotly_template = "plotly_dark"
     else:
-        # AYDINLIK MOD
         colors = {
             "bg": "#FFFFFF",
             "sidebar": "#F0F2F6",
@@ -87,6 +86,7 @@ def apply_theme():
         }
         st.session_state.plotly_template = "plotly_white"
 
+    # --- CSS MOTORU ---
     final_css = f"""
     <style>
         /* GİZLEMELER */
@@ -97,28 +97,23 @@ def apply_theme():
         footer {{ visibility: hidden; }}
         .stDeployButton {{ display: none; }}
 
-        /* ANA RENKLER */
+        /* GENEL SAYFA YAPISI (Temaya Göre Değişir) */
         .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
         section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
         h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown, .stRadio label {{ color: {colors['text']} !important; }}
 
-        /* INPUT VE SELECTBOX */
+        /* INPUT VE SELECTBOX (Temaya Göre Değişir) */
         .stTextInput input, .stNumberInput input {{
             background-color: {colors['input_bg']} !important;
             color: {colors['text']} !important;
             border: 1px solid {colors['input_border']} !important;
         }}
 
-        /* DROPDOWN MENÜLER */
-        div[data-baseweb="popover"] {{ background-color: #FFFFFF !important; border: 1px solid #ccc !important; }}
-        div[data-baseweb="popover"] li, div[data-baseweb="popover"] div, div[data-baseweb="popover"] span {{ color: #000000 !important; }}
+        /* DROPDOWN VE TOAST (Temaya Göre Değişir) */
+        div[data-baseweb="popover"], div[data-baseweb="toast"] {{ background-color: #FFFFFF !important; border: 1px solid #ccc !important; }}
+        div[data-baseweb="popover"] li, div[data-baseweb="toast"] div {{ color: #000000 !important; }}
 
-        /* TOAST MESAJLARI */
-        div[data-baseweb="toast"] {{ background-color: #FFFFFF !important; border: 1px solid #ccc !important; }}
-        div[data-baseweb="toast"] div, div[data-baseweb="toast"] p {{ color: #000000 !important; }}
-        div[data-baseweb="toast"] svg {{ fill: #000000 !important; }}
-
-        /* TABLOLAR */
+        /* TABLOLAR (Temaya Göre Değişir) */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
             background-color: {colors['card_bg']} !important;
             border: 1px solid {colors['border_color']} !important;
@@ -130,44 +125,43 @@ def apply_theme():
         }}
 
         /* ============================================================ */
-        /* --- BUTON DÜZELTMELERİ (KESİN ÇÖZÜM) --- */
+        /* --- BUTONLARIN HEPSİ (SİYAH ÇERÇEVE, BEYAZ ZEMİN, SİYAH YAZI) --- */
         /* ============================================================ */
 
-        /* 1. NORMAL BUTONLAR (Sistemi Güncelle, Alarm Kur vb.) */
-        /* Bunları temanın kendi haline bırakıyoruz ki bozulmasın, sadece yazı rengini garantiye alıyoruz */
-        div.stButton > button {{
-            border: 1px solid {colors['border_color']} !important;
-            color: {colors['text']} !important;
-        }}
-        /* Butonun içindeki yazı (p etiketi) */
-        div.stButton > button p {{
-            color: {colors['text']} !important;
-        }}
-
-        /* 2. PRIMARY (TURUNCU/MAVİ) BUTONLAR */
-        div.stButton > button[kind="primary"] {{
-            background-color: #ff4b4b !important;
-            color: white !important;
-            border: none !important;
-        }}
-        div.stButton > button[kind="primary"] p {{
-            color: white !important;
-        }}
-
-        /* 3. İNDİRME BUTONLARI (PDF İndir - Özel İstek) */
-        /* Sadece indirme butonlarını Beyaz Zemin + Siyah Yazı yapıyoruz */
+        /* 1. Tüm Buton Tipleri İçin Ortak Kural */
+        div.stButton > button, 
+        div.stFormSubmitButton > button,
         [data-testid="stDownloadButton"] button {{
-            background-color: #ffffff !important;
-            border: 1px solid #cccccc !important;
+            background-color: #ffffff !important;   /* Zemin BEYAZ */
+            color: #000000 !important;              /* Yazı SİYAH */
+            border: 2px solid #000000 !important;   /* Çerçeve SİYAH ve KALIN */
+            border-radius: 8px !important;
+            font-weight: bold !important;
         }}
-        /* İndirme butonunun içindeki TÜM yazıları siyah yap */
+
+        /* 2. Buton İçindeki Yazıları (p etiketlerini) Zorla Siyah Yap */
+        div.stButton > button p,
+        div.stFormSubmitButton > button p,
         [data-testid="stDownloadButton"] button * {{
             color: #000000 !important;
         }}
+
+        /* 3. Mouse Üzerine Gelince (Hover) */
+        div.stButton > button:hover,
+        div.stFormSubmitButton > button:hover,
         [data-testid="stDownloadButton"] button:hover {{
-            border-color: #3b82f6 !important;
-            background-color: #f0f2f6 !important;
+            background-color: #f0f0f0 !important;   /* Hafif Griye Çalsın */
+            border-color: #000000 !important;
+            color: #000000 !important;
         }}
+
+        /* 4. Primary (Kırmızı/Turuncu) Butonları da Zorla Beyaz Yap */
+        div.stButton > button[kind="primary"] {{
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border: 2px solid #000000 !important;
+        }}
+
         /* ============================================================ */
 
         /* METRİKLER */
