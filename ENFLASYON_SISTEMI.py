@@ -62,7 +62,6 @@ with st.sidebar:
 
 # --- CSS MOTORU (KESİN ÇÖZÜM V3: RENK ZORLAMA) ---
 # --- CSS MOTORU (DÜZELTİLMİŞ VERSİYON: DROPDOWN MENÜLER İÇİN) ---
-# --- CSS MOTORU (V5: DROPDOWN + TOAST DÜZELTMESİ) ---
 def apply_theme():
     # Renk Paletleri
     if st.session_state.theme == 'dark':
@@ -89,6 +88,7 @@ def apply_theme():
         }
         st.session_state.plotly_template = "plotly_white"
 
+    # CSS KODLARININ TAMAMI BURADA (Tırnakların içine dikkat!)
     final_css = f"""
     <style>
         /* GİZLEMELER */
@@ -111,7 +111,7 @@ def apply_theme():
             border: 1px solid {colors['input_border']} !important;
         }}
 
-        /* --- 1. DÜZELTME: AÇILIR MENÜLER (Dropdown) --- */
+        /* --- AÇILIR MENÜLER (Dropdown) --- */
         div[data-baseweb="popover"] {{
             background-color: #FFFFFF !important;
             border: 1px solid #ccc !important;
@@ -119,31 +119,30 @@ def apply_theme():
         div[data-baseweb="popover"] li, 
         div[data-baseweb="popover"] div, 
         div[data-baseweb="popover"] span {{
-            color: #000000 !important; /* Menü içi siyah yazı */
+            color: #000000 !important; 
         }}
         div[data-baseweb="popover"] li:hover {{
             background-color: #3b82f6 !important;
             color: #ffffff !important;
         }}
 
-        /* --- 2. DÜZELTME: TOAST MESAJLARI (Bildirimler) --- */
+        /* --- TOAST MESAJLARI --- */
         div[data-baseweb="toast"] {{
-            background-color: #FFFFFF !important; /* Arka plan BEYAZ */
+            background-color: #FFFFFF !important;
             border: 1px solid #ccc !important;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
         }}
         div[data-baseweb="toast"] div, 
         div[data-baseweb="toast"] p, 
         div[data-baseweb="toast"] span {{
-            color: #000000 !important; /* Yazı rengi SİYAH */
+            color: #000000 !important;
             font-weight: 500 !important;
         }}
-        /* Toast ikonlarını da görünür yapalım */
         div[data-baseweb="toast"] svg {{
             fill: #000000 !important;
         }}
 
-        /* MULTISELECT KUTUSU */
+        /* MULTISELECT */
         .stMultiSelect div[data-baseweb="select"], .stSelectbox div[data-baseweb="select"] {{
             background-color: {colors['input_bg']} !important;
             border: 1px solid {colors['input_border']} !important;
@@ -163,29 +162,24 @@ def apply_theme():
             background-color: {colors['sidebar']} !important;
         }}
 
-        /* ... (Mevcut CSS kodların) ... */
-
-        /* BUTONLAR (Normal Butonlar) */
-        div.stButton > button {
+        /* --- NORMAL BUTONLAR --- */
+        div.stButton > button {{
             background-color: #ffffff !important;
             color: #000000 !important;
             border: 1px solid #ccc !important;
-        }
-        
-        /* --- YENİ EKLEME: İNDİRME BUTONLARI (PDF İndir vs.) --- */
-        [data-testid="stDownloadButton"] button {
-            color: #000000 !important;  /* Yazıyı SİYAH yap */
-            background-color: #ffffff !important; /* Arka planı BEYAZ yap */
+        }}
+        div.stButton > button p {{ color: #000000 !important; }}
+
+        /* --- İNDİRME BUTONLARI (PDF İNDİR - SİYAH YAZI İÇİN) --- */
+        [data-testid="stDownloadButton"] button {{
+            color: #000000 !important;
+            background-color: #ffffff !important;
             border: 1px solid #ccc !important;
-        }
-        
-        /* İndirme butonunun üzerine gelince */
-        [data-testid="stDownloadButton"] button:hover {
+        }}
+        [data-testid="stDownloadButton"] button:hover {{
             border-color: #3b82f6 !important;
             color: #000000 !important;
-        }
-
-        div.stButton > button p {{ color: #000000 !important; }}
+        }}
 
         /* METRİKLER */
         .metric-card {{ background: {colors['card_bg']} !important; border: 1px solid {colors['border_color']} !important; }}
