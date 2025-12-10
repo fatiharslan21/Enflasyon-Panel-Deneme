@@ -994,11 +994,41 @@ def dashboard_modu():
                 month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
                 gun_farki = (dt_son - dt_baz).days
 
-                inc = df_analiz.sort_values('Fark', ascending=False).head(5)
-                dec = df_analiz.sort_values('Fark', ascending=True).head(5)
-                items = [f"<span style='color:#f87171'>▲ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>" for _, r in
-                         inc.iterrows()] + [f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>"
-                                            for _, r in dec.iterrows()]
+                # --- KAYAN YAZI (TICKER) GÜNCELLEMESİ: GÜNLÜK DEĞİŞİM ---
+
+                # 1. Günlük Fark Hesabı (Eğer en az 2 gün veri varsa)
+                if len(gunler) >= 2:
+                    dunku_tarih = gunler[-2]
+                    bugunku_tarih = gunler[-1]
+                    # Yeni bir sütun açıyoruz, mevcut 'Fark' sütununu bozmuyoruz (o genel enflasyon için lazım)
+                    df_analiz['Gunluk_Degisim'] = (df_analiz[bugunku_tarih] / df_analiz[dunku_tarih]) - 1
+                else:
+                    # Yeterli veri yoksa 0 kabul et
+                    df_analiz['Gunluk_Degisim'] = 0
+
+                # 2. Sıralamayı artık 'Gunluk_Degisim'e göre yapıyoruz
+                inc = df_analiz.sort_values('Gunluk_Degisim', ascending=False).head(5)
+                dec = df_analiz.sort_values('Gunluk_Degisim', ascending=True).head(5)
+
+                # 3. Yazıyı oluştururken günlük değişim oranını yazdırıyoruz
+                items = []
+
+                # En çok artanlar (Kırmızı)
+                for _, r in inc.iterrows():
+                    if r['Gunluk_Degisim'] > 0:
+                        items.append(
+                            f"<span style='color:#f87171'>▲ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
+
+                # En çok düşenler (Yeşil)
+                for _, r in dec.iterrows():
+                    if r['Gunluk_Degisim'] < 0:
+                        items.append(
+                            f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
+
+                # Eğer hiç değişim yoksa boş kalmasın
+                if not items:
+                    items.append("Piyasada son 24 saatte önemli bir fiyat değişimi olmadı.")
+
                 st.markdown(
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>',
                     unsafe_allow_html=True)
