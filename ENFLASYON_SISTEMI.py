@@ -988,79 +988,10 @@ def dashboard_modu():
                 enf_gida = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[
                     agirlik_col].sum() - 1) * 100 if not gida.empty else 0
 
-                # --- AI TAHMİNİ İÇİN VERİ HAZIRLIĞI (YUKARI TAŞINDI) ---
-                trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
-                        df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
-                                                       agirlik_col].sum() * 100} for g in gunler]
-                df_trend = pd.DataFrame(trend_data)
-                df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
-
-                # AI Modelini Çalıştır
-                df_forecast = predict_inflation_prophet(df_trend)
-
-                # 31 Aralık Tahminini Bul
-                current_year = datetime.now().year
-                target_date_str = f"{current_year}-12-31"
-
-                # Varsayılan değer (Eğer AI çalışmazsa eski hesabı kullanmak için)
                 dt_son = datetime.strptime(son, '%Y-%m-%d')
                 dt_baz = datetime.strptime(baz, '%Y-%m-%d')
-                gun_farki = (dt_son - dt_baz).days
-                days_left = (datetime(current_year, 12, 31) - datetime.now()).days
-
-                # AI Sonucunu Çek
-                if not df_forecast.empty:
-                    # Yıl sonuna en yakın tarihi veya direkt 31 Aralık'ı bul
-                    mask = df_forecast['ds'] >= pd.to_datetime(target_date_str)
-                    if mask.any():
-                        # 31 Aralık veya sonrası ilk tahmin (Index değeri)
-                        ai_val = df_forecast[mask].iloc[0]['yhat']
-                        # Index 100 bazlı olduğu için yüzdeliğe çeviriyoruz (Örn: 105.5 -> %5.5)
-                        month_end_forecast = ai_val - 100
-                        forecast_label = "🤖 AI Yıl Sonu Tahmini"
-                    else:
-                        # Eğer tahmin o kadar ileri gitmediyse son tahmini al
-                        ai_val = df_forecast.iloc[-1]['yhat']
-                        month_end_forecast = ai_val - 100
-                        forecast_label = "🤖 AI Tahmini (Mevcut)"
-                else:
-                    # AI Hata verirse manuel hesap (Eski yöntem)
-                    month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
-                    forecast_label = "Matematiksel Tahmin"
-
-                inc = df_analiz.sort_values('Fark', ascending=False).head(5)
-                dec = df_analiz.sort_values('Fark', ascending=True).head(5)
-                items = [f"<span style='color:#f87171'>▲ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>" for _, r in
-                         inc.iterrows()] + [f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Fark'] * 100:.1f}</span>"
-                                            for _, r in dec.iterrows()]
-                st.markdown(
-                    f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>',
-                    unsafe_allow_html=True)
-
-                def kpi_card(title, val, sub, sub_color, color_class, is_long_text=False):
-                    val_class = "metric-val long-text" if is_long_text else "metric-val"
-                    st.markdown(f"""
-                                        <div class="metric-card {color_class}">
-                                            <div class="metric-label">{title}</div>
-                                            <div class="{val_class}">{val}</div>
-                                            <div class="metric-sub" style="color:{sub_color}">{sub}</div>
-                                        </div>
-                                    """, unsafe_allow_html=True)
-
-                c1, c2, c3, c4 = st.columns(4)
-                with c1:
-                    kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"{gun_farki} Günlük Değişim", "#ef4444",
-                             "card-blue")
-                with c2:
-                    kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
-                with c3:
-                    # GÜNCELLENEN KISIM: AI TAHMİNİ BURADA KULLANILIYOR
-                    kpi_card("Yıl Sonu Beklentisi", f"%{month_end_forecast:.2f}", f"{forecast_label}", "#8b5cf6",
-                             "card-purple")
-                with c4:
-                    kpi_card("En Yüksek Risk", f"{top[ad_col][:15]}", f"%{top['Fark'] * 100:.1f} Artış", "#f59e0b",
-                             "card-orange", is_long_text=True)
-                st.markdown("<br>", unsafe_allow_html=True)
+                days_left = calendar.monthrange(dt_son.year, dt_son.month)[1] - dt_son.day
+                month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
                 gun_farki = (dt_son - dt_baz).days
 
                 inc = df_analiz.sort_values('Fark', ascending=False).head(5)
