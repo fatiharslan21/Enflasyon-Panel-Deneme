@@ -163,33 +163,6 @@ def apply_theme():
         }}
 
         /* ============================================================ */
-        /* --- YÜKLEME EFEKTLERİNİ VE SOLUKLAŞMAYI GİZLEME --- */
-        /* ============================================================ */
-
-        /* 1. Sayfa yüklenirken veya işlem yaparken oluşan soluklaşma/beyazlaşma efektini kapat */
-        .stApp {{
-            transition: none !important;
-            animation: none !important;
-        }}
-
-        /* 2. İçerik konteynerinin opaklığının düşmesini engelle */
-        .block-container {{
-            opacity: 1 !important;
-            transition: none !important;
-        }}
-
-        /* 3. Sağ üstteki 'Running' (Koşan adam/Dönen çark) animasyonunu tamamen gizle */
-        [data-testid="stStatusWidget"] {{
-            visibility: hidden !important;
-            display: none !important;
-        }}
-
-        /* 4. Butonlara basıldığında oluşan grileşme efektini azalt */
-        button:disabled {{
-            opacity: 1 !important;
-            filter: none !important;
-            cursor: not-allowed !important;
-        }}
 
         /* METRİKLER */
         .metric-card {{ background: {colors['card_bg']} !important; border: 1px solid {colors['border_color']} !important; }}
@@ -198,7 +171,6 @@ def apply_theme():
     </style>
     """
     st.markdown(final_css, unsafe_allow_html=True)
-
 
 # Temayı Uygula
 apply_theme()
@@ -484,7 +456,6 @@ def send_verification_email(to_email, code):
     except Exception as e:
         return False
 
-
 def send_reset_email(to_email, username):
     try:
         sender_email = st.secrets["email"]["sender"]
@@ -543,7 +514,6 @@ def send_notification_email(to_email, product_name, current_price, target_price)
     except Exception as e:
         print(f"Mail Hatası: {e}")
         return False
-
 
 def github_user_islem(action, username=None, password=None, email=None):
     users_db = github_json_oku(USERS_DOSYASI)
@@ -749,7 +719,6 @@ def check_alarms_and_notify(df_son_fiyatlar):
 
     return f"{sent_count} adet alarm bildirimi gönderildi."
 
-
 # --- DASHBOARD MODU ---
 def dashboard_modu():
     bugun = datetime.now().strftime("%Y-%m-%d")
@@ -800,69 +769,159 @@ def dashboard_modu():
             pass
 
         # 3. ADMIN PANEL
-            # 3. ADMIN PANEL VE GÜNCELLEME BUTONU
-            if is_admin:
-                # --- FRAGMENT BAŞLANGICI ---
-                @st.fragment
-                def admin_update_fragment():
-                    st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
+        if is_admin:
+            st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
+            st.markdown(
+                "<div style='margin-bottom:10px; color:#64748b; font-size:12px; font-weight:bold;'>🟢 ÇEVRİMİÇİ EKİP</div>",
+                unsafe_allow_html=True)
 
-                    # Butona basıldığında sadece bu fonksiyonun içi yeniden çalışır
-                    if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
-                        with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
-                            st.write("📡 GitHub bağlantısı kuruluyor...")
-                            time.sleep(0.5)
-                            st.write("📦 ZIP dosyaları taranıyor...")
-                            log_ph = st.empty()
-                            log_msgs = []
+            users_db = github_json_oku(USERS_DOSYASI)
+            activity_db = github_json_oku(ACTIVITY_DOSYASI)
+            update_user_status(st.session_state['username'])
 
-                            def logger(m):
-                                log_msgs.append(f"> {m}")
-                                log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>',
-                                                unsafe_allow_html=True)
+            user_list = []
+            for u in users_db.keys():
+                last_seen_str = activity_db.get(u, "2000-01-01 00:00:00")
+                try:
+                    last_seen = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
+                except:
+                    last_seen = datetime(2000, 1, 1)
+                is_online = (datetime.now() - last_seen).total_seconds() < 300
+                user_list.append({"name": u, "online": is_online})
 
-                            res = html_isleyici(logger)
-                            status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
+            for u in sorted(user_list, key=lambda x: (not x['online'], x['name'] not in ADMIN_USERS, x['name'])):
+                role_icon = "🛡️" if u['name'] in ADMIN_USERS else ""
+                st.markdown(f"""
+                        <div style="background:white; border:1px solid #e2e8f0; padding:8px; margin-bottom:4px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="display:flex; align-items:center; color:#334155; font-size:12px; font-weight:600;">
+                                <span style="height:6px; width:6px; border-radius:50%; display:inline-block; margin-right:8px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
+                                {u['name']} {role_icon}
+                            </span>
+                        </div>
+                    """, unsafe_allow_html=True)
+            st.divider()
 
-                        if "OK" in res:
-                            st.cache_data.clear()
-                            with st.spinner("🔔 Alarmlar kontrol ediliyor..."):
-                                try:
-                                    # Veriyi Taze Oku ve İşle
-                                    df_f_new = github_excel_oku(FIYAT_DOSYASI)
-                                    df_f_new['Tarih_DT'] = pd.to_datetime(df_f_new['Tarih'], errors='coerce')
-                                    df_f_new = df_f_new.dropna(subset=['Tarih_DT']).sort_values('Tarih_DT')
-                                    df_f_new['Tarih_Str'] = df_f_new['Tarih_DT'].dt.strftime('%Y-%m-%d')
-                                    df_f_new['Fiyat'] = pd.to_numeric(df_f_new['Fiyat'], errors='coerce')
-                                    pivot_new = df_f_new.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat',
-                                                                     aggfunc='last').ffill(axis=1).reset_index()
+        # 4. Çıkış Butonu
+        if st.button("Güvenli Çıkış", use_container_width=True):
+            st.session_state['logged_in'] = False
+            st.query_params.clear()
+            st.rerun()
 
-                                    # Alarm Kontrolü
-                                    alarm_sonuc = check_alarms_and_notify(pivot_new)
-                                    st.success(alarm_sonuc)
+    # --- CSS: Global Styles (Aydınlık modda düzgün görünmesi için) ---
+    st.markdown("""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
+        .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: white; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border-bottom: 4px solid #3b82f6; }
+        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #0f172a 0%, #3b82f6 50%, #0f172a 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
+        @keyframes shine { to { background-position: 200% center; } }
+        .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
+        .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
+        .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
+        .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
+        .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
+        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .bot-bubble { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #1e3a8a; font-size: 14px; line-height: 1.5; }
+        .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
+        #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
 
-                                except Exception as e:
-                                    st.warning(f"Alarm kontrolü sırasında hata: {e}")
+        /* Metric Card Styles */
+        .metric-card { padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); position: relative; overflow: hidden; transition: all 0.3s ease; }
+        .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
+        .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
+        .card-blue::before { background: #3b82f6; } .card-purple::before { background: #8b5cf6; } .card-emerald::before { background: #10b981; } .card-orange::before { background: #f59e0b; }
+        .metric-label { color: #64748b; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
+        .metric-val { color: #1e293b; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
+        .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
+    </style>
+    """, unsafe_allow_html=True)
 
-                            st.toast('Veritabanı Güncellendi!', icon='🎉')
-                            st.success("✅ Sistem Başarıyla Senkronize Edildi!")
-                            time.sleep(2)
-                            st.rerun()  # İşlem bitince tüm sayfayı yeniler (Bu gereklidir)
+    # --- HEADER & LIVE CLOCK ---
+    tr_time_start = datetime.now() + timedelta(hours=3)
+    header_html = f"""
+    <div class="header-container">
+        <div class="app-title">Enflasyon Monitörü</div>
+        <div style="text-align:right;">
+            <div style="color:#64748b; font-size:12px; font-weight:600; margin-bottom:4px;">İSTANBUL, TR</div>
+            <div id="live_clock_js" style="color:#0f172a; font-size:16px; font-weight:800; font-family:'JetBrains Mono', monospace;">{tr_time_start.strftime('%d %B %Y, %H:%M:%S')}</div>
+        </div>
+    </div>
+    <script>
+    function startClock() {{
+        var clockElement = document.getElementById('live_clock_js');
+        function update() {{
+            var now = new Date();
+            var options = {{ timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }};
+            if (clockElement) {{ clockElement.innerHTML = now.toLocaleTimeString('tr-TR', options); }}
+        }}
+        setInterval(update, 1000); update(); 
+    }}
+    startClock();
+    </script>
+    """
+    st.markdown(header_html, unsafe_allow_html=True)
 
-                        elif "Veri bulunamadı" in res:
-                            st.warning("⚠️ Yeni fiyat verisi bulunamadı. ZIP dosyalarını kontrol et.")
-                        else:
-                            st.error(res)
-                    st.markdown('</div>', unsafe_allow_html=True)
+    if 'toast_shown' not in st.session_state:
+        st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
+        st.session_state['toast_shown'] = True
 
-                # Fragment fonksiyonunu çağırıyoruz
-                admin_update_fragment()
-                # --- FRAGMENT BİTİŞİ ---
+    if is_admin:
+        st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
+        # --- MEVCUT KOD BLOKUNU BUL VE BUNUNLA DEĞİŞTİR ---
+        if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
+            with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
+                st.write("📡 GitHub bağlantısı kuruluyor...")
+                time.sleep(0.5)
+                st.write("📦 ZIP dosyaları taranıyor...")
+                log_ph = st.empty()
+                log_msgs = []
 
-                st.markdown("<br>", unsafe_allow_html=True)
+                def logger(m):
+                    log_msgs.append(f"> {m}")
+                    log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
+
+                res = html_isleyici(logger)
+                status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
+
+            if "OK" in res:
+                # KRİTİK EKLEME: CACHE TEMİZLEME
+                st.cache_data.clear()  # <--- BU SATIRI EKLE
+                with st.spinner("🔔 Alarmlar kontrol ediliyor..."):
+                    try:
+                        # 1. Veriyi Taze Oku
+                        df_f_new = github_excel_oku(FIYAT_DOSYASI)
+
+                        # 2. TARİH FORMATLAMA (Eksik olan kısım burasıydı)
+                        df_f_new['Tarih_DT'] = pd.to_datetime(df_f_new['Tarih'], errors='coerce')
+                        df_f_new = df_f_new.dropna(subset=['Tarih_DT']).sort_values('Tarih_DT')
+                        df_f_new['Tarih_Str'] = df_f_new['Tarih_DT'].dt.strftime('%Y-%m-%d')
+
+                        # 3. Fiyatı Sayıya Çevir
+                        df_f_new['Fiyat'] = pd.to_numeric(df_f_new['Fiyat'], errors='coerce')
+
+                        # 4. Pivot İşlemi (Artık Tarih_Str var, hata vermez)
+                        pivot_new = df_f_new.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat',
+                                                         aggfunc='last').ffill(axis=1).reset_index()
+
+                        # 5. Alarm Fonksiyonunu Çağır
+                        alarm_sonuc = check_alarms_and_notify(pivot_new)
+                        st.success(alarm_sonuc)
+
+                    except Exception as e:
+                        st.warning(f"Alarm kontrolü sırasında hata: {e}")
+                st.toast('Veritabanı Güncellendi!', icon='🎉')
+                st.success("✅ Sistem Başarıyla Senkronize Edildi!")
+                time.sleep(2)
+                st.rerun()
+            elif "Veri bulunamadı" in res:
+                st.warning("⚠️ Yeni fiyat verisi bulunamadı. ZIP dosyalarını kontrol et.")
             else:
-                st.info("👋 Hoşgeldiniz. Veriler otomatik olarak sunulmaktadır.")
-                st.markdown("<br>", unsafe_allow_html=True)
+                st.error(res)
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+    else:
+        st.info("👋 Hoşgeldiniz. Veriler otomatik olarak sunulmaktadır.")
+        st.markdown("<br>", unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
         try:
@@ -923,25 +982,8 @@ def dashboard_modu():
                         df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[
                                    agirlik_col].sum() * 100
                 enf_genel = (endeks_genel / 100 - 1) * 100
-
-                # --- 1. Genel Kümülatif Fark (Isı Haritası vb. için) ---
                 df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
-
-                # --- 2. GÜNLÜK FARK HESABI (Ticker ve Risk Kartı İçin) ---
-                if len(gunler) >= 2:
-                    dunku_tarih = gunler[-2]
-                    bugunku_tarih = gunler[-1]
-                    # Yeni bir sütun açıyoruz, mevcut 'Fark' sütununu bozmuyoruz (o genel enflasyon için lazım)
-                    df_analiz['Gunluk_Degisim'] = (df_analiz[bugunku_tarih] / df_analiz[dunku_tarih]) - 1
-                else:
-                    # Yeterli veri yoksa 0 kabul et
-                    df_analiz['Gunluk_Degisim'] = 0
-
-                # --- 3. EN RİSKLİ ÜRÜNÜ SEÇ (Artık Günlük Değişime Göre) ---
-                # En çok artan (Daily)
-                top = df_analiz.sort_values('Gunluk_Degisim', ascending=False).iloc[0]
-
-                # ... Diğer hesaplamalar (enf_gida vb.) ...
+                top = df_analiz.sort_values('Fark', ascending=False).iloc[0]
                 gida = df_analiz[df_analiz['Kod'].str.startswith("01")].copy()
                 enf_gida = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[
                     agirlik_col].sum() - 1) * 100 if not gida.empty else 0
@@ -952,13 +994,23 @@ def dashboard_modu():
                 month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
                 gun_farki = (dt_son - dt_baz).days
 
-                # --- KAYAN YAZI (TICKER) GÜNCELLEMESİ ---
+                # --- KAYAN YAZI (TICKER) GÜNCELLEMESİ: GÜNLÜK DEĞİŞİM ---
 
-                # Sıralamayı 'Gunluk_Degisim'e göre yapıyoruz
+                # 1. Günlük Fark Hesabı (Eğer en az 2 gün veri varsa)
+                if len(gunler) >= 2:
+                    dunku_tarih = gunler[-2]
+                    bugunku_tarih = gunler[-1]
+                    # Yeni bir sütun açıyoruz, mevcut 'Fark' sütununu bozmuyoruz (o genel enflasyon için lazım)
+                    df_analiz['Gunluk_Degisim'] = (df_analiz[bugunku_tarih] / df_analiz[dunku_tarih]) - 1
+                else:
+                    # Yeterli veri yoksa 0 kabul et
+                    df_analiz['Gunluk_Degisim'] = 0
+
+                # 2. Sıralamayı artık 'Gunluk_Degisim'e göre yapıyoruz
                 inc = df_analiz.sort_values('Gunluk_Degisim', ascending=False).head(5)
                 dec = df_analiz.sort_values('Gunluk_Degisim', ascending=True).head(5)
 
-                # Yazıyı oluştururken günlük değişim oranını yazdırıyoruz
+                # 3. Yazıyı oluştururken günlük değişim oranını yazdırıyoruz
                 items = []
 
                 # En çok artanlar (Kırmızı)
@@ -1001,9 +1053,7 @@ def dashboard_modu():
                     kpi_card("Ay Sonu Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
                              "card-purple")
                 with c4:
-                    # GÜNCELLEME: BURASI ARTIK 'TOP' DEĞİŞKENİNİ KULLANARAK GÜNLÜK DEĞİŞİMİ GÖSTERİYOR
-                    kpi_card("En Yüksek Risk", f"{top[ad_col][:15]}",
-                             f"%{top['Gunluk_Degisim'] * 100:.1f} Günlük Artış", "#f59e0b",
+                    kpi_card("En Yüksek Risk", f"{top[ad_col][:15]}", f"%{top['Fark'] * 100:.1f} Artış", "#f59e0b",
                              "card-orange", is_long_text=True)
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1038,8 +1088,8 @@ def dashboard_modu():
                                        line=dict(color='#f59e0b', dash='dot')))
                         fig_main.add_trace(go.Scatter(x=future_only['ds'].tolist() + future_only['ds'].tolist()[::-1],
                                                       y=future_only['yhat_upper'].tolist() + future_only[
-                                                                                                 'yhat_lower'].tolist()[
-                                                                                             ::-1], fill='toself',
+                                                          'yhat_lower'].tolist()[
+                                                          ::-1], fill='toself',
                                                       fillcolor='rgba(245, 158, 11, 0.2)',
                                                       line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip",
                                                       showlegend=False))
@@ -1117,80 +1167,74 @@ def dashboard_modu():
                         col_vol.error(f"Volatilite hesaplanamadı: {e}")
 
                 with t_sepet:
-                    @st.fragment  # <--- SİHİRLİ DOKUNUŞ BURADA
-                    def sepet_fragment():
-                        st.markdown("### 🛒 Kişisel Enflasyon Sepeti")
-                        st.info(
-                            "💡 **Nasıl Çalışır?** Aşağıdan ürünleri seçip **aylık tüketim miktarını (adet/kg)** girdiğinde, sistem senin gerçek enflasyonunu hesaplar.")
+                    st.markdown("### 🛒 Kişisel Enflasyon Sepeti")
+                    st.info(
+                        "💡 **Nasıl Çalışır?** Aşağıdan ürünleri seçip **aylık tüketim miktarını (adet/kg)** girdiğinde, sistem senin gerçek enflasyonunu hesaplar.")
 
-                        baskets = github_json_oku(SEPETLER_DOSYASI)
-                        user_codes = baskets.get(st.session_state['username'], [])
-                        all_products = df_analiz[ad_col].unique()
-                        default_names = df_analiz[df_analiz['Kod'].isin(user_codes)][ad_col].tolist()
+                    baskets = github_json_oku(SEPETLER_DOSYASI)
+                    user_codes = baskets.get(st.session_state['username'], [])
+                    all_products = df_analiz[ad_col].unique()
+                    default_names = df_analiz[df_analiz['Kod'].isin(user_codes)][ad_col].tolist()
 
-                        selected_names = st.multiselect("Takip Ettiğin Ürünleri Seç:", all_products,
-                                                        default=default_names)
+                    selected_names = st.multiselect("Takip Ettiğin Ürünleri Seç:", all_products, default=default_names)
 
-                        if selected_names:
-                            my_df = df_analiz[df_analiz[ad_col].isin(selected_names)].copy()
-                            if 'Kullanici_Agirlik' not in st.session_state:
-                                st.session_state['Kullanici_Agirlik'] = {row['Kod']: 1.0 for _, row in my_df.iterrows()}
-                            my_df['Miktar'] = my_df['Kod'].map(st.session_state['Kullanici_Agirlik']).fillna(1.0)
+                    if selected_names:
+                        my_df = df_analiz[df_analiz[ad_col].isin(selected_names)].copy()
+                        if 'Kullanici_Agirlik' not in st.session_state:
+                            st.session_state['Kullanici_Agirlik'] = {row['Kod']: 1.0 for _, row in my_df.iterrows()}
+                        my_df['Miktar'] = my_df['Kod'].map(st.session_state['Kullanici_Agirlik']).fillna(1.0)
 
-                            col_editor, col_result = st.columns([2, 1])
+                        col_editor, col_result = st.columns([2, 1])
 
-                            with col_editor:
-                                st.caption("👇 Miktarları buradan değiştirebilirsin:")
-                                edited_df = st.data_editor(
-                                    my_df[[ad_col, 'Miktar', baz, son, 'Kod']],
-                                    column_config={
-                                        ad_col: "Ürün Adı",
-                                        "Miktar": st.column_config.NumberColumn("Tüketim (Adet/Kg)", min_value=0.1,
-                                                                                max_value=1000.0, step=0.5,
-                                                                                format="%.1f"),
-                                        baz: st.column_config.NumberColumn(f"Eski Fiyat ({baz})", format="%.2f TL"),
-                                        son: st.column_config.NumberColumn(f"Yeni Fiyat ({son})", format="%.2f TL"),
-                                        "Kod": None
-                                    },
-                                    disabled=[ad_col, baz, son],
-                                    use_container_width=True,
-                                    key="sepet_editor"
-                                )
+                        with col_editor:
+                            st.caption("👇 Miktarları buradan değiştirebilirsin:")
+                            edited_df = st.data_editor(
+                                my_df[[ad_col, 'Miktar', baz, son, 'Kod']],
+                                column_config={
+                                    ad_col: "Ürün Adı",
+                                    "Miktar": st.column_config.NumberColumn("Tüketim (Adet/Kg)", min_value=0.1,
+                                                                            max_value=1000.0, step=0.5, format="%.1f"),
+                                    baz: st.column_config.NumberColumn(f"Eski Fiyat ({baz})", format="%.2f TL"),
+                                    son: st.column_config.NumberColumn(f"Yeni Fiyat ({son})", format="%.2f TL"),
+                                    "Kod": None
+                                },
+                                disabled=[ad_col, baz, son],
+                                use_container_width=True,
+                                key="sepet_editor"
+                            )
 
-                            with col_result:
-                                try:
-                                    toplam_eski_masraf = (edited_df[baz] * edited_df['Miktar']).sum()
-                                    toplam_yeni_masraf = (edited_df[son] * edited_df['Miktar']).sum()
+                        with col_result:
+                            try:
+                                toplam_eski_masraf = (edited_df[baz] * edited_df['Miktar']).sum()
+                                toplam_yeni_masraf = (edited_df[son] * edited_df['Miktar']).sum()
 
-                                    if toplam_eski_masraf > 0:
-                                        kisisel_enf = ((toplam_yeni_masraf / toplam_eski_masraf) - 1) * 100
-                                        fark_tl = toplam_yeni_masraf - toplam_eski_masraf
-                                        st.markdown("#### 🧾 Sepet Özeti")
-                                        st.metric("Senin Enflasyonun", f"%{kisisel_enf:.2f}", f"{fark_tl:+.2f} TL Fark",
-                                                  delta_color="inverse")
-                                        st.divider()
-                                        st.write(f"📉 **Genel Enflasyon:** %{enf_genel:.2f}")
+                                if toplam_eski_masraf > 0:
+                                    kisisel_enf = ((toplam_yeni_masraf / toplam_eski_masraf) - 1) * 100
+                                    fark_tl = toplam_yeni_masraf - toplam_eski_masraf
+                                    st.markdown("#### 🧾 Sepet Özeti")
+                                    st.metric("Senin Enflasyonun", f"%{kisisel_enf:.2f}", f"{fark_tl:+.2f} TL Fark",
+                                              delta_color="inverse")
+                                    st.divider()
+                                    st.write(f"📉 **Genel Enflasyon:** %{enf_genel:.2f}")
 
-                                        if kisisel_enf > enf_genel:
-                                            st.error("Senin sepetin piyasadan daha hızlı pahalanıyor!")
-                                        else:
-                                            st.success("Tüketim alışkanlıkların seni enflasyondan kısmen koruyor.")
+                                    if kisisel_enf > enf_genel:
+                                        st.error("Senin sepetin piyasadan daha hızlı pahalanıyor!")
                                     else:
-                                        st.warning("Hesaplama için miktar giriniz.")
-                                except Exception as e:
-                                    st.error(f"Hesaplama Hatası: {e}")
-
-                            if st.button("💾 Sepet Listesini Kaydet"):
-                                new_codes = edited_df['Kod'].tolist()
-                                baskets[st.session_state['username']] = new_codes
-                                if github_json_yaz(SEPETLER_DOSYASI, baskets, "Basket Update"):
-                                    st.toast("Sepet başarıyla kaydedildi!", icon='✅')
+                                        st.success("Tüketim alışkanlıkların seni enflasyondan kısmen koruyor.")
                                 else:
-                                    st.error("Kaydetme başarısız.")
-                        else:
-                            st.warning("Henüz sepete ürün eklemedin.")
+                                    st.warning("Hesaplama için miktar giriniz.")
+                            except Exception as e:
+                                st.error(f"Hesaplama Hatası: {e}")
 
-                    sepet_fragment()  # <--- Fonksiyonu burada çağırıyoruz
+                        if st.button("💾 Sepet Listesini Kaydet"):
+                            new_codes = edited_df['Kod'].tolist()
+                            baskets[st.session_state['username']] = new_codes
+                            if github_json_yaz(SEPETLER_DOSYASI, baskets, "Basket Update"):
+                                st.toast("Sepet başarıyla kaydedildi!", icon='✅')
+                            else:
+                                st.error("Kaydetme başarısız.")
+                    else:
+                        st.warning("Henüz sepete ürün eklemedin.")
 
                 with t_harita:
                     # GÜNCELLEME: Sadece Isı Haritası (Treemap) kaldı, tek sütun olarak genişledi.
@@ -1209,48 +1253,116 @@ def dashboard_modu():
                     st.plotly_chart(fig_tree, use_container_width=True)
 
                 with t_firsat:
-                    @st.fragment
-                    def firsat_fragment():
-                        st.markdown("### 🛍️ Piyasadaki Benzer Ürünler")
-                        st.info("Piyasadaki Benzer ürün fiyatlarını anlık tarar.")
-                        product_list = sorted(df_analiz[ad_col].unique())
-                        selected_product = st.selectbox("Hangi ürünü tarayalım?", product_list)
-                        if st.button(f"Piyasa Fiyatlarını Çek", type="primary"):
+                    st.markdown("### 🛍️ Piyasadaki Benzer Ürünler")
+                    st.info("Piyasadaki Benzer ürün fiyatlarını anlık tarar.")
+                    product_list = sorted(df_analiz[ad_col].unique())
+                    selected_product = st.selectbox("Hangi ürünü tarayalım?", product_list)
+                    if st.button(f"Piyasa Fiyatlarını Çek", type="primary"):
+                        try:
+                            my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
+                            my_price = my_record[son]
+                        except:
+                            my_price = 0
+                        st.metric("Senin Fiyatın", f"{my_price:.2f} TL")
+                        results_data = []
+                        target_url = f"https://www.google.com/search?q={selected_product}&tbm=shop&hl=tr&gl=TR"
+                        with st.spinner("Google Taranıyor..."):
                             try:
-                                my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
-                                my_price = my_record[son]
-                            except:
-                                my_price = 0
-                            st.metric("Senin Fiyatın", f"{my_price:.2f} TL")
-                            results_data = []
-                            target_url = f"https://www.google.com/search?q={selected_product}&tbm=shop&hl=tr&gl=TR"
-                            with st.spinner("Google Taranıyor..."):
-                                try:
-                                    # --- MEVCUT SCRAPING KODU BURADA DEVAM EDİYOR (Değişiklik yok) ---
-                                    # (Kodun okunabilirliği için buradaki uzun Selenium/BS4 kodunu tekrar yazmadım,
-                                    #  sizin kodunuzdaki 'chrome_options' ile başlayan kısmı aynen koruyun.)
-                                    # ...
-                                    # ...
-                                    # --- Sadece mantığı göstermek için kısaltılmıştır,
-                                    # orijinal kodunuzu buraya yapıştırabilirsiniz. ---
+                                chrome_options = Options()
+                                chrome_options.add_argument("--headless")
+                                chrome_options.add_argument("--no-sandbox")
+                                chrome_options.add_argument("--disable-dev-shm-usage")
+                                chrome_options.add_argument("--disable-gpu")
+                                chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+                                chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+                                chrome_options.add_experimental_option('useAutomationExtension', False)
+                                chrome_options.add_argument(
+                                    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
 
-                                    # KODUNUZUN ORİJİNAL AKIŞINI BURAYA KOYDUĞUNUZU VARSAYIYORUM
-                                    # Sadece fragment içine aldık.
-                                    pass
-                                except Exception as e:
-                                    st.error(f"Sistem Hatası: {e}")
-                            # --- Scraping bittikten sonra sonuçları gösterme kısmı ---
-                            # (Orijinal kodunuzdaki results_data işleme kısmı buraya gelecek)
+                                chrome_path = shutil.which("chromium") or shutil.which(
+                                    "chromium-browser") or shutil.which("google-chrome")
+                                if chrome_path: chrome_options.binary_location = chrome_path
 
-                    # Eğer kodunuzu kopyalamakta zorlanırsanız, sadece 'def firsat_fragment():'
-                    # satırını ekleyip girintiyi (indentation) sağa kaydırmanız yeterlidir.
+                                driver_path = shutil.which("chromedriver") or shutil.which(
+                                    "chromium-driver") or "/usr/bin/chromedriver"
+                                if not driver_path:
+                                    st.error("⚠️ Sürücü bulunamadı. packages.txt dosyasını kontrol et.")
+                                else:
+                                    service = Service(executable_path=driver_path)
+                                    driver = webdriver.Chrome(service=service, options=chrome_options)
+                                    driver.get(target_url)
+                                    try:
+                                        wait = WebDriverWait(driver, 5)
+                                        consent_buttons = driver.find_elements(By.XPATH,
+                                                                               "//button[contains(., 'Kabul') or contains(., 'Accept') or contains(., 'Agree')]")
+                                        if consent_buttons: consent_buttons[0].click(); time.sleep(2)
+                                    except:
+                                        pass
+                                    time.sleep(3)
+                                    page_source = driver.page_source
+                                    driver.quit()
+                                    soup = BeautifulSoup(page_source, "html.parser")
 
-                    # Aşağıdaki satır, sizin kodunuzdaki uzun scraping bloğunun yerine geçiyor:
-                    # Burada "firsat_fragment" fonksiyonunu tanımlayıp,
-                    # içerisine t_firsat altındaki TÜM kodları girintileyerek (tab ile) koymalısınız.
-                    # Ben yer kaplamaması için tam kodu buraya tekrar yapıştırmıyorum ama
-                    # mantık: with t_firsat -> @st.fragment -> def func() -> eski kodlar -> func() çağır.
-                    pass
+                                    cards = soup.find_all(attrs={"aria-label": re.compile(r"Şu Anki Fiyat:")})
+                                    if not cards: price_elements = soup.find_all(string=re.compile(r"(₺|TL)\s*\d+"))
+
+                                    for card in cards:
+                                        raw_text = card['aria-label']
+                                        raw_text = raw_text.replace(u'\xa0', ' ').strip()
+                                        price_pattern = r"(?:₺\s?)?(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s?TL)?"
+                                        matches = list(re.finditer(price_pattern, raw_text))
+
+                                        if matches:
+                                            best_match = matches[0]
+                                            p_price_str = best_match.group(1)
+                                            try:
+                                                clean_price = float(p_price_str.replace('.', '').replace(',', '.'))
+                                            except:
+                                                clean_price = 0
+                                            if clean_price < 5 and len(matches) > 1:
+                                                best_match = matches[1]
+                                                p_price_str = best_match.group(1)
+                                                try:
+                                                    clean_price = float(p_price_str.replace('.', '').replace(',', '.'))
+                                                except:
+                                                    pass
+                                            start, end = best_match.span()
+                                            p_name = raw_text[:start].strip().rstrip('.').rstrip(':').replace(
+                                                "Şu Anki Fiyat", "").strip()
+                                            p_vendor_raw = raw_text[end:].strip()
+                                            p_vendor = re.sub(r'^(TL|₺|\.|,)\s*', '', p_vendor_raw)
+                                            p_vendor = p_vendor.replace("ve daha fazlası", "").replace(
+                                                "ve diğer satıcılar", "").strip()
+                                            if len(p_vendor) > 30: p_vendor = p_vendor.split('.')[0]
+                                            if not p_name or len(p_name) < 2: continue
+                                            if not p_vendor or len(p_vendor) < 2: continue
+                                            if p_name.replace('.', '').replace(',', '').isdigit(): continue
+
+                                            results_data.append({
+                                                "Ürün": p_name,
+                                                "Fiyat_Etiketi": p_price_str + " TL",
+                                                "Fiyat_Sayi": clean_price,
+                                                "Satıcı": p_vendor
+                                            })
+
+                                    if results_data:
+                                        df_res = pd.DataFrame(results_data).sort_values("Fiyat_Sayi")
+                                        for _, row in df_res.iterrows():
+                                            is_cheaper = row['Fiyat_Sayi'] < my_price and row['Fiyat_Sayi'] > 0
+                                            card_bg = "#ecfdf5" if is_cheaper else "#ffffff"
+                                            border_col = "#10b981" if is_cheaper else "#e2e8f0"
+                                            st.markdown(f"""
+                                            <div style="background:{card_bg}; border:1px solid {border_col}; padding:15px; border-radius:10px; margin-bottom:10px;">
+                                                <div style="font-weight:bold; color:#1e293b;">{row['Ürün']}</div>
+                                                <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                                                    <div style="color:#64748b;">🏪 {row['Satıcı']}</div>
+                                                    <div style="font-weight:800; color:#0f172a;">{row['Fiyat_Etiketi']}</div>
+                                                </div>
+                                            </div>""", unsafe_allow_html=True)
+                                    else:
+                                        st.warning("Veri okunamadı.")
+                            except Exception as e:
+                                st.error(f"Sistem Hatası: {e}")
 
                 with t_liste:
                     st.data_editor(
@@ -1305,69 +1417,65 @@ def dashboard_modu():
                                                               file_name=f"Enflasyon_Raporu_{bugun}.pdf",
                                                               mime="application/pdf")
                 with t_alarm:
-                    @st.fragment
-                    def alarm_fragment():
-                        st.markdown("### 🔔 Akıllı Fiyat Alarmı Kur")
-                        st.info(
-                            "Takip ettiğin ürün belirlediğin fiyatın **altına** düşerse sana otomatik e-posta atarız.")
-                        ALARMS_DOSYASI = "user_alarms.json"
-                        alarms_db = github_json_oku(ALARMS_DOSYASI)
-                        if not isinstance(alarms_db, list): alarms_db = []
-                        product_list = sorted(df_analiz[ad_col].unique())
-                        secilen_urun = st.selectbox("Hangi ürün için alarm kurulsun?", product_list,
-                                                    key="alarm_product")
-                        curr_price = df_analiz[df_analiz[ad_col] == secilen_urun][son].values[0]
+                    st.markdown("### 🔔 Akıllı Fiyat Alarmı Kur")
+                    st.info(
+                        "Takip ettiğin ürün belirlediğin fiyatın **altına** düşerse sana otomatik e-posta atarız.")
+                    ALARMS_DOSYASI = "user_alarms.json"
+                    alarms_db = github_json_oku(ALARMS_DOSYASI)
+                    if not isinstance(alarms_db, list): alarms_db = []
+                    product_list = sorted(df_analiz[ad_col].unique())
+                    secilen_urun = st.selectbox("Hangi ürün için alarm kurulsun?", product_list,
+                                                key="alarm_product")
+                    curr_price = df_analiz[df_analiz[ad_col] == secilen_urun][son].values[0]
 
-                        c_al1, c_al2, c_al3 = st.columns(3)
-                        with c_al1:
-                            st.metric("Şu Anki Fiyat", f"{curr_price:.2f} TL")
-                        with c_al2:
-                            target_price = st.number_input("Hedef Fiyat (TL)", min_value=1.0,
-                                                           value=float(curr_price) * 0.9, step=1.0,
-                                                           help="Fiyat bu seviyenin altına inerse mail atılır.")
-                        with c_al3:
-                            user_email = ""
-                            users_db = github_json_oku(USERS_DOSYASI)
-                            if st.session_state['username'] in users_db:
-                                user_data = users_db[st.session_state['username']]
-                                if isinstance(user_data, dict): user_email = user_data.get("email", "")
-                            target_email = st.text_input("Bildirim E-Postası", value=user_email)
+                    c_al1, c_al2, c_al3 = st.columns(3)
+                    with c_al1:
+                        st.metric("Şu Anki Fiyat", f"{curr_price:.2f} TL")
+                    with c_al2:
+                        target_price = st.number_input("Hedef Fiyat (TL)", min_value=1.0,
+                                                       value=float(curr_price) * 0.9, step=1.0,
+                                                       help="Fiyat bu seviyenin altına inerse mail atılır.")
+                    with c_al3:
+                        user_email = ""
+                        users_db = github_json_oku(USERS_DOSYASI)
+                        if st.session_state['username'] in users_db:
+                            user_data = users_db[st.session_state['username']]
+                            if isinstance(user_data, dict): user_email = user_data.get("email", "")
+                        target_email = st.text_input("Bildirim E-Postası", value=user_email)
 
-                        if st.button("🔔 Alarmı Kur", type="primary"):
-                            if target_price < curr_price:
-                                new_alarm = {
-                                    "user": st.session_state['username'],
-                                    "email": target_email,
-                                    "kod": df_analiz[df_analiz[ad_col] == secilen_urun]['Kod'].values[0],
-                                    "urun_adi": secilen_urun,
-                                    "hedef_fiyat": target_price,
-                                    "durum": "aktif",
-                                    "olusturma_tarihi": datetime.now().strftime("%Y-%m-%d")
-                                }
-                                alarms_db.append(new_alarm)
-                                if github_json_yaz(ALARMS_DOSYASI, alarms_db, "New Alarm"):
-                                    st.success(
-                                        f"✅ Alarm kuruldu! {secilen_urun} fiyatı {target_price} TL altına düşerse mail gelecek.")
-                                else:
-                                    st.error("Kayıt hatası.")
+                    if st.button("🔔 Alarmı Kur", type="primary"):
+                        if target_price < curr_price:
+                            new_alarm = {
+                                "user": st.session_state['username'],
+                                "email": target_email,
+                                "kod": df_analiz[df_analiz[ad_col] == secilen_urun]['Kod'].values[0],
+                                "urun_adi": secilen_urun,
+                                "hedef_fiyat": target_price,
+                                "durum": "aktif",
+                                "olusturma_tarihi": datetime.now().strftime("%Y-%m-%d")
+                            }
+                            alarms_db.append(new_alarm)
+                            if github_json_yaz(ALARMS_DOSYASI, alarms_db, "New Alarm"):
+                                st.success(
+                                    f"✅ Alarm kuruldu! {secilen_urun} fiyatı {target_price} TL altına düşerse mail gelecek.")
                             else:
-                                st.warning("Hedef fiyat, şu anki fiyattan düşük olmalıdır.")
-
-                        st.divider()
-                        st.markdown("#### 📋 Aktif Alarmların")
-                        my_alarms = [a for a in alarms_db if a.get('user') == st.session_state['username']]
-                        if my_alarms:
-                            st.dataframe(
-                                pd.DataFrame(my_alarms)[['urun_adi', 'hedef_fiyat', 'durum', 'olusturma_tarihi']],
-                                use_container_width=True)
-                            if st.button("🗑️ Tüm Alarmlarımı Temizle"):
-                                alarms_db = [a for a in alarms_db if a.get('user') != st.session_state['username']]
-                                github_json_yaz(ALARMS_DOSYASI, alarms_db, "Clear Alarms")
-                                st.rerun()
+                                st.error("Kayıt hatası.")
                         else:
-                            st.info("Henüz kurulu bir alarmın yok.")
+                            st.warning("Hedef fiyat, şu anki fiyattan düşük olmalıdır.")
 
-                    alarm_fragment()  # <--- Fonksiyonu çağırıyoruz
+                    st.divider()
+                    st.markdown("#### 📋 Aktif Alarmların")
+                    my_alarms = [a for a in alarms_db if a.get('user') == st.session_state['username']]
+                    if my_alarms:
+                        st.dataframe(
+                            pd.DataFrame(my_alarms)[['urun_adi', 'hedef_fiyat', 'durum', 'olusturma_tarihi']],
+                            use_container_width=True)
+                        if st.button("🗑️ Tüm Alarmlarımı Temizle"):
+                            alarms_db = [a for a in alarms_db if a.get('user') != st.session_state['username']]
+                            github_json_yaz(ALARMS_DOSYASI, alarms_db, "Clear Alarms")
+                            st.rerun()
+                    else:
+                        st.info("Henüz kurulu bir alarmın yok.")
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
     st.markdown(
