@@ -1010,6 +1010,13 @@ def dashboard_modu():
                 inc = df_analiz.sort_values('Gunluk_Degisim', ascending=False).head(5)
                 dec = df_analiz.sort_values('Gunluk_Degisim', ascending=True).head(5)
 
+                f not inc.empty:
+                    daily_risk_row = inc.iloc[0]
+                    daily_risk_name = daily_risk_row[ad_col]
+                    daily_risk_rate = daily_risk_row['Gunluk_Degisim']
+                else:
+                    daily_risk_name = "-"
+                    daily_risk_rate = 0
                 # 3. Yazıyı oluştururken günlük değişim oranını yazdırıyoruz
                 items = []
 
@@ -1053,7 +1060,8 @@ def dashboard_modu():
                     kpi_card("Ay Sonu Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
                              "card-purple")
                 with c4:
-                    kpi_card("En Yüksek Risk", f"{top[ad_col][:15]}", f"%{top['Fark'] * 100:.1f} Artış", "#f59e0b",
+                    # GÜNCELLENEN KISIM BURASI
+                    kpi_card("En Yüksek Risk (24s)", f"{daily_risk_name[:15]}", f"%{daily_risk_rate * 100:.1f} Artış", "#f59e0b",
                              "card-orange", is_long_text=True)
                 st.markdown("<br>", unsafe_allow_html=True)
 
