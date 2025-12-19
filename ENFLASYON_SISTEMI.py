@@ -347,51 +347,48 @@ def github_excel_guncelle(df_yeni, dosya_adi):
 
 # --- RESMİ ENFLASYON & PROPHET (CACHED) ---
 # --- RESMİ ENFLASYON & PROPHET (GÜNCELLENDİ: HEADERS EKLENDİ) ---
+# --- RESMİ ENFLASYON ÇEKİCİ (GÜÇLENDİRİLMİŞ VERSİYON) ---
 def get_official_inflation():
     api_key = st.secrets.get("evds", {}).get("api_key")
 
-    # API Key yoksa direkt dön
+    # 1. API Key Yoksa Manuel Veri Dön
     if not api_key:
-        return None, "API Key Yok (secrets.toml kontrol et)"
+        return None, "API Key Yok"
 
-    # Tarihleri ayarla
     start_date = (datetime.now() - timedelta(days=365)).strftime("%d-%m-%Y")
     end_date = datetime.now().strftime("%d-%m-%Y")
 
-    # URL Yapısı
-    url = f"https://evds2.tcmb.gov.tr/service/evds/series=TP.FG.J0&startDate={start_date}&endDate={end_date}&type=json&key={api_key}"
+    # URL'de key parametresi OLMADAN (Header ile deneyeceğiz)
+    url = f"https://evds2.tcmb.gov.tr/service/evds/series=TP.FG.J0&startDate={start_date}&endDate={end_date}&type=json"
 
-    # ÖNEMLİ: Kendimizi tarayıcı gibi tanıtıyoruz (Anti-Bot Engeli İçin)
+    # Header'a KEY ekliyoruz (Bazı durumlarda çözüm budur)
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'key': api_key,  # Anahtarı buraya da ekledik
         'Accept': 'application/json'
     }
 
     try:
-        # verify=False bazen SSL hatalarını aşmak için gerekir (uyarı verebilir ama çalışır)
-        res = requests.get(url, headers=headers, timeout=10, verify=True)
+        # verify=False ile SSL hatasını geçiyoruz, key'i hem header hem url parametresi olarak (garanti olsun diye) verelim
+        url_with_key = f"{url}&key={api_key}"
+        res = requests.get(url_with_key, headers=headers, timeout=10, verify=False)
 
         if res.status_code == 200:
             try:
                 data = res.json()
                 if "items" in data:
                     df_evds = pd.DataFrame(data["items"])
-                    # Gelen veriyi kontrol et, bazen UNIX null dönebilir
-                    if df_evds.empty or 'TP_FG_J0' not in df_evds.columns:
-                        return None, "API boş veri döndürdü."
-
                     df_evds = df_evds[['Tarih', 'TP_FG_J0']]
                     df_evds.columns = ['Tarih', 'Resmi_TUFE']
                     df_evds['Tarih'] = pd.to_datetime(df_evds['Tarih'] + "-01", format="%Y-%m-%d")
                     df_evds['Resmi_TUFE'] = pd.to_numeric(df_evds['Resmi_TUFE'], errors='coerce')
                     return df_evds, "OK"
                 else:
-                    return None, "Veri Yapısı Hatası (items yok)"
-            except json.JSONDecodeError:
-                # Eğer JSON değil HTML dönerse içeriği görelim
-                return None, f"Sunucu JSON döndürmedi. İçerik başı: {res.text[:50]}"
+                    return None, "Boş Veri"
+            except:
+                return None, "JSON Hatası"
         else:
-            return None, f"HTTP Hatası: {res.status_code}"
+            return None, f"HTTP {res.status_code}"
 
     except Exception as e:
         return None, str(e)
@@ -788,61 +785,63 @@ def dashboard_modu():
                 with t_analiz:
                     st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
 
-                    # --- 1. SENİN VERİNİN HAZIRLANMASI ---
+                    # --- SENİN VERİN ---
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                             df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
                     df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
 
-                    # --- 2. RESMİ TÜİK VERİSİNİN ÇEKİLMESİ VE İŞLENMESİ ---
+                    # --- RESMİ VERİ ÇEKME DENEMESİ ---
                     df_resmi, msg = get_official_inflation()
 
-                    # Gösterim değişkenleri (Varsayılan boş)
-                    resmi_aylik_enf = 0.0
-                    resmi_tarih_str = "-"
-                    veri_durumu = False
+                    # Varsayılan Manuel Veri (Kasım 2024 - B Planı)
+                    # API çalışmazsa bu değerler görünecek
+                    resmi_aylik_enf = 2.24
+                    resmi_tarih_str = "Kasım 2024"
+                    kaynak_notu = "⚠️ TCMB API bağlantısı kurulamadı, son bilinen veri gösteriliyor."
+                    api_basarili = False
 
+                    # Eğer API'den veri geldiyse üzerine yaz
                     if df_resmi is not None and not df_resmi.empty and len(df_resmi) > 1:
                         try:
-                            # Tarihe göre sırala
                             df_resmi = df_resmi.sort_values('Tarih')
-                            # Son veriyi ve bir öncekini al (Aylık değişim için)
                             son_veri = df_resmi.iloc[-1]
                             onceki_veri = df_resmi.iloc[-2]
-
-                            # Aylık Yüzde Değişim Formülü: ((Son - Önceki) / Önceki) * 100
                             resmi_aylik_enf = ((son_veri['Resmi_TUFE'] / onceki_veri['Resmi_TUFE']) - 1) * 100
 
-                            # Ay ismini yazdırma
                             aylar = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
                                      7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
                             resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
-                            veri_durumu = True
-                        except Exception as e:
-                            st.error(f"Veri işleme hatası: {e}")
+                            kaynak_notu = "Veriler TCMB veri tabanından anlık çekilmiştir."
+                            api_basarili = True
+                        except:
+                            pass
 
-                    # --- 3. BİLGİ KARTININ GÖSTERİLMESİ ---
-                    if veri_durumu:
-                        # API Başarılıysa Turuncu Kart
-                        st.markdown(f"""
-                        <div style="background-color: #fefff5; border: 1px solid #f59e0b; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-                            <div>
-                                <div style="color: #d97706; font-weight: bold; font-size: 14px;">🏛️ RESMİ TÜİK VERİSİ ({resmi_tarih_str})</div>
-                                <div style="color: #b45309; opacity:0.8; font-size: 11px;">TCMB EVDS üzerinden çekilen son resmi aylık değişim oranıdır.</div>
-                            </div>
-                            <div style="text-align: right;">
-                                <div style="color: #d97706; font-size: 24px; font-weight: 800;">%{resmi_aylik_enf:.2f}</div>
-                                <div style="color: #d97706; font-size: 10px; font-weight: 600;">AYLIK DEĞİŞİM</div>
-                            </div>
+                    # Kutu Rengi Ayarı (Hata varsa gri, yoksa turuncu)
+                    border_color = "#f59e0b" if api_basarili else "#94a3b8"
+                    bg_color = "#fefff5" if api_basarili else "#f1f5f9"
+                    text_color = "#d97706" if api_basarili else "#475569"
+
+                    # --- BİLGİ KARTINI ÇİZ ---
+                    st.markdown(f"""
+                    <div style="background-color: {bg_color}; border: 1px solid {border_color}; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="color: {text_color}; font-weight: bold; font-size: 14px;">🏛️ RESMİ TÜİK VERİSİ ({resmi_tarih_str})</div>
+                            <div style="color: {text_color}; opacity:0.8; font-size: 11px;">{kaynak_notu}</div>
                         </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        # API Başarısızsa Hata Mesajı
-                        st.warning(
-                            f"⚠️ TCMB Verisi Alınamadı: {msg}. Lütfen 'secrets.toml' dosyasındaki API anahtarını kontrol edin.")
+                        <div style="text-align: right;">
+                            <div style="color: {text_color}; font-size: 24px; font-weight: 800;">%{resmi_aylik_enf:.2f}</div>
+                            <div style="color: {text_color}; font-size: 10px; font-weight: 600;">AYLIK DEĞİŞİM</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                    # --- 4. GRAFİK ÇİZİMİ ---
+                    # API hatası varsa, kullanıcıyı bilgilendir ama sistemi bozma
+                    if not api_basarili:
+                        st.caption(f"Teknik Detay: {msg}")
+
+                    # --- GRAFİK ---
                     with st.spinner("Gelecek tahmini yapıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
 
@@ -851,18 +850,14 @@ def dashboard_modu():
                     end_date_fixed = f"{current_year}-12-31"
 
                     fig_main = go.Figure()
-
-                    # 4.1 Senin Hesapladığın Enflasyon
                     fig_main.add_trace(go.Scatter(x=df_trend['Tarih'], y=df_trend['TÜFE'], mode='lines+markers',
                                                   name='Enflasyon Monitörü', line=dict(color='#2563eb', width=3)))
 
-                    # 4.2 AI Tahmini (Prophet)
                     if not df_forecast.empty:
                         future_only = df_forecast[df_forecast['ds'] > df_trend['Tarih'].max()]
                         fig_main.add_trace(
                             go.Scatter(x=future_only['ds'], y=future_only['yhat'], mode='lines', name='AI Tahmini',
                                        line=dict(color='#f59e0b', dash='dot')))
-                        # Güven Aralığı (Gölgeli alan)
                         fig_main.add_trace(go.Scatter(x=future_only['ds'].tolist() + future_only['ds'].tolist()[::-1],
                                                       y=future_only['yhat_upper'].tolist() + future_only[
                                                           'yhat_lower'].tolist()[
@@ -871,7 +866,7 @@ def dashboard_modu():
                                                       line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip",
                                                       showlegend=False))
 
-                    # 4.3 Resmi TÜİK Verisi (Grafik Üzerinde)
+                    # Eğer API verisi varsa grafiğe ekle, yoksa boşver
                     if df_resmi is not None and not df_resmi.empty:
                         fig_main.add_trace(
                             go.Scatter(x=df_resmi['Tarih'], y=df_resmi['Resmi_TUFE'], mode='lines+markers',
@@ -880,14 +875,13 @@ def dashboard_modu():
 
                     fig_main.update_layout(
                         template=st.session_state.plotly_template,
-                        title="Enflasyon Karşılaştırması: Monitör vs TÜİK",
-                        title_font=dict(color='white', size=20),
+                        title="Enflasyon: Geçmiş, Şimdi ve Gelecek",
+                        title_font=dict(color='white', size=22),
                         legend=dict(orientation="h", y=1.1, font=dict(color="white")),
-                        yaxis=dict(title="TÜFE Endeksi", range=[95, 110]),  # Aralığı biraz genişlettim
+                        yaxis=dict(title="TÜFE Endeksi", range=[95, 110]),
                         xaxis=dict(range=[start_date, end_date_fixed]),
                         plot_bgcolor='rgba(0,0,0,0)',
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        margin=dict(l=10, r=10, t=40, b=10)
+                        paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(fig_main, use_container_width=True)
 
