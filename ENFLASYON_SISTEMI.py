@@ -8,29 +8,24 @@ import calendar
 from datetime import datetime, timedelta
 import time
 import json
-import hashlib
 from github import Github
 from io import BytesIO
 import zipfile
 import base64
-import numpy as np
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import google.generativeai as genai
-import PIL.Image
 import requests
 from prophet import Prophet
 import feedparser
 from fpdf import FPDF
 import shutil
-import random
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
@@ -60,7 +55,7 @@ with st.sidebar:
         st.rerun()
 
 
-# --- CSS MOTORU (KESİN ÇÖZÜM V3: RENK ZORLAMA) ---
+# --- CSS MOTORU ---
 def apply_theme():
     # --- TEMA RENK AYARLARI (Sadece Arka Plan ve Menüler İçin) ---
     if st.session_state.theme == 'dark':
@@ -97,23 +92,23 @@ def apply_theme():
         footer {{ visibility: hidden; }}
         .stDeployButton {{ display: none; }}
 
-        /* GENEL SAYFA YAPISI (Temaya Göre Değişir) */
+        /* GENEL SAYFA YAPISI */
         .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
         section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
         h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown, .stRadio label {{ color: {colors['text']} !important; }}
 
-        /* INPUT VE SELECTBOX (Temaya Göre Değişir) */
+        /* INPUT VE SELECTBOX */
         .stTextInput input, .stNumberInput input {{
             background-color: {colors['input_bg']} !important;
             color: {colors['text']} !important;
             border: 1px solid {colors['input_border']} !important;
         }}
 
-        /* DROPDOWN VE TOAST (Temaya Göre Değişir) */
+        /* DROPDOWN VE TOAST */
         div[data-baseweb="popover"], div[data-baseweb="toast"] {{ background-color: #FFFFFF !important; border: 1px solid #ccc !important; }}
         div[data-baseweb="popover"] li, div[data-baseweb="toast"] div {{ color: #000000 !important; }}
 
-        /* TABLOLAR (Temaya Göre Değişir) */
+        /* TABLOLAR */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
             background-color: {colors['card_bg']} !important;
             border: 1px solid {colors['border_color']} !important;
@@ -124,45 +119,33 @@ def apply_theme():
             background-color: {colors['sidebar']} !important;
         }}
 
-        /* ============================================================ */
-        /* --- BUTONLARIN HEPSİ (SİYAH ÇERÇEVE, BEYAZ ZEMİN, SİYAH YAZI) --- */
-        /* ============================================================ */
-
-        /* 1. Tüm Buton Tipleri İçin Ortak Kural */
+        /* BUTONLAR */
         div.stButton > button, 
         div.stFormSubmitButton > button,
         [data-testid="stDownloadButton"] button {{
-            background-color: #ffffff !important;   /* Zemin BEYAZ */
-            color: #000000 !important;              /* Yazı SİYAH */
-            border: 2px solid #000000 !important;   /* Çerçeve SİYAH ve KALIN */
+            background-color: #ffffff !important;   
+            color: #000000 !important;              
+            border: 2px solid #000000 !important;   
             border-radius: 8px !important;
             font-weight: bold !important;
         }}
-
-        /* 2. Buton İçindeki Yazıları (p etiketlerini) Zorla Siyah Yap */
         div.stButton > button p,
         div.stFormSubmitButton > button p,
         [data-testid="stDownloadButton"] button * {{
             color: #000000 !important;
         }}
-
-        /* 3. Mouse Üzerine Gelince (Hover) */
         div.stButton > button:hover,
         div.stFormSubmitButton > button:hover,
         [data-testid="stDownloadButton"] button:hover {{
-            background-color: #f0f0f0 !important;   /* Hafif Griye Çalsın */
+            background-color: #f0f0f0 !important;
             border-color: #000000 !important;
             color: #000000 !important;
         }}
-
-        /* 4. Primary (Kırmızı/Turuncu) Butonları da Zorla Beyaz Yap */
         div.stButton > button[kind="primary"] {{
             background-color: #ffffff !important;
             color: #000000 !important;
             border: 2px solid #000000 !important;
         }}
-
-        /* ============================================================ */
 
         /* METRİKLER */
         .metric-card {{ background: {colors['card_bg']} !important; border: 1px solid {colors['border_color']} !important; }}
@@ -172,11 +155,10 @@ def apply_theme():
     """
     st.markdown(final_css, unsafe_allow_html=True)
 
+
 # Temayı Uygula
 apply_theme()
 
-# --- ADMIN AYARI ---
-ADMIN_USERS = ["fatih", "berkay", "mehmet"]
 if "gemini" in st.secrets:
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
 
@@ -212,9 +194,6 @@ def get_exchange_rates():
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
-USERS_DOSYASI = "kullanicilar.json"
-ACTIVITY_DOSYASI = "user_activity.json"
-SEPETLER_DOSYASI = "user_baskets.json"
 SAYFA_ADI = "Madde_Sepeti"
 
 
@@ -300,10 +279,6 @@ def get_github_repo():
         return Github(st.secrets["github"]["token"]).get_repo(st.secrets["github"]["repo_name"])
     except:
         return None
-
-
-def hash_password(password):
-    return hashlib.sha256(str.encode(password)).hexdigest()
 
 
 def github_json_oku(dosya_adi):
@@ -409,77 +384,7 @@ def predict_inflation_prophet(df_trend):
         return pd.DataFrame()
 
 
-# --- YARDIMCI FONKSİYONLAR ---
-def update_user_status(username):
-    try:
-        activity = github_json_oku(ACTIVITY_DOSYASI)
-        activity[username] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        github_json_yaz(ACTIVITY_DOSYASI, activity, f"Activity: {username}")
-    except:
-        pass
-
-
-def send_verification_email(to_email, code):
-    try:
-        sender_email = st.secrets["email"]["sender"]
-        sender_password = st.secrets["email"]["password"]
-
-        # Görünen İsim Ayarı
-        display_name = "Enflasyon Monitörü"
-        from_header = f"{display_name} <{sender_email}>"
-
-        subject = "🔐 Doğrulama Kodun"
-
-        body = f"""
-        Merhaba,
-
-        Enflasyon Monitörü'ne kayıt olmak için doğrulama kodun:
-
-        CODE: {code}
-
-        Bu kodu kimseyle paylaşma.
-        Sevgiler.
-        """
-
-        msg = MIMEMultipart()
-        msg['From'] = from_header
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
-
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, to_email, msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        return False
-
-def send_reset_email(to_email, username):
-    try:
-        sender_email = st.secrets["email"]["sender"]
-        sender_password = st.secrets["email"]["password"]
-        app_url = "https://enflasyon-gida.streamlit.app/"
-        reset_link = f"{app_url}?reset_user={username}"
-        subject = "🔐 Şifre Sıfırlama - Enflasyon Monitörü"
-        body = f"Merhaba {username},\n\nŞifreni sıfırlamak için:\n{reset_link}\n\nSevgiler."
-        msg = MIMEMultipart()
-        msg['From'] = f"Enflasyon Monitörü <{sender_email}>"
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        text = msg.as_string()
-        server.sendmail(sender_email, to_email, text)
-        server.quit()
-        return True, "Sıfırlama bağlantısı gönderildi."
-    except Exception as e:
-        return False, f"Mail Hatası: {str(e)}"
-
-
+# --- MAIL BILDIRIM (ALARM İÇİN) ---
 def send_notification_email(to_email, product_name, current_price, target_price):
     try:
         sender_email = st.secrets["email"]["sender"]
@@ -514,37 +419,6 @@ def send_notification_email(to_email, product_name, current_price, target_price)
     except Exception as e:
         print(f"Mail Hatası: {e}")
         return False
-
-def github_user_islem(action, username=None, password=None, email=None):
-    users_db = github_json_oku(USERS_DOSYASI)
-    if action == "login":
-        if username in users_db:
-            stored_data = users_db[username]
-            stored_pass = stored_data if isinstance(stored_data, str) else stored_data.get("password")
-            if stored_pass == hash_password(password): return True, "Başarılı"
-        return False, "Hatalı Kullanıcı Adı veya Şifre"
-    elif action == "register":
-        if username in users_db: return False, "Kullanıcı adı alınmış."
-        users_db[username] = {"password": hash_password(password), "email": email,
-                              "created_at": datetime.now().strftime("%Y-%m-%d")}
-        github_json_yaz(USERS_DOSYASI, users_db, f"New User: {username}")
-        return True, "Kayıt Başarılı"
-    elif action == "forgot_password":
-        found_user = None
-        for u, data in users_db.items():
-            if isinstance(data, dict) and data.get("email") == email: found_user = u; break
-        if found_user: return send_reset_email(email, found_user)
-        return False, "Kayıtlı e-posta bulunamadı."
-    elif action == "update_password":
-        if username in users_db:
-            user_data = users_db[username]
-            if isinstance(user_data, str): user_data = {"email": "", "created_at": ""}
-            user_data["password"] = hash_password(password)
-            users_db[username] = user_data
-            if github_json_yaz(USERS_DOSYASI, users_db,
-                               f"Password Reset: {username}"): return True, "Şifreniz güncellendi."
-        return False, "Kullanıcı bulunamadı."
-    return False, "Hata"
 
 
 # --- SCRAPER (FİYAT ÇEKİCİ) ---
@@ -688,29 +562,22 @@ def check_alarms_and_notify(df_son_fiyatlar):
     updated = False
     sent_count = 0
 
-    # DataFrame'den kod ve fiyat eşleşmesi (Son fiyat sütunu)
-    # df_son_fiyatlar, analiz tablosundaki son verileri içermeli
-
     for alarm in alarms_db:
-        # Sadece aktif ve henüz bildirim gitmemiş alarmlara bak
         if alarm.get("durum") == "aktif":
             kod = alarm.get("kod")
             target = float(alarm.get("hedef_fiyat"))
 
-            # Ürünün güncel fiyatını bul
             row = df_son_fiyatlar[df_son_fiyatlar['Kod'] == kod]
             if not row.empty:
-                # Son sütunu dinamik buluyoruz (tarih olan sütunların en sonuncusu)
                 cols = [c for c in df_son_fiyatlar.columns if
                         c not in ['Kod', 'Ad', 'Grup', 'Madde_Adi', 'URL', 'Grup_Kodu', 'Agirlik_2025']]
                 if cols:
-                    last_price_col = cols[-1]  # En son tarihli sütun
+                    last_price_col = cols[-1]
                     current_price = float(row[last_price_col].values[0])
 
                     if current_price > 0 and current_price <= target:
-                        # BİLDİRİM GÖNDER
                         if send_notification_email(alarm["email"], alarm["urun_adi"], current_price, target):
-                            alarm["durum"] = "tamamlandi"  # Tekrar tekrar mail atmasın diye durumu değiştiriyoruz
+                            alarm["durum"] = "tamamlandi"
                             updated = True
                             sent_count += 1
 
@@ -718,6 +585,7 @@ def check_alarms_and_notify(df_son_fiyatlar):
         github_json_yaz("user_alarms.json", alarms_db, "Alarm Notifications Sent")
 
     return f"{sent_count} adet alarm bildirimi gönderildi."
+
 
 # --- DASHBOARD MODU ---
 def dashboard_modu():
@@ -727,20 +595,7 @@ def dashboard_modu():
 
     # --- SIDEBAR ---
     with st.sidebar:
-        user_upper = st.session_state['username'].upper()
-        is_admin = st.session_state['username'] in ADMIN_USERS
-        role_title = "SYSTEM ADMIN" if is_admin else "VERİ ANALİSTİ"
-
-        # 1. Profil Kartı
-        st.markdown(f"""
-                <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:15px; text-align:center; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                    <div style="font-size:32px; margin-bottom:5px;">👤</div>
-                    <div style="font-family:'Poppins'; font-weight:700; font-size:18px; color:#1e293b;">{user_upper}</div>
-                    <div style="font-size:11px; text-transform:uppercase; color:#64748b; margin-top:4px;">{role_title}</div>
-                </div>
-            """, unsafe_allow_html=True)
-
-        # 2. PİYASA GÖSTERGELERİ
+        # 1. PİYASA GÖSTERGELERİ
         try:
             rates = get_exchange_rates()
             st.markdown(
@@ -768,46 +623,7 @@ def dashboard_modu():
         except:
             pass
 
-        # 3. ADMIN PANEL
-        if is_admin:
-            st.markdown("<h3 style='color:#1e293b; font-size:16px;'>⚙️ Kontrol Paneli</h3>", unsafe_allow_html=True)
-            st.markdown(
-                "<div style='margin-bottom:10px; color:#64748b; font-size:12px; font-weight:bold;'>🟢 ÇEVRİMİÇİ EKİP</div>",
-                unsafe_allow_html=True)
-
-            users_db = github_json_oku(USERS_DOSYASI)
-            activity_db = github_json_oku(ACTIVITY_DOSYASI)
-            update_user_status(st.session_state['username'])
-
-            user_list = []
-            for u in users_db.keys():
-                last_seen_str = activity_db.get(u, "2000-01-01 00:00:00")
-                try:
-                    last_seen = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
-                except:
-                    last_seen = datetime(2000, 1, 1)
-                is_online = (datetime.now() - last_seen).total_seconds() < 300
-                user_list.append({"name": u, "online": is_online})
-
-            for u in sorted(user_list, key=lambda x: (not x['online'], x['name'] not in ADMIN_USERS, x['name'])):
-                role_icon = "🛡️" if u['name'] in ADMIN_USERS else ""
-                st.markdown(f"""
-                        <div style="background:white; border:1px solid #e2e8f0; padding:8px; margin-bottom:4px; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
-                            <span style="display:flex; align-items:center; color:#334155; font-size:12px; font-weight:600;">
-                                <span style="height:6px; width:6px; border-radius:50%; display:inline-block; margin-right:8px; background-color:{'#22c55e' if u['online'] else '#cbd5e1'}; box-shadow:{'0 0 4px #22c55e' if u['online'] else 'none'};"></span>
-                                {u['name']} {role_icon}
-                            </span>
-                        </div>
-                    """, unsafe_allow_html=True)
-            st.divider()
-
-        # 4. Çıkış Butonu
-        if st.button("Güvenli Çıkış", use_container_width=True):
-            st.session_state['logged_in'] = False
-            st.query_params.clear()
-            st.rerun()
-
-    # --- CSS: Global Styles (Aydınlık modda düzgün görünmesi için) ---
+    # --- CSS: Global Styles ---
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -865,63 +681,48 @@ def dashboard_modu():
         st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
         st.session_state['toast_shown'] = True
 
-    if is_admin:
-        st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
-        # --- MEVCUT KOD BLOKUNU BUL VE BUNUNLA DEĞİŞTİR ---
-        if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
-            with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
-                st.write("📡 GitHub bağlantısı kuruluyor...")
-                time.sleep(0.5)
-                st.write("📦 ZIP dosyaları taranıyor...")
-                log_ph = st.empty()
-                log_msgs = []
+    # --- SİSTEMİ GÜNCELLE BUTONU (HERKESE AÇIK) ---
+    st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
+    if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
+        with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
+            st.write("📡 GitHub bağlantısı kuruluyor...")
+            time.sleep(0.5)
+            st.write("📦 ZIP dosyaları taranıyor...")
+            log_ph = st.empty()
+            log_msgs = []
 
-                def logger(m):
-                    log_msgs.append(f"> {m}")
-                    log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
+            def logger(m):
+                log_msgs.append(f"> {m}")
+                log_ph.markdown(f'<div class="bot-log">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
 
-                res = html_isleyici(logger)
-                status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
+            res = html_isleyici(logger)
+            status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
 
-            if "OK" in res:
-                # KRİTİK EKLEME: CACHE TEMİZLEME
-                st.cache_data.clear()  # <--- BU SATIRI EKLE
-                with st.spinner("🔔 Alarmlar kontrol ediliyor..."):
-                    try:
-                        # 1. Veriyi Taze Oku
-                        df_f_new = github_excel_oku(FIYAT_DOSYASI)
-
-                        # 2. TARİH FORMATLAMA (Eksik olan kısım burasıydı)
-                        df_f_new['Tarih_DT'] = pd.to_datetime(df_f_new['Tarih'], errors='coerce')
-                        df_f_new = df_f_new.dropna(subset=['Tarih_DT']).sort_values('Tarih_DT')
-                        df_f_new['Tarih_Str'] = df_f_new['Tarih_DT'].dt.strftime('%Y-%m-%d')
-
-                        # 3. Fiyatı Sayıya Çevir
-                        df_f_new['Fiyat'] = pd.to_numeric(df_f_new['Fiyat'], errors='coerce')
-
-                        # 4. Pivot İşlemi (Artık Tarih_Str var, hata vermez)
-                        pivot_new = df_f_new.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat',
-                                                         aggfunc='last').ffill(axis=1).reset_index()
-
-                        # 5. Alarm Fonksiyonunu Çağır
-                        alarm_sonuc = check_alarms_and_notify(pivot_new)
-                        st.success(alarm_sonuc)
-
-                    except Exception as e:
-                        st.warning(f"Alarm kontrolü sırasında hata: {e}")
-                st.toast('Veritabanı Güncellendi!', icon='🎉')
-                st.success("✅ Sistem Başarıyla Senkronize Edildi!")
-                time.sleep(2)
-                st.rerun()
-            elif "Veri bulunamadı" in res:
-                st.warning("⚠️ Yeni fiyat verisi bulunamadı. ZIP dosyalarını kontrol et.")
-            else:
-                st.error(res)
-        st.markdown('</div>', unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-    else:
-        st.info("👋 Hoşgeldiniz. Veriler otomatik olarak sunulmaktadır.")
-        st.markdown("<br>", unsafe_allow_html=True)
+        if "OK" in res:
+            st.cache_data.clear()
+            with st.spinner("🔔 Alarmlar kontrol ediliyor..."):
+                try:
+                    df_f_new = github_excel_oku(FIYAT_DOSYASI)
+                    df_f_new['Tarih_DT'] = pd.to_datetime(df_f_new['Tarih'], errors='coerce')
+                    df_f_new = df_f_new.dropna(subset=['Tarih_DT']).sort_values('Tarih_DT')
+                    df_f_new['Tarih_Str'] = df_f_new['Tarih_DT'].dt.strftime('%Y-%m-%d')
+                    df_f_new['Fiyat'] = pd.to_numeric(df_f_new['Fiyat'], errors='coerce')
+                    pivot_new = df_f_new.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat',
+                                                     aggfunc='last').ffill(axis=1).reset_index()
+                    alarm_sonuc = check_alarms_and_notify(pivot_new)
+                    st.success(alarm_sonuc)
+                except Exception as e:
+                    st.warning(f"Alarm kontrolü sırasında hata: {e}")
+            st.toast('Veritabanı Güncellendi!', icon='🎉')
+            st.success("✅ Sistem Başarıyla Senkronize Edildi!")
+            time.sleep(2)
+            st.rerun()
+        elif "Veri bulunamadı" in res:
+            st.warning("⚠️ Yeni fiyat verisi bulunamadı. ZIP dosyalarını kontrol et.")
+        else:
+            st.error(res)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
         try:
@@ -941,26 +742,17 @@ def dashboard_modu():
 
             pivot = df_f.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat', aggfunc='last').ffill(
                 axis=1).bfill(axis=1).reset_index()
-            # --- OTOMATİK ALARM KONTROLÜ (BAŞLANGIÇ) ---
-            # Sayfa her yenilendiğinde sadece 1 kez çalışır
+
+            # --- OTOMATİK ALARM KONTROLÜ ---
             if 'alarm_auto_check' not in st.session_state:
-                st.session_state['alarm_auto_check'] = True  # İşaretle ki tekrar tekrar çalışmasın
-
-                # Kullanıcıyı yormadan arka planda kontrol et
+                st.session_state['alarm_auto_check'] = True
                 try:
-                    # check_alarms_and_notify fonksiyonunu çağırıyoruz (önceki adımda eklediğini varsayıyorum)
-                    # Not: pivot tablosunu doğrudan kullanıyoruz, tekrar dosya okumuyoruz.
                     sonuc_msg = check_alarms_and_notify(pivot)
-
-                    # Sadece mail gönderildiyse bildirim göster
                     if "0 adet" not in sonuc_msg:
                         st.toast(f"Otomatik Kontrol: {sonuc_msg}", icon="📧")
-                    else:
-                        print("Otomatik kontrol yapıldı: Mail atılacak durum yok.")
-
                 except Exception as e:
                     print(f"Otomatik alarm hatası: {e}")
-            # --- OTOMATİK ALARM KONTROLÜ (BİTİŞ) ---
+
             if not pivot.empty:
                 if 'Grup' not in df_s.columns:
                     grup_map = {"01": "Gıda", "02": "Alkol", "03": "Giyim", "04": "Konut", "05": "Ev", "06": "Sağlık",
@@ -994,24 +786,17 @@ def dashboard_modu():
                 month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
                 gun_farki = (dt_son - dt_baz).days
 
-                # --- KAYAN YAZI (TICKER) GÜNCELLEMESİ: GÜNLÜK DEĞİŞİM ---
-
-                # 1. Günlük Fark Hesabı (Eğer en az 2 gün veri varsa)
+                # --- KAYAN YAZI (TICKER) ---
                 if len(gunler) >= 2:
                     dunku_tarih = gunler[-2]
                     bugunku_tarih = gunler[-1]
-                    # Yeni bir sütun açıyoruz, mevcut 'Fark' sütununu bozmuyoruz (o genel enflasyon için lazım)
                     df_analiz['Gunluk_Degisim'] = (df_analiz[bugunku_tarih] / df_analiz[dunku_tarih]) - 1
                 else:
-                    # Yeterli veri yoksa 0 kabul et
                     df_analiz['Gunluk_Degisim'] = 0
 
-                # 2. Sıralamayı artık 'Gunluk_Degisim'e göre yapıyoruz
                 inc = df_analiz.sort_values('Gunluk_Degisim', ascending=False).head(5)
                 dec = df_analiz.sort_values('Gunluk_Degisim', ascending=True).head(5)
 
-                # --- YENİ EKLENEN KISIM: GÜNLÜK RİSK ÜRÜNÜNÜ BELİRLE ---
-                # Hata burada düzeltildi: 'f' -> 'if'
                 if not inc.empty:
                     daily_risk_row = inc.iloc[0]
                     daily_risk_name = daily_risk_row[ad_col]
@@ -1019,26 +804,18 @@ def dashboard_modu():
                 else:
                     daily_risk_name = "-"
                     daily_risk_rate = 0
-                # -----------------------------------------------------
 
-                # 3. Yazıyı oluştururken günlük değişim oranını yazdırıyoruz
                 items = []
-
-                # En çok artanlar (Kırmızı)
                 for _, r in inc.iterrows():
                     if r['Gunluk_Degisim'] > 0:
                         items.append(
                             f"<span style='color:#f87171'>▲ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
-
-                # En çok düşenler (Yeşil)
                 for _, r in dec.iterrows():
                     if r['Gunluk_Degisim'] < 0:
                         items.append(
                             f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
 
-                # Eğer hiç değişim yoksa boş kalmasın
-                if not items:
-                    items.append("Piyasada son 24 saatte önemli bir fiyat değişimi olmadı.")
+                if not items: items.append("Piyasada son 24 saatte önemli bir fiyat değişimi olmadı.")
 
                 st.markdown(
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>',
@@ -1064,14 +841,14 @@ def dashboard_modu():
                     kpi_card("Ay Sonu Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
                              "card-purple")
                 with c4:
-                    # GÜNCELLENEN KART: Günlük Risk Değerleri
-                    kpi_card("En Yüksek Risk (24s)", f"{daily_risk_name[:15]}", f"%{daily_risk_rate * 100:.1f} Artış", "#f59e0b",
+                    kpi_card("En Yüksek Risk (24s)", f"{daily_risk_name[:15]}", f"%{daily_risk_rate * 100:.1f} Artış",
+                             "#f59e0b",
                              "card-orange", is_long_text=True)
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- SEKMELER ---
-                t_analiz, t_istatistik, t_sepet, t_harita, t_firsat, t_liste, t_haber, t_rapor, t_alarm = st.tabs(
-                    ["📊 ANALİZ", "📈 İSTATİSTİK", "🛒 SEPET", "🗺️ HARİTA", "📉 PİYASA VERİLERİ", "📋 LİSTE", "📰 HABERLER",
+                # --- SEKMELER (Sepet Kaldırıldı) ---
+                t_analiz, t_istatistik, t_harita, t_firsat, t_liste, t_haber, t_rapor, t_alarm = st.tabs(
+                    ["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📉 PİYASA VERİLERİ", "📋 LİSTE", "📰 HABERLER",
                      "📝 RAPOR", "🔔 FİYAT ALARMI"])
 
                 with t_analiz:
@@ -1100,8 +877,8 @@ def dashboard_modu():
                                        line=dict(color='#f59e0b', dash='dot')))
                         fig_main.add_trace(go.Scatter(x=future_only['ds'].tolist() + future_only['ds'].tolist()[::-1],
                                                       y=future_only['yhat_upper'].tolist() + future_only[
-                                                          'yhat_lower'].tolist()[
-                                                          ::-1], fill='toself',
+                                                                                                 'yhat_lower'].tolist()[
+                                                                                             ::-1], fill='toself',
                                                       fillcolor='rgba(245, 158, 11, 0.2)',
                                                       line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip",
                                                       showlegend=False))
@@ -1111,7 +888,6 @@ def dashboard_modu():
                                        name='Resmi TÜİK', line=dict(color='#ef4444', width=2),
                                        marker=dict(symbol='square')))
 
-                    # --- DÜZELTİLDİ: BURADA VIRGUL EKSIKTI ---
                     fig_main.update_layout(
                         template=st.session_state.plotly_template,
                         title="Enflasyon: Geçmiş, Şimdi ve Gelecek",
@@ -1167,7 +943,7 @@ def dashboard_modu():
                             plot_bgcolor='rgba(0,0,0,0)',
                             paper_bgcolor='rgba(0,0,0,0)',
                             legend=dict(
-                                font=dict(color='white')  # ← KATEGORİLERİ BEYAZ YAPAN KISIM
+                                font=dict(color='white')
                             )
                         )
 
@@ -1178,78 +954,7 @@ def dashboard_modu():
                     except Exception as e:
                         col_vol.error(f"Volatilite hesaplanamadı: {e}")
 
-                with t_sepet:
-                    st.markdown("### 🛒 Kişisel Enflasyon Sepeti")
-                    st.info(
-                        "💡 **Nasıl Çalışır?** Aşağıdan ürünleri seçip **aylık tüketim miktarını (adet/kg)** girdiğinde, sistem senin gerçek enflasyonunu hesaplar.")
-
-                    baskets = github_json_oku(SEPETLER_DOSYASI)
-                    user_codes = baskets.get(st.session_state['username'], [])
-                    all_products = df_analiz[ad_col].unique()
-                    default_names = df_analiz[df_analiz['Kod'].isin(user_codes)][ad_col].tolist()
-
-                    selected_names = st.multiselect("Takip Ettiğin Ürünleri Seç:", all_products, default=default_names)
-
-                    if selected_names:
-                        my_df = df_analiz[df_analiz[ad_col].isin(selected_names)].copy()
-                        if 'Kullanici_Agirlik' not in st.session_state:
-                            st.session_state['Kullanici_Agirlik'] = {row['Kod']: 1.0 for _, row in my_df.iterrows()}
-                        my_df['Miktar'] = my_df['Kod'].map(st.session_state['Kullanici_Agirlik']).fillna(1.0)
-
-                        col_editor, col_result = st.columns([2, 1])
-
-                        with col_editor:
-                            st.caption("👇 Miktarları buradan değiştirebilirsin:")
-                            edited_df = st.data_editor(
-                                my_df[[ad_col, 'Miktar', baz, son, 'Kod']],
-                                column_config={
-                                    ad_col: "Ürün Adı",
-                                    "Miktar": st.column_config.NumberColumn("Tüketim (Adet/Kg)", min_value=0.1,
-                                                                            max_value=1000.0, step=0.5, format="%.1f"),
-                                    baz: st.column_config.NumberColumn(f"Eski Fiyat ({baz})", format="%.2f TL"),
-                                    son: st.column_config.NumberColumn(f"Yeni Fiyat ({son})", format="%.2f TL"),
-                                    "Kod": None
-                                },
-                                disabled=[ad_col, baz, son],
-                                use_container_width=True,
-                                key="sepet_editor"
-                            )
-
-                        with col_result:
-                            try:
-                                toplam_eski_masraf = (edited_df[baz] * edited_df['Miktar']).sum()
-                                toplam_yeni_masraf = (edited_df[son] * edited_df['Miktar']).sum()
-
-                                if toplam_eski_masraf > 0:
-                                    kisisel_enf = ((toplam_yeni_masraf / toplam_eski_masraf) - 1) * 100
-                                    fark_tl = toplam_yeni_masraf - toplam_eski_masraf
-                                    st.markdown("#### 🧾 Sepet Özeti")
-                                    st.metric("Senin Enflasyonun", f"%{kisisel_enf:.2f}", f"{fark_tl:+.2f} TL Fark",
-                                              delta_color="inverse")
-                                    st.divider()
-                                    st.write(f"📉 **Genel Enflasyon:** %{enf_genel:.2f}")
-
-                                    if kisisel_enf > enf_genel:
-                                        st.error("Senin sepetin piyasadan daha hızlı pahalanıyor!")
-                                    else:
-                                        st.success("Tüketim alışkanlıkların seni enflasyondan kısmen koruyor.")
-                                else:
-                                    st.warning("Hesaplama için miktar giriniz.")
-                            except Exception as e:
-                                st.error(f"Hesaplama Hatası: {e}")
-
-                        if st.button("💾 Sepet Listesini Kaydet"):
-                            new_codes = edited_df['Kod'].tolist()
-                            baskets[st.session_state['username']] = new_codes
-                            if github_json_yaz(SEPETLER_DOSYASI, baskets, "Basket Update"):
-                                st.toast("Sepet başarıyla kaydedildi!", icon='✅')
-                            else:
-                                st.error("Kaydetme başarısız.")
-                    else:
-                        st.warning("Henüz sepete ürün eklemedin.")
-
                 with t_harita:
-                    # GÜNCELLEME: Sadece Isı Haritası (Treemap) kaldı, tek sütun olarak genişledi.
                     fig_tree = px.treemap(df_analiz, path=[px.Constant("Piyasa"), 'Grup', ad_col], values=agirlik_col,
                                           color='Fark', color_continuous_scale='RdYlGn_r', title="🔥 Isı Haritası")
 
@@ -1448,17 +1153,14 @@ def dashboard_modu():
                                                        value=float(curr_price) * 0.9, step=1.0,
                                                        help="Fiyat bu seviyenin altına inerse mail atılır.")
                     with c_al3:
-                        user_email = ""
-                        users_db = github_json_oku(USERS_DOSYASI)
-                        if st.session_state['username'] in users_db:
-                            user_data = users_db[st.session_state['username']]
-                            if isinstance(user_data, dict): user_email = user_data.get("email", "")
-                        target_email = st.text_input("Bildirim E-Postası", value=user_email)
+                        target_email = st.text_input("Bildirim E-Postası (Gerekli)", placeholder="ornek@email.com")
 
                     if st.button("🔔 Alarmı Kur", type="primary"):
-                        if target_price < curr_price:
+                        if not target_email or "@" not in target_email:
+                            st.warning("Lütfen geçerli bir e-posta adresi girin.")
+                        elif target_price < curr_price:
                             new_alarm = {
-                                "user": st.session_state['username'],
+                                "user": "guest",
                                 "email": target_email,
                                 "kod": df_analiz[df_analiz[ad_col] == secilen_urun]['Kod'].values[0],
                                 "urun_adi": secilen_urun,
@@ -1469,25 +1171,12 @@ def dashboard_modu():
                             alarms_db.append(new_alarm)
                             if github_json_yaz(ALARMS_DOSYASI, alarms_db, "New Alarm"):
                                 st.success(
-                                    f"✅ Alarm kuruldu! {secilen_urun} fiyatı {target_price} TL altına düşerse mail gelecek.")
+                                    f"✅ Alarm kuruldu! {secilen_urun} fiyatı {target_price} TL altına düşerse {target_email} adresine mail gelecek.")
                             else:
                                 st.error("Kayıt hatası.")
                         else:
                             st.warning("Hedef fiyat, şu anki fiyattan düşük olmalıdır.")
 
-                    st.divider()
-                    st.markdown("#### 📋 Aktif Alarmların")
-                    my_alarms = [a for a in alarms_db if a.get('user') == st.session_state['username']]
-                    if my_alarms:
-                        st.dataframe(
-                            pd.DataFrame(my_alarms)[['urun_adi', 'hedef_fiyat', 'durum', 'olusturma_tarihi']],
-                            use_container_width=True)
-                        if st.button("🗑️ Tüm Alarmlarımı Temizle"):
-                            alarms_db = [a for a in alarms_db if a.get('user') != st.session_state['username']]
-                            github_json_yaz(ALARMS_DOSYASI, alarms_db, "Clear Alarms")
-                            st.rerun()
-                    else:
-                        st.info("Henüz kurulu bir alarmın yok.")
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
     st.markdown(
@@ -1495,233 +1184,10 @@ def dashboard_modu():
         unsafe_allow_html=True)
 
 
-# --- 5. ANA GİRİŞ SİSTEMİ (MAIN) ---
+# --- 5. ANA GİRİŞ SİSTEMİ (SADELEŞTİRİLMİŞ) ---
 def main():
-    if 'logged_in' not in st.session_state:
-        st.session_state['logged_in'] = False
-
-    params = st.query_params
-    if "session_user" in params and not st.session_state['logged_in']:
-        auto_user = params["session_user"]
-        users_db = github_json_oku(USERS_DOSYASI)
-        if auto_user in users_db:
-            st.session_state['logged_in'] = True
-            st.session_state['username'] = auto_user
-            st.toast(f"Tekrar Hoşgeldin, {auto_user} 👋", icon="🔓")
-            time.sleep(1)
-            st.rerun()
-
-    if "reset_user" in params and not st.session_state['logged_in']:
-        reset_user = params["reset_user"]
-        st.markdown("""
-        <style>
-            .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); }
-            [data-testid="stForm"] { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 40px; }
-            h1, h2, h3, p, label, .stMarkdown { color: white !important; }
-            .stTextInput input { color: #0f172a !important; }
-        </style>
-        """, unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align:center;'>🔐 ŞİFRE SIFIRLAMA</h1>", unsafe_allow_html=True)
-        c1, c2, c3 = st.columns([1, 2, 1])
-        with c2:
-            with st.form("reset_form"):
-                st.info(f"Kullanıcı: {reset_user}")
-                new_p = st.text_input("Yeni Şifre", type="password")
-                conf_p = st.text_input("Şifreyi Onayla", type="password")
-                if st.form_submit_button("ŞİFREYİ GÜNCELLE", use_container_width=True):
-                    if new_p and new_p == conf_p:
-                        ok, msg = github_user_islem("update_password", username=reset_user, password=new_p)
-                        if ok:
-                            st.success(msg)
-                            time.sleep(2)
-                            st.query_params.clear()
-                            st.rerun()
-                        else:
-                            st.error(msg)
-                    else:
-                        st.warning("Şifreler uyuşmuyor.")
-        return
-
-    if not st.session_state['logged_in']:
-        st.markdown("""
-        <style>
-            .stApp {
-                background-color: #0f172a;
-                background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
-                font-family: 'Inter', sans-serif;
-            }
-            [data-testid="stForm"] {
-                background: rgba(30, 41, 59, 0.7);
-                backdrop-filter: blur(12px);
-                border-radius: 20px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-                padding: 40px;
-            }
-            h1 { color: white !important; font-weight: 800 !important; letter-spacing: -1px; }
-            p, label, span { color: #e2e8f0 !important; }
-            .stTabs [data-baseweb="tab-list"] {
-                background-color: rgba(255,255,255,0.05);
-                border-radius: 10px;
-                padding: 5px;
-                gap: 5px;
-            }
-            .stTabs [data-baseweb="tab-list"] button {
-                color: #94a3b8;
-                border-radius: 8px;
-                border: none;
-                font-weight: 600;
-            }
-            .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
-                background-color: #3b82f6 !important;
-                color: white !important;
-            }
-            .stTextInput input {
-                background-color: #1e293b !important;
-                color: white !important;
-                border: 1px solid #334155 !important;
-            }
-            .stTextInput input:focus {
-                border-color: #3b82f6 !important;
-                box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
-            }
-            button[kind="secondaryFormSubmit"] {
-                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-                border: none;
-                color: white !important;
-                font-weight: bold;
-                transition: all 0.3s;
-            }
-            button[kind="secondaryFormSubmit"]:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
-            }
-        </style>
-        """, unsafe_allow_html=True)
-
-        st.markdown(
-            "<div style='text-align: center; margin-top:60px; margin-bottom:20px;'><h1 style='font-size:42px;'>ENFLASYON MONİTÖRÜ</h1><p style='font-size:14px; color:#94a3b8 !important;'>PİYASA ANALİZ SİSTEMİ</p></div>",
-            unsafe_allow_html=True)
-
-        c1, c2, c3 = st.columns([1, 2, 1])
-        with c2:
-            t_log, t_reg, t_forgot = st.tabs(["🔒 GİRİŞ YAP", "📝 KAYIT OL", "🔑 ŞİFREMİ UNUTTUM"])
-            with t_log:
-                with st.form("login_f"):
-                    l_u = st.text_input("Kullanıcı Adı")
-                    l_p = st.text_input("Şifre", type="password")
-                    beni_hatirla = st.checkbox("Beni Hatırla")
-                    if st.form_submit_button("SİSTEME GİRİŞ", use_container_width=True):
-                        ok, msg = github_user_islem("login", l_u, l_p)
-                        if ok:
-                            st.session_state['logged_in'] = True
-                            st.session_state['username'] = l_u
-                            if beni_hatirla:
-                                st.query_params["session_user"] = l_u
-                            else:
-                                st.query_params.clear()
-                            st.success("Giriş Başarılı! Yönlendiriliyorsunuz...")
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.error(msg)
-            with t_reg:
-                # --- KAYIT SÜRECİ STATE YÖNETİMİ ---
-                if 'reg_stage' not in st.session_state:
-                    st.session_state.reg_stage = 1  # 1: Bilgi Girişi, 2: Kod Doğrulama
-                if 'reg_temp_data' not in st.session_state:
-                    st.session_state.reg_temp_data = {}  # Bilgileri geçici tutacağımız yer
-
-                # --- AŞAMA 1: BİLGİ GİRİŞİ ---
-                if st.session_state.reg_stage == 1:
-                    st.markdown("### 📝 Hesap Oluştur")
-                    with st.form("reg_step1_form"):
-                        r_u = st.text_input("Kullanıcı Adı Belirle")
-                        r_e = st.text_input("E-Posta Adresi")
-                        r_p = st.text_input("Şifre Belirle", type="password")
-
-                        # Butona basınca kodu gönderip 2. aşamaya geçeceğiz
-                        if st.form_submit_button("DOĞRULAMA KODU GÖNDER", use_container_width=True):
-                            if r_u and r_p and r_e:
-                                # Kullanıcı adı zaten var mı kontrol et (GitHub'a sormadan önce basit kontrol)
-                                users_check = github_json_oku(USERS_DOSYASI)
-                                if r_u in users_check:
-                                    st.error("Bu kullanıcı adı zaten alınmış.")
-                                else:
-                                    # 1. Kodu Üret (100000 ile 999999 arası)
-                                    code = str(random.randint(100000, 999999))
-
-                                    # 2. Mail Gönder
-                                    with st.spinner("Kod gönderiliyor..."):
-                                        if send_verification_email(r_e, code):
-                                            # 3. Bilgileri State'e Kaydet
-                                            st.session_state.reg_temp_data = {
-                                                "username": r_u,
-                                                "email": r_e,
-                                                "password": r_p,
-                                                "code": code
-                                            }
-                                            st.session_state.reg_stage = 2  # Diğer ekrana geç
-                                            st.rerun()
-                                        else:
-                                            st.error("Mail gönderilemedi. E-posta adresini kontrol et.")
-                            else:
-                                st.warning("Lütfen tüm alanları doldurunuz.")
-
-                # --- AŞAMA 2: KOD DOĞRULAMA ---
-                elif st.session_state.reg_stage == 2:
-                    st.markdown(f"### 🔐 Kodu Gir")
-                    st.info(f"**{st.session_state.reg_temp_data['email']}** adresine 6 haneli bir kod gönderdik.")
-
-                    with st.form("reg_step2_form"):
-                        entered_code = st.text_input("Doğrulama Kodu", max_chars=6)
-
-                        col_verify, col_back = st.columns(2)
-                        with col_verify:
-                            btn_verify = st.form_submit_button("✅ ONAYLA VE KAYDOL", use_container_width=True)
-                        with col_back:
-                            # Geri dön butonu (Form içinde buton zor olduğu için logic ile yapıyoruz)
-                            pass
-
-                            # Form dışı butonlar (Daha düzgün hizalama için)
-                    if st.button("⬅️ Geri Dön / E-postayı Düzenle"):
-                        st.session_state.reg_stage = 1
-                        st.rerun()
-
-                    if btn_verify:
-                        real_code = st.session_state.reg_temp_data.get("code")
-                        if entered_code == real_code:
-                            # KOD DOĞRU! ŞİMDİ KAYIT İŞLEMİNİ YAP.
-                            data = st.session_state.reg_temp_data
-                            ok, msg = github_user_islem("register", data["username"], data["password"], data["email"])
-
-                            if ok:
-                                st.success("✅ Doğrulama Başarılı! Hesap oluşturuldu.")
-                                st.session_state['logged_in'] = True
-                                st.session_state['username'] = data["username"]
-                                # Temizlik
-                                st.session_state.reg_stage = 1
-                                st.session_state.reg_temp_data = {}
-                                time.sleep(2)
-                                st.rerun()
-                            else:
-                                st.error(msg)
-                        else:
-                            st.error("❌ Hatalı Kod! Lütfen tekrar kontrol et.")
-            with t_forgot:
-                with st.form("forgot_f"):
-                    f_email = st.text_input("Kayıtlı E-Posta Adresi")
-                    if st.form_submit_button("SIFIRLAMA LİNKİ GÖNDER", use_container_width=True):
-                        if f_email:
-                            ok, msg = github_user_islem("forgot_password", email=f_email)
-                            if ok:
-                                st.success(msg)
-                            else:
-                                st.error(msg)
-                        else:
-                            st.warning("Lütfen e-posta adresinizi girin.")
-    else:
-        dashboard_modu()
+    # Artık doğrudan dashboard yükleniyor, giriş ekranı yok.
+    dashboard_modu()
 
 
 if __name__ == "__main__":
