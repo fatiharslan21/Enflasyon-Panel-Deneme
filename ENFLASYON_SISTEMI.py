@@ -785,18 +785,17 @@ def dashboard_modu():
                 with t_analiz:
                     st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
 
-                    # --- SENİN VERİN ---
+                    # --- SENİN VERİNİN HAZIRLANMASI ---
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                             df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
                     df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
 
-                    # --- RESMİ VERİ ÇEKME DENEMESİ ---
+                    # --- RESMİ VERİ ÇEKME (SADECE KUTU İÇİN) ---
                     df_resmi, msg = get_official_inflation()
 
-                    # Varsayılan Manuel Veri (Kasım 2024 - B Planı)
-                    # API çalışmazsa bu değerler görünecek
+                    # Varsayılan Manuel Veri (B Planı)
                     resmi_aylik_enf = 2.24
                     resmi_tarih_str = "Kasım 2024"
                     kaynak_notu = "⚠️ TCMB API bağlantısı kurulamadı, son bilinen veri gösteriliyor."
@@ -818,12 +817,12 @@ def dashboard_modu():
                         except:
                             pass
 
-                    # Kutu Rengi Ayarı (Hata varsa gri, yoksa turuncu)
+                    # Kutu Rengi Ayarı
                     border_color = "#f59e0b" if api_basarili else "#94a3b8"
                     bg_color = "#fefff5" if api_basarili else "#f1f5f9"
                     text_color = "#d97706" if api_basarili else "#475569"
 
-                    # --- BİLGİ KARTINI ÇİZ ---
+                    # --- BİLGİ KUTUSU ---
                     st.markdown(f"""
                     <div style="background-color: {bg_color}; border: 1px solid {border_color}; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
                         <div>
@@ -837,11 +836,10 @@ def dashboard_modu():
                     </div>
                     """, unsafe_allow_html=True)
 
-                    # API hatası varsa, kullanıcıyı bilgilendir ama sistemi bozma
                     if not api_basarili:
                         st.caption(f"Teknik Detay: {msg}")
 
-                    # --- GRAFİK ---
+                    # --- GRAFİK (RESMİ VERİ ÇIKARILDI) ---
                     with st.spinner("Gelecek tahmini yapıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
 
@@ -850,9 +848,12 @@ def dashboard_modu():
                     end_date_fixed = f"{current_year}-12-31"
 
                     fig_main = go.Figure()
+
+                    # 1. Senin Hesapladığın Enflasyon
                     fig_main.add_trace(go.Scatter(x=df_trend['Tarih'], y=df_trend['TÜFE'], mode='lines+markers',
                                                   name='Enflasyon Monitörü', line=dict(color='#2563eb', width=3)))
 
+                    # 2. AI Tahmini (Prophet)
                     if not df_forecast.empty:
                         future_only = df_forecast[df_forecast['ds'] > df_trend['Tarih'].max()]
                         fig_main.add_trace(
@@ -866,12 +867,7 @@ def dashboard_modu():
                                                       line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip",
                                                       showlegend=False))
 
-                    # Eğer API verisi varsa grafiğe ekle, yoksa boşver
-                    if df_resmi is not None and not df_resmi.empty:
-                        fig_main.add_trace(
-                            go.Scatter(x=df_resmi['Tarih'], y=df_resmi['Resmi_TUFE'], mode='lines+markers',
-                                       name='Resmi TÜİK', line=dict(color='#ef4444', width=2),
-                                       marker=dict(symbol='square')))
+                    # NOT: Resmi veri grafiğe ekleme kısmı buradan silindi.
 
                     fig_main.update_layout(
                         template=st.session_state.plotly_template,
