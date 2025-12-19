@@ -769,7 +769,7 @@ def dashboard_modu():
                 with c2:
                     kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
                 with c3:
-                    kpi_card("Ay Sonu Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
+                    kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
                              "card-purple")
                 with c4:
                     kpi_card("En Yüksek Risk (24s)", f"{daily_risk_name[:15]}", f"%{daily_risk_rate * 100:.1f} Artış",
@@ -783,7 +783,7 @@ def dashboard_modu():
                      "📝 RAPOR"])
 
                 with t_analiz:
-                    st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
+                    st.markdown("### 📈 Enflasyon Analizi ve Gelecek Tahmini")
 
                     # --- SENİN VERİNİN HAZIRLANMASI ---
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
@@ -812,7 +812,7 @@ def dashboard_modu():
                             aylar = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
                                      7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
                             resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
-                            kaynak_notu = "Veriler TCMB veri tabanından anlık çekilmiştir."
+                            kaynak_notu = "Veriler TCMB veri tabanından çekilmiştir."
                             api_basarili = True
                         except:
                             pass
