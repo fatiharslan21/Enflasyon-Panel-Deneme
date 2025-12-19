@@ -758,12 +758,53 @@ def dashboard_modu():
 
                 with t_analiz:
                     st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
+
+                    # --- MEVCUT VERİ HAZIRLIĞI ---
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                             df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                            agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
                     df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
+
+                    # Resmi Veriyi Çek
                     df_resmi, msg = get_official_inflation()
+
+                    # --- YENİ EKLENEN KISIM: TÜİK AYLIK VERİ HESAPLAMA ---
+                    resmi_aylik_enf = 0.0
+                    resmi_tarih_str = "-"
+
+                    if df_resmi is not None and not df_resmi.empty and len(df_resmi) > 1:
+                        try:
+                            # Tarihe göre sırala
+                            df_resmi = df_resmi.sort_values('Tarih')
+                            # Son veriyi ve bir öncekini al
+                            son_veri = df_resmi.iloc[-1]
+                            onceki_veri = df_resmi.iloc[-2]
+
+                            # Endeksten aylık yüzde değişim hesapla: (Son/Önceki - 1) * 100
+                            resmi_aylik_enf = ((son_veri['Resmi_TUFE'] / onceki_veri['Resmi_TUFE']) - 1) * 100
+
+                            # Ay ismini Türkçe almak için basit map
+                            aylar = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
+                                     7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
+                            resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
+                        except:
+                            resmi_tarih_str = "Hesaplama Hatası"
+
+                    # --- GÖRSELLEŞTİRME: TÜİK KUTUSU ---
+                    st.markdown(f"""
+                    <div style="background-color: #fefff5; border: 1px solid #f59e0b; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="color: #d97706; font-weight: bold; font-size: 14px;">🏛️ RESMİ TÜİK VERİSİ ({resmi_tarih_str})</div>
+                            <div style="color: #78350f; font-size: 12px;">TCMB veri tabanından alınan son resmi aylık değişim oranıdır.</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="color: #d97706; font-size: 24px; font-weight: 800;">%{resmi_aylik_enf:.2f}</div>
+                            <div style="color: #b45309; font-size: 11px; font-weight: 600;">AYLIK DEĞİŞİM</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    # -----------------------------------------------------
 
                     with st.spinner("Gelecek tahmini yapıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
@@ -782,8 +823,8 @@ def dashboard_modu():
                                        line=dict(color='#f59e0b', dash='dot')))
                         fig_main.add_trace(go.Scatter(x=future_only['ds'].tolist() + future_only['ds'].tolist()[::-1],
                                                       y=future_only['yhat_upper'].tolist() + future_only[
-                                                                                                 'yhat_lower'].tolist()[
-                                                                                             ::-1], fill='toself',
+                                                          'yhat_lower'].tolist()[
+                                                          ::-1], fill='toself',
                                                       fillcolor='rgba(245, 158, 11, 0.2)',
                                                       line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip",
                                                       showlegend=False))
@@ -1043,7 +1084,7 @@ def dashboard_modu():
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
     st.markdown(
-        '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">DESIGNED BY FATIH ARSLAN © 2025</div>',
+        '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">VALIDASYON MUDURLUGU © 2025</div>',
         unsafe_allow_html=True)
 
 
