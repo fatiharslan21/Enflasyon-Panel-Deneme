@@ -766,46 +766,57 @@ def dashboard_modu():
                     df_trend = pd.DataFrame(trend_data)
                     df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
 
-                    # Resmi Veriyi Çek
+                    # --- RESMİ VERİ VE HATA YÖNETİMİ ---
                     df_resmi, msg = get_official_inflation()
 
-                    # --- YENİ EKLENEN KISIM: TÜİK AYLIK VERİ HESAPLAMA ---
-                    resmi_aylik_enf = 0.0
-                    resmi_tarih_str = "-"
+                    # Varsayılan Değerler (API Çalışmazsa B Planı: Kasım 2024 Verisi)
+                    resmi_aylik_enf = 2.24
+                    resmi_tarih_str = "Kasım 2024 (Manuel)"
+                    veri_kaynagi_notu = "API Bağlantısı yok, manuel veri gösteriliyor."
+                    api_durumu = False
 
+                    # Eğer API'den veri geldiyse, gerçek veriyi hesapla
                     if df_resmi is not None and not df_resmi.empty and len(df_resmi) > 1:
                         try:
-                            # Tarihe göre sırala
                             df_resmi = df_resmi.sort_values('Tarih')
-                            # Son veriyi ve bir öncekini al
                             son_veri = df_resmi.iloc[-1]
                             onceki_veri = df_resmi.iloc[-2]
 
-                            # Endeksten aylık yüzde değişim hesapla: (Son/Önceki - 1) * 100
+                            # Hesaplama: ((Son - Önceki) / Önceki) * 100
                             resmi_aylik_enf = ((son_veri['Resmi_TUFE'] / onceki_veri['Resmi_TUFE']) - 1) * 100
 
-                            # Ay ismini Türkçe almak için basit map
                             aylar = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
                                      7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
                             resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
+                            veri_kaynagi_notu = "Veriler TCMB veri tabanından anlık çekilmiştir."
+                            api_durumu = True
                         except:
-                            resmi_tarih_str = "Hesaplama Hatası"
+                            pass  # Hesaplama hatası olursa varsayılan (2.24) kalır
 
-                    # --- GÖRSELLEŞTİRME: TÜİK KUTUSU ---
+                    # --- GÖRSELLEŞTİRME: BİLGİ KUTUSU ---
+                    # API çalışmadıysa kutu rengini turuncu yerine gri/sarı yapalım ki belli olsun
+                    box_bg = "#fefff5" if api_durumu else "#f8f9fa"
+                    box_border = "#f59e0b" if api_durumu else "#94a3b8"
+                    text_color = "#d97706" if api_durumu else "#64748b"
+
                     st.markdown(f"""
-                    <div style="background-color: #fefff5; border: 1px solid #f59e0b; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                    <div style="background-color: {box_bg}; border: 1px solid {box_border}; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
                         <div>
-                            <div style="color: #d97706; font-weight: bold; font-size: 14px;">🏛️ RESMİ TÜİK VERİSİ ({resmi_tarih_str})</div>
-                            <div style="color: #78350f; font-size: 12px;">TCMB veri tabanından alınan son resmi aylık değişim oranıdır.</div>
+                            <div style="color: {text_color}; font-weight: bold; font-size: 14px;">🏛️ RESMİ TÜİK VERİSİ ({resmi_tarih_str})</div>
+                            <div style="color: {text_color}; opacity:0.8; font-size: 11px;">{veri_kaynagi_notu}</div>
                         </div>
                         <div style="text-align: right;">
-                            <div style="color: #d97706; font-size: 24px; font-weight: 800;">%{resmi_aylik_enf:.2f}</div>
-                            <div style="color: #b45309; font-size: 11px; font-weight: 600;">AYLIK DEĞİŞİM</div>
+                            <div style="color: {text_color}; font-size: 24px; font-weight: 800;">%{resmi_aylik_enf:.2f}</div>
+                            <div style="color: {text_color}; font-size: 10px; font-weight: 600;">AYLIK DEĞİŞİM</div>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-                    # -----------------------------------------------------
 
+                    if not api_durumu:
+                        st.warning(
+                            f"⚠️ API Hatası: {msg}. (Secrets ayarlarını kontrol et veya manuel veriyi güncelle.)")
+
+                    # --- GRAFİKLER (Devam) ---
                     with st.spinner("Gelecek tahmini yapıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
 
@@ -816,6 +827,7 @@ def dashboard_modu():
                     fig_main = go.Figure()
                     fig_main.add_trace(go.Scatter(x=df_trend['Tarih'], y=df_trend['TÜFE'], mode='lines+markers',
                                                   name='Enflasyon Monitörü', line=dict(color='#2563eb', width=3)))
+
                     if not df_forecast.empty:
                         future_only = df_forecast[df_forecast['ds'] > df_trend['Tarih'].max()]
                         fig_main.add_trace(
@@ -828,6 +840,8 @@ def dashboard_modu():
                                                       fillcolor='rgba(245, 158, 11, 0.2)',
                                                       line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip",
                                                       showlegend=False))
+
+                    # Eğer API verisi varsa grafiğe de ekle
                     if df_resmi is not None and not df_resmi.empty:
                         fig_main.add_trace(
                             go.Scatter(x=df_resmi['Tarih'], y=df_resmi['Resmi_TUFE'], mode='lines+markers',
