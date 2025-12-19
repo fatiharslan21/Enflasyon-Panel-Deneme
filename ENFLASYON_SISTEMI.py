@@ -12,9 +12,6 @@ from github import Github
 from io import BytesIO
 import zipfile
 import base64
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import google.generativeai as genai
 import requests
 from prophet import Prophet
@@ -384,43 +381,6 @@ def predict_inflation_prophet(df_trend):
         return pd.DataFrame()
 
 
-# --- MAIL BILDIRIM (ALARM İÇİN) ---
-def send_notification_email(to_email, product_name, current_price, target_price):
-    try:
-        sender_email = st.secrets["email"]["sender"]
-        sender_password = st.secrets["email"]["password"]
-        subject = f"🔔 FİYAT DÜŞTÜ: {product_name}"
-
-        body = f"""
-        Merhaba,
-
-        Takip ettiğin "{product_name}" ürününün fiyatı düştü!
-
-        📉 Şu Anki Fiyat: {current_price:.2f} TL
-        🎯 Hedeflediğin Fiyat: {target_price:.2f} TL
-
-        Fırsatı kaçırmamak için sisteme giriş yapabilirsin.
-        Sevgiler,
-        Enflasyon Monitörü Ekibi
-        """
-
-        msg = MIMEMultipart()
-        msg['From'] = sender_email
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
-
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, to_email, msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        print(f"Mail Hatası: {e}")
-        return False
-
-
 # --- SCRAPER (FİYAT ÇEKİCİ) ---
 def temizle_fiyat(t):
     if not t: return None
@@ -555,38 +515,6 @@ def html_isleyici(log_callback):
         return f"Hata: {str(e)}"
 
 
-def check_alarms_and_notify(df_son_fiyatlar):
-    alarms_db = github_json_oku("user_alarms.json")
-    if not isinstance(alarms_db, list): return "Alarm veritabanı boş."
-
-    updated = False
-    sent_count = 0
-
-    for alarm in alarms_db:
-        if alarm.get("durum") == "aktif":
-            kod = alarm.get("kod")
-            target = float(alarm.get("hedef_fiyat"))
-
-            row = df_son_fiyatlar[df_son_fiyatlar['Kod'] == kod]
-            if not row.empty:
-                cols = [c for c in df_son_fiyatlar.columns if
-                        c not in ['Kod', 'Ad', 'Grup', 'Madde_Adi', 'URL', 'Grup_Kodu', 'Agirlik_2025']]
-                if cols:
-                    last_price_col = cols[-1]
-                    current_price = float(row[last_price_col].values[0])
-
-                    if current_price > 0 and current_price <= target:
-                        if send_notification_email(alarm["email"], alarm["urun_adi"], current_price, target):
-                            alarm["durum"] = "tamamlandi"
-                            updated = True
-                            sent_count += 1
-
-    if updated:
-        github_json_yaz("user_alarms.json", alarms_db, "Alarm Notifications Sent")
-
-    return f"{sent_count} adet alarm bildirimi gönderildi."
-
-
 # --- DASHBOARD MODU ---
 def dashboard_modu():
     bugun = datetime.now().strftime("%Y-%m-%d")
@@ -700,19 +628,6 @@ def dashboard_modu():
 
         if "OK" in res:
             st.cache_data.clear()
-            with st.spinner("🔔 Alarmlar kontrol ediliyor..."):
-                try:
-                    df_f_new = github_excel_oku(FIYAT_DOSYASI)
-                    df_f_new['Tarih_DT'] = pd.to_datetime(df_f_new['Tarih'], errors='coerce')
-                    df_f_new = df_f_new.dropna(subset=['Tarih_DT']).sort_values('Tarih_DT')
-                    df_f_new['Tarih_Str'] = df_f_new['Tarih_DT'].dt.strftime('%Y-%m-%d')
-                    df_f_new['Fiyat'] = pd.to_numeric(df_f_new['Fiyat'], errors='coerce')
-                    pivot_new = df_f_new.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat',
-                                                     aggfunc='last').ffill(axis=1).reset_index()
-                    alarm_sonuc = check_alarms_and_notify(pivot_new)
-                    st.success(alarm_sonuc)
-                except Exception as e:
-                    st.warning(f"Alarm kontrolü sırasında hata: {e}")
             st.toast('Veritabanı Güncellendi!', icon='🎉')
             st.success("✅ Sistem Başarıyla Senkronize Edildi!")
             time.sleep(2)
@@ -742,16 +657,6 @@ def dashboard_modu():
 
             pivot = df_f.pivot_table(index='Kod', columns='Tarih_Str', values='Fiyat', aggfunc='last').ffill(
                 axis=1).bfill(axis=1).reset_index()
-
-            # --- OTOMATİK ALARM KONTROLÜ ---
-            if 'alarm_auto_check' not in st.session_state:
-                st.session_state['alarm_auto_check'] = True
-                try:
-                    sonuc_msg = check_alarms_and_notify(pivot)
-                    if "0 adet" not in sonuc_msg:
-                        st.toast(f"Otomatik Kontrol: {sonuc_msg}", icon="📧")
-                except Exception as e:
-                    print(f"Otomatik alarm hatası: {e}")
 
             if not pivot.empty:
                 if 'Grup' not in df_s.columns:
@@ -846,10 +751,10 @@ def dashboard_modu():
                              "card-orange", is_long_text=True)
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- SEKMELER (Sepet Kaldırıldı) ---
-                t_analiz, t_istatistik, t_harita, t_firsat, t_liste, t_haber, t_rapor, t_alarm = st.tabs(
+                # --- SEKMELER (Sepet ve Alarm Kaldırıldı) ---
+                t_analiz, t_istatistik, t_harita, t_firsat, t_liste, t_haber, t_rapor = st.tabs(
                     ["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📉 PİYASA VERİLERİ", "📋 LİSTE", "📰 HABERLER",
-                     "📝 RAPOR", "🔔 FİYAT ALARMI"])
+                     "📝 RAPOR"])
 
                 with t_analiz:
                     st.markdown("### 📈 Enflasyon Momentum Analizi ve Gelecek Tahmini")
@@ -1133,49 +1038,7 @@ def dashboard_modu():
                         with col_download: st.download_button(label="📥 PDF Olarak İndir", data=pdf_bytes,
                                                               file_name=f"Enflasyon_Raporu_{bugun}.pdf",
                                                               mime="application/pdf")
-                with t_alarm:
-                    st.markdown("### 🔔 Akıllı Fiyat Alarmı Kur")
-                    st.info(
-                        "Takip ettiğin ürün belirlediğin fiyatın **altına** düşerse sana otomatik e-posta atarız.")
-                    ALARMS_DOSYASI = "user_alarms.json"
-                    alarms_db = github_json_oku(ALARMS_DOSYASI)
-                    if not isinstance(alarms_db, list): alarms_db = []
-                    product_list = sorted(df_analiz[ad_col].unique())
-                    secilen_urun = st.selectbox("Hangi ürün için alarm kurulsun?", product_list,
-                                                key="alarm_product")
-                    curr_price = df_analiz[df_analiz[ad_col] == secilen_urun][son].values[0]
 
-                    c_al1, c_al2, c_al3 = st.columns(3)
-                    with c_al1:
-                        st.metric("Şu Anki Fiyat", f"{curr_price:.2f} TL")
-                    with c_al2:
-                        target_price = st.number_input("Hedef Fiyat (TL)", min_value=1.0,
-                                                       value=float(curr_price) * 0.9, step=1.0,
-                                                       help="Fiyat bu seviyenin altına inerse mail atılır.")
-                    with c_al3:
-                        target_email = st.text_input("Bildirim E-Postası (Gerekli)", placeholder="ornek@email.com")
-
-                    if st.button("🔔 Alarmı Kur", type="primary"):
-                        if not target_email or "@" not in target_email:
-                            st.warning("Lütfen geçerli bir e-posta adresi girin.")
-                        elif target_price < curr_price:
-                            new_alarm = {
-                                "user": "guest",
-                                "email": target_email,
-                                "kod": df_analiz[df_analiz[ad_col] == secilen_urun]['Kod'].values[0],
-                                "urun_adi": secilen_urun,
-                                "hedef_fiyat": target_price,
-                                "durum": "aktif",
-                                "olusturma_tarihi": datetime.now().strftime("%Y-%m-%d")
-                            }
-                            alarms_db.append(new_alarm)
-                            if github_json_yaz(ALARMS_DOSYASI, alarms_db, "New Alarm"):
-                                st.success(
-                                    f"✅ Alarm kuruldu! {secilen_urun} fiyatı {target_price} TL altına düşerse {target_email} adresine mail gelecek.")
-                            else:
-                                st.error("Kayıt hatası.")
-                        else:
-                            st.warning("Hedef fiyat, şu anki fiyattan düşük olmalıdır.")
 
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
@@ -1186,7 +1049,6 @@ def dashboard_modu():
 
 # --- 5. ANA GİRİŞ SİSTEMİ (SADELEŞTİRİLMİŞ) ---
 def main():
-    # Artık doğrudan dashboard yükleniyor, giriş ekranı yok.
     dashboard_modu()
 
 
