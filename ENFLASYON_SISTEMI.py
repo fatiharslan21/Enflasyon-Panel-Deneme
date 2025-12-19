@@ -346,26 +346,55 @@ def github_excel_guncelle(df_yeni, dosya_adi):
 
 
 # --- RESMİ ENFLASYON & PROPHET (CACHED) ---
+# --- RESMİ ENFLASYON & PROPHET (GÜNCELLENDİ: HEADERS EKLENDİ) ---
 def get_official_inflation():
     api_key = st.secrets.get("evds", {}).get("api_key")
-    if not api_key: return None, "API Key Yok"
+
+    # API Key yoksa direkt dön
+    if not api_key:
+        return None, "API Key Yok (secrets.toml kontrol et)"
+
+    # Tarihleri ayarla
     start_date = (datetime.now() - timedelta(days=365)).strftime("%d-%m-%Y")
     end_date = datetime.now().strftime("%d-%m-%Y")
+
+    # URL Yapısı
     url = f"https://evds2.tcmb.gov.tr/service/evds/series=TP.FG.J0&startDate={start_date}&endDate={end_date}&type=json&key={api_key}"
+
+    # ÖNEMLİ: Kendimizi tarayıcı gibi tanıtıyoruz (Anti-Bot Engeli İçin)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json'
+    }
+
     try:
-        res = requests.get(url)
-        data = res.json()
-        if "items" in data:
-            df_evds = pd.DataFrame(data["items"])
-            df_evds = df_evds[['Tarih', 'TP_FG_J0']]
-            df_evds.columns = ['Tarih', 'Resmi_TUFE']
-            df_evds['Tarih'] = pd.to_datetime(df_evds['Tarih'] + "-01", format="%Y-%m-%d")
-            df_evds['Resmi_TUFE'] = pd.to_numeric(df_evds['Resmi_TUFE'], errors='coerce')
-            return df_evds, "OK"
-        return None, "Veri Yapısı Hatası"
+        # verify=False bazen SSL hatalarını aşmak için gerekir (uyarı verebilir ama çalışır)
+        res = requests.get(url, headers=headers, timeout=10, verify=True)
+
+        if res.status_code == 200:
+            try:
+                data = res.json()
+                if "items" in data:
+                    df_evds = pd.DataFrame(data["items"])
+                    # Gelen veriyi kontrol et, bazen UNIX null dönebilir
+                    if df_evds.empty or 'TP_FG_J0' not in df_evds.columns:
+                        return None, "API boş veri döndürdü."
+
+                    df_evds = df_evds[['Tarih', 'TP_FG_J0']]
+                    df_evds.columns = ['Tarih', 'Resmi_TUFE']
+                    df_evds['Tarih'] = pd.to_datetime(df_evds['Tarih'] + "-01", format="%Y-%m-%d")
+                    df_evds['Resmi_TUFE'] = pd.to_numeric(df_evds['Resmi_TUFE'], errors='coerce')
+                    return df_evds, "OK"
+                else:
+                    return None, "Veri Yapısı Hatası (items yok)"
+            except json.JSONDecodeError:
+                # Eğer JSON değil HTML dönerse içeriği görelim
+                return None, f"Sunucu JSON döndürmedi. İçerik başı: {res.text[:50]}"
+        else:
+            return None, f"HTTP Hatası: {res.status_code}"
+
     except Exception as e:
         return None, str(e)
-
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def predict_inflation_prophet(df_trend):
