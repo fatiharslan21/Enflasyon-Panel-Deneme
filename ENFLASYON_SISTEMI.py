@@ -53,8 +53,6 @@ with st.sidebar:
 
 
 # --- CSS MOTORU ---
-# --- CSS MOTORU ---
-# --- CSS MOTORU ---
 def apply_theme():
     # --- TEMA RENK AYARLARI ---
     if st.session_state.theme == 'dark':
@@ -83,19 +81,9 @@ def apply_theme():
     # --- CSS MOTORU ---
     final_css = f"""
     <style>
-        /* --- KESİN GİZLEME KODLARI (GÜNCELLENEN KISIM) --- */
-
-        /* 1. ATOM BOMBASI: İsmi ne olursa olsun içinde 'viewerBadge' geçen her kutuyu yok et */
+        /* --- KESİN GİZLEME KODLARI --- */
         div[class*="viewerBadge"] {{ display: none !important; }}
-
-        /* 2. Standart Footer Gizleme */
-        footer {{ 
-            visibility: hidden !important; 
-            display: none !important; 
-            height: 0px !important;
-        }}
-
-        /* 3. Header ve Menü Gizleme */
+        footer {{ visibility: hidden !important; display: none !important; height: 0px !important; }}
         #MainMenu {{ visibility: hidden !important; display: none !important; }}
         header {{ visibility: hidden !important; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
@@ -103,26 +91,22 @@ def apply_theme():
         [data-testid="collapsedControl"] {{ display: none !important; }}
         .stDeployButton {{ display: none !important; }}
 
-        /* İçerik Boşluğunu Ayarlama */
         .block-container {{ padding-top: 1rem !important; }}
 
-        /* --- DİĞER TASARIM AYARLARI (AYNEN KORUNDU) --- */
+        /* --- DİĞER TASARIM AYARLARI --- */
         .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
         section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
         h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown, .stRadio label {{ color: {colors['text']} !important; }}
 
-        /* INPUT VE SELECTBOX */
         .stTextInput input, .stNumberInput input {{
             background-color: {colors['input_bg']} !important;
             color: {colors['text']} !important;
             border: 1px solid {colors['input_border']} !important;
         }}
 
-        /* DROPDOWN VE TOAST */
         div[data-baseweb="popover"], div[data-baseweb="toast"] {{ background-color: #FFFFFF !important; border: 1px solid #ccc !important; }}
         div[data-baseweb="popover"] li, div[data-baseweb="toast"] div {{ color: #000000 !important; }}
 
-        /* TABLOLAR */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
             background-color: {colors['card_bg']} !important;
             border: 1px solid {colors['border_color']} !important;
@@ -133,7 +117,6 @@ def apply_theme():
             background-color: {colors['sidebar']} !important;
         }}
 
-        /* BUTONLAR */
         div.stButton > button, 
         div.stFormSubmitButton > button,
         [data-testid="stDownloadButton"] button {{
@@ -161,10 +144,8 @@ def apply_theme():
             border: 2px solid #000000 !important;
         }}
 
-        /* METRİKLER */
         .metric-card {{ background: {colors['card_bg']} !important; border: 1px solid {colors['border_color']} !important; }}
         .metric-val, div[data-testid="stMetricValue"] {{ color: {colors['text']} !important; }}
-
     </style>
     """
     st.markdown(final_css, unsafe_allow_html=True)
@@ -363,30 +344,24 @@ def github_excel_guncelle(df_yeni, dosya_adi):
 
 
 # --- RESMİ ENFLASYON & PROPHET (CACHED) ---
-# --- RESMİ ENFLASYON & PROPHET (GÜNCELLENDİ: HEADERS EKLENDİ) ---
-# --- RESMİ ENFLASYON ÇEKİCİ (GÜÇLENDİRİLMİŞ VERSİYON) ---
 def get_official_inflation():
     api_key = st.secrets.get("evds", {}).get("api_key")
 
-    # 1. API Key Yoksa Manuel Veri Dön
     if not api_key:
         return None, "API Key Yok"
 
     start_date = (datetime.now() - timedelta(days=365)).strftime("%d-%m-%Y")
     end_date = datetime.now().strftime("%d-%m-%Y")
 
-    # URL'de key parametresi OLMADAN (Header ile deneyeceğiz)
     url = f"https://evds2.tcmb.gov.tr/service/evds/series=TP.FG.J0&startDate={start_date}&endDate={end_date}&type=json"
 
-    # Header'a KEY ekliyoruz (Bazı durumlarda çözüm budur)
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'key': api_key,  # Anahtarı buraya da ekledik
+        'key': api_key,
         'Accept': 'application/json'
     }
 
     try:
-        # verify=False ile SSL hatasını geçiyoruz, key'i hem header hem url parametresi olarak (garanti olsun diye) verelim
         url_with_key = f"{url}&key={api_key}"
         res = requests.get(url_with_key, headers=headers, timeout=10, verify=False)
 
@@ -794,10 +769,9 @@ def dashboard_modu():
                              "card-orange", is_long_text=True)
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- SEKMELER (Sepet ve Alarm Kaldırıldı) ---
-                t_analiz, t_istatistik, t_harita, t_firsat, t_liste, t_haber, t_rapor = st.tabs(
-                    ["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📉 PİYASA VERİLERİ", "📋 LİSTE", "📰 HABERLER",
-                     "📝 RAPOR"])
+                # --- SEKMELER (DÜZENLENDİ: PİYASA VERİLERİ KALDIRILDI) ---
+                t_analiz, t_istatistik, t_harita, t_liste, t_haber, t_rapor = st.tabs(
+                    ["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📋 LİSTE", "📰 HABERLER", "📝 RAPOR"])
 
                 with t_analiz:
                     st.markdown("### 📈 Enflasyon Analizi ve Gelecek Tahmini")
@@ -884,8 +858,6 @@ def dashboard_modu():
                                                       line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip",
                                                       showlegend=False))
 
-                    # NOT: Resmi veri grafiğe ekleme kısmı buradan silindi.
-
                     fig_main.update_layout(
                         template=st.session_state.plotly_template,
                         title="Enflasyon: Geçmiş, Şimdi ve Gelecek",
@@ -966,118 +938,6 @@ def dashboard_modu():
                         paper_bgcolor='rgba(0,0,0,0)'
                     )
                     st.plotly_chart(fig_tree, use_container_width=True)
-
-                with t_firsat:
-                    st.markdown("### 🛍️ Piyasadaki Benzer Ürünler")
-                    st.info("Piyasadaki Benzer ürün fiyatlarını anlık tarar.")
-                    product_list = sorted(df_analiz[ad_col].unique())
-                    selected_product = st.selectbox("Hangi ürünü tarayalım?", product_list)
-                    if st.button(f"Piyasa Fiyatlarını Çek", type="primary"):
-                        try:
-                            my_record = df_analiz[df_analiz[ad_col] == selected_product].iloc[0]
-                            my_price = my_record[son]
-                        except:
-                            my_price = 0
-                        st.metric("Senin Fiyatın", f"{my_price:.2f} TL")
-                        results_data = []
-                        target_url = f"https://www.google.com/search?q={selected_product}&tbm=shop&hl=tr&gl=TR"
-                        with st.spinner("Google Taranıyor..."):
-                            try:
-                                chrome_options = Options()
-                                chrome_options.add_argument("--headless")
-                                chrome_options.add_argument("--no-sandbox")
-                                chrome_options.add_argument("--disable-dev-shm-usage")
-                                chrome_options.add_argument("--disable-gpu")
-                                chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-                                chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-                                chrome_options.add_experimental_option('useAutomationExtension', False)
-                                chrome_options.add_argument(
-                                    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
-
-                                chrome_path = shutil.which("chromium") or shutil.which(
-                                    "chromium-browser") or shutil.which("google-chrome")
-                                if chrome_path: chrome_options.binary_location = chrome_path
-
-                                driver_path = shutil.which("chromedriver") or shutil.which(
-                                    "chromium-driver") or "/usr/bin/chromedriver"
-                                if not driver_path:
-                                    st.error("⚠️ Sürücü bulunamadı. packages.txt dosyasını kontrol et.")
-                                else:
-                                    service = Service(executable_path=driver_path)
-                                    driver = webdriver.Chrome(service=service, options=chrome_options)
-                                    driver.get(target_url)
-                                    try:
-                                        wait = WebDriverWait(driver, 5)
-                                        consent_buttons = driver.find_elements(By.XPATH,
-                                                                               "//button[contains(., 'Kabul') or contains(., 'Accept') or contains(., 'Agree')]")
-                                        if consent_buttons: consent_buttons[0].click(); time.sleep(2)
-                                    except:
-                                        pass
-                                    time.sleep(3)
-                                    page_source = driver.page_source
-                                    driver.quit()
-                                    soup = BeautifulSoup(page_source, "html.parser")
-
-                                    cards = soup.find_all(attrs={"aria-label": re.compile(r"Şu Anki Fiyat:")})
-                                    if not cards: price_elements = soup.find_all(string=re.compile(r"(₺|TL)\s*\d+"))
-
-                                    for card in cards:
-                                        raw_text = card['aria-label']
-                                        raw_text = raw_text.replace(u'\xa0', ' ').strip()
-                                        price_pattern = r"(?:₺\s?)?(\d{1,3}(?:[.,]\d{3})*[.,]\d{2})(?:\s?TL)?"
-                                        matches = list(re.finditer(price_pattern, raw_text))
-
-                                        if matches:
-                                            best_match = matches[0]
-                                            p_price_str = best_match.group(1)
-                                            try:
-                                                clean_price = float(p_price_str.replace('.', '').replace(',', '.'))
-                                            except:
-                                                clean_price = 0
-                                            if clean_price < 5 and len(matches) > 1:
-                                                best_match = matches[1]
-                                                p_price_str = best_match.group(1)
-                                                try:
-                                                    clean_price = float(p_price_str.replace('.', '').replace(',', '.'))
-                                                except:
-                                                    pass
-                                            start, end = best_match.span()
-                                            p_name = raw_text[:start].strip().rstrip('.').rstrip(':').replace(
-                                                "Şu Anki Fiyat", "").strip()
-                                            p_vendor_raw = raw_text[end:].strip()
-                                            p_vendor = re.sub(r'^(TL|₺|\.|,)\s*', '', p_vendor_raw)
-                                            p_vendor = p_vendor.replace("ve daha fazlası", "").replace(
-                                                "ve diğer satıcılar", "").strip()
-                                            if len(p_vendor) > 30: p_vendor = p_vendor.split('.')[0]
-                                            if not p_name or len(p_name) < 2: continue
-                                            if not p_vendor or len(p_vendor) < 2: continue
-                                            if p_name.replace('.', '').replace(',', '').isdigit(): continue
-
-                                            results_data.append({
-                                                "Ürün": p_name,
-                                                "Fiyat_Etiketi": p_price_str + " TL",
-                                                "Fiyat_Sayi": clean_price,
-                                                "Satıcı": p_vendor
-                                            })
-
-                                    if results_data:
-                                        df_res = pd.DataFrame(results_data).sort_values("Fiyat_Sayi")
-                                        for _, row in df_res.iterrows():
-                                            is_cheaper = row['Fiyat_Sayi'] < my_price and row['Fiyat_Sayi'] > 0
-                                            card_bg = "#ecfdf5" if is_cheaper else "#ffffff"
-                                            border_col = "#10b981" if is_cheaper else "#e2e8f0"
-                                            st.markdown(f"""
-                                            <div style="background:{card_bg}; border:1px solid {border_col}; padding:15px; border-radius:10px; margin-bottom:10px;">
-                                                <div style="font-weight:bold; color:#1e293b;">{row['Ürün']}</div>
-                                                <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                                                    <div style="color:#64748b;">🏪 {row['Satıcı']}</div>
-                                                    <div style="font-weight:800; color:#0f172a;">{row['Fiyat_Etiketi']}</div>
-                                                </div>
-                                            </div>""", unsafe_allow_html=True)
-                                    else:
-                                        st.warning("Veri okunamadı.")
-                            except Exception as e:
-                                st.error(f"Sistem Hatası: {e}")
 
                 with t_liste:
                     st.data_editor(
