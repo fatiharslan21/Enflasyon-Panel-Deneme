@@ -53,6 +53,7 @@ with st.sidebar:
 
 
 # --- CSS MOTORU ---
+# --- CSS MOTORU ---
 def apply_theme():
     # --- TEMA RENK AYARLARI (Sadece Arka Plan ve Menüler İçin) ---
     if st.session_state.theme == 'dark':
@@ -81,13 +82,16 @@ def apply_theme():
     # --- CSS MOTORU ---
     final_css = f"""
     <style>
-        /* GİZLEMELER */
+        /* --- GİZLEMELER (BURASI GÜNCELLENDİ) --- */
+        #MainMenu {{ visibility: hidden; }}
+        header {{ visibility: hidden; }}
+        footer {{ visibility: hidden; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
         [data-testid="stDecoration"] {{ display: none !important; }}
         [data-testid="collapsedControl"] {{ display: none !important; }}
+        .stDeployButton {{ display: none !important; }}
+
         .block-container {{ padding-top: 1rem !important; }}
-        footer {{ visibility: hidden; }}
-        .stDeployButton {{ display: none; }}
 
         /* GENEL SAYFA YAPISI */
         .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
