@@ -56,7 +56,7 @@ with st.sidebar:
 # --- CSS MOTORU ---
 # --- CSS MOTORU ---
 def apply_theme():
-    # --- TEMA RENK AYARLARI (Sadece Arka Plan ve Menüler İçin) ---
+    # --- TEMA RENK AYARLARI ---
     if st.session_state.theme == 'dark':
         colors = {
             "bg": "#0E1117",
@@ -83,21 +83,21 @@ def apply_theme():
     # --- CSS MOTORU ---
     final_css = f"""
     <style>
-        /* --- KESİN GİZLEME KODLARI (GÜNCELLENDİ) --- */
+        /* --- KESİN GİZLEME KODLARI (GÜNCELLENEN KISIM) --- */
 
-        /* 1. Sağ Alttaki "Hosted with Streamlit" ve Footer */
+        /* 1. ATOM BOMBASI: İsmi ne olursa olsun içinde 'viewerBadge' geçen her kutuyu yok et */
+        div[class*="viewerBadge"] {{ display: none !important; }}
+
+        /* 2. Standart Footer Gizleme */
         footer {{ 
             visibility: hidden !important; 
             display: none !important; 
             height: 0px !important;
         }}
 
-        /* 2. Viewer Badge (Kırmızı kutucuk için özel hedefleme) */
-        .viewerBadge_container__1QSob {{ display: none !important; }}
-
-        /* 3. Header, Menü ve Süslemeler */
-        #MainMenu {{ visibility: hidden; }}
-        header {{ visibility: hidden; }}
+        /* 3. Header ve Menü Gizleme */
+        #MainMenu {{ visibility: hidden !important; display: none !important; }}
+        header {{ visibility: hidden !important; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
         [data-testid="stDecoration"] {{ display: none !important; }}
         [data-testid="collapsedControl"] {{ display: none !important; }}
@@ -106,7 +106,7 @@ def apply_theme():
         /* İçerik Boşluğunu Ayarlama */
         .block-container {{ padding-top: 1rem !important; }}
 
-        /* GENEL SAYFA YAPISI */
+        /* --- DİĞER TASARIM AYARLARI (AYNEN KORUNDU) --- */
         .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
         section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
         h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown, .stRadio label {{ color: {colors['text']} !important; }}
