@@ -54,6 +54,7 @@ with st.sidebar:
 
 # --- CSS MOTORU ---
 # --- CSS MOTORU ---
+# --- CSS MOTORU ---
 def apply_theme():
     # --- TEMA RENK AYARLARI (Sadece Arka Plan ve Menüler İçin) ---
     if st.session_state.theme == 'dark':
@@ -82,15 +83,27 @@ def apply_theme():
     # --- CSS MOTORU ---
     final_css = f"""
     <style>
-        /* --- GİZLEMELER (BURASI GÜNCELLENDİ) --- */
+        /* --- KESİN GİZLEME KODLARI (GÜNCELLENDİ) --- */
+
+        /* 1. Sağ Alttaki "Hosted with Streamlit" ve Footer */
+        footer {{ 
+            visibility: hidden !important; 
+            display: none !important; 
+            height: 0px !important;
+        }}
+
+        /* 2. Viewer Badge (Kırmızı kutucuk için özel hedefleme) */
+        .viewerBadge_container__1QSob {{ display: none !important; }}
+
+        /* 3. Header, Menü ve Süslemeler */
         #MainMenu {{ visibility: hidden; }}
         header {{ visibility: hidden; }}
-        footer {{ visibility: hidden; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
         [data-testid="stDecoration"] {{ display: none !important; }}
         [data-testid="collapsedControl"] {{ display: none !important; }}
         .stDeployButton {{ display: none !important; }}
 
+        /* İçerik Boşluğunu Ayarlama */
         .block-container {{ padding-top: 1rem !important; }}
 
         /* GENEL SAYFA YAPISI */
