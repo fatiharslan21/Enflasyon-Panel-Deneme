@@ -513,12 +513,30 @@ def html_isleyici(log_callback):
 # --- DASHBOARD MODU ---
 # --- DASHBOARD MODU ---
 # --- SIDEBAR (TAMAMEN DÜZELTİLMİŞ & ARAMA KUTUSU GÖRÜNÜR) ---
+    # --- SIDEBAR (KESİN GÖRÜNÜR ARAMA KUTUSU VERSİYONU) ---
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
+
+        # --- ARAMA KUTUSU İÇİN ÖZEL CSS (Bunu eklemezsek kayboluyor) ---
+        st.markdown("""
+        <style>
+            /* Sidebar'daki input kutusunu zorla görünür yap */
+            section[data-testid="stSidebar"] .stTextInput input {
+                background-color: #ffffff !important; /* Arka plan BEYAZ */
+                color: #000000 !important; /* Yazı SİYAH */
+                border: 2px solid #3b82f6 !important; /* Kenarlık MAVİ */
+                font-weight: bold !important;
+            }
+            /* Label rengini belirginleştir */
+            section[data-testid="stSidebar"] .stTextInput label {
+                color: #3b82f6 !important;
+                font-size: 14px !important;
+                font-weight: bold !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
         
-        # ---------------------------------------------------------
-        # 1. BÖLÜM: DÖVİZ & EMTİA (Sabit Kartlar)
-        # ---------------------------------------------------------
+        # --- 1. KISIM: CANLI KURLAR ---
         tv_theme = "dark"
         symbols = [
             {"s": "FX:USDTRY", "d": "Dolar / TL"},
@@ -551,28 +569,23 @@ def html_isleyici(log_callback):
             </div>
             """
         
-        # HTML Kartları Bas
-        total_height = len(symbols) * 125 
+        # Yüksekliği biraz kıstık ki aşağı taşmasın
+        total_height = len(symbols) * 120
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
         
-        # --- AYIRICI ÇİZGİ (Kutunun üstte kalmasını önler) ---
-        st.markdown("<hr style='margin-top: 0; margin-bottom: 20px; border-top: 1px solid #414141;'>", unsafe_allow_html=True)
+        # Ayırıcı Çizgi
+        st.markdown("---")
 
-        # ---------------------------------------------------------
-        # 2. BÖLÜM: AKILLI HİSSE ARAMA & LİSTE
-        # ---------------------------------------------------------
+        # --- 2. KISIM: ARAMA MOTORU VE LİSTE ---
         st.markdown("### 🔍 HİSSE ARA & LİSTE")
         
-        # Arama Kutusunu Buraya Koyuyoruz (Görünür olması için label ekledim)
-        arama = st.text_input("Hisse Kodu (Örn: THYAO)", placeholder="Buraya yaz...", key="hisse_arama").upper().strip()
+        # Arama kutusu (CSS ile rengini zorla değiştirdik)
+        arama = st.text_input("HİSSE KODU GİRİN:", placeholder="Örn: GARAN, THYAO...", key="sidebar_arama").upper().strip()
         
-        st.markdown("<br>", unsafe_allow_html=True) # Hafif boşluk bırak
-
         if arama:
-            # --- DURUM A: ARAMA YAPILDIYSA (TEK KART + ANALİZ) ---
-            st.info(f"🎯 **{arama}** Analiz Ediliyor...")
+            st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # 1. Fiyat Kartı
+            # Tek Hisse Detayı
             single_stock_html = f"""
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
@@ -589,7 +602,7 @@ def html_isleyici(log_callback):
             """
             components.html(single_stock_html, height=200)
 
-            # 2. Teknik İbre (Al/Sat)
+            # Teknik Analiz İbresi
             technical_html = f"""
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
@@ -609,14 +622,13 @@ def html_isleyici(log_callback):
             </div>
             """
             components.html(technical_html, height=410)
-
-            # Geri Dön Butonu
-            if st.button("⬅️ Listeye Dön", type="primary"):
+            
+            # Geri Dön
+            if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
                 st.rerun()
 
         else:
-            # --- DURUM B: ARAMA YOKSA (TÜM LİSTE) ---
-            # Sade görünüm (Toolbar kapalı)
+            # Arama yoksa LİSTE görünür (Toolbar kapalı, sade)
             all_stocks_html = """
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
@@ -1096,6 +1108,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
