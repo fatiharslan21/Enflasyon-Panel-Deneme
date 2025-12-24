@@ -1009,27 +1009,65 @@ def dashboard_modu():
                                     with st.chat_message(message["role"]):
                                         st.markdown(message["content"])
                             
-                                # 4. Kullanıcıdan Girdi Al
-                                if prompt := st.chat_input("Örn: Gıda fiyatları neden bu kadar yüksek?"):
+                               # 4. Kullanıcıdan Girdi Al
+                                if prompt := st.chat_input("Örn: Hangi ürünler birlikte hareket ediyor?"):
                                     # Kullanıcı mesajını ekle ve göster
                                     st.session_state.messages.append({"role": "user", "content": prompt})
                                     with st.chat_message("user"):
                                         st.markdown(prompt)
                             
+                                    # --- YENİ EKLENECEK KISIM: KORELASYON HESAPLAYICI ---
+                                    # Bu kısım geçmiş veriyi tarar ve ilişkileri bulur
+                                    try:
+                                        # Sadece tarih sütunlarını al
+                                        date_cols = [c for c in pivot.columns if c != 'Kod']
+                                        # Ürün kodlarına göre transpoze et (Sütunlar ürün, Satırlar tarih olsun)
+                                        df_hist = pivot.set_index('Kod')[date_cols].T.astype(float)
+                                        
+                                        # Korelasyon matrisini çıkar
+                                        corr_matrix = df_hist.corr()
+                                        
+                                        # İlişkisi yüksek olanları bul (0.85 üzeri)
+                                        high_corr_pairs = []
+                                        
+                                        # Matrisi tarayalım (Üst üçgeni alarak tekrarı önle)
+                                        import numpy as np
+                                        # Kod - İsim eşleştirmesi için sözlük
+                                        code_to_name = dict(zip(df_analiz['Kod'], df_analiz[ad_col]))
+                                        
+                                        # İlk 200 ürünü tarayalım (Performans için)
+                                        cols = corr_matrix.columns[:200] 
+                                        for i in range(len(cols)):
+                                            for j in range(i+1, len(cols)):
+                                                val = corr_matrix.iloc[i, j]
+                                                if val > 0.85: # %85 üzeri benzerlik
+                                                    code1 = cols[i]
+                                                    code2 = cols[j]
+                                                    name1 = code_to_name.get(code1, code1)
+                                                    name2 = code_to_name.get(code2, code2)
+                                                    high_corr_pairs.append(f"- {name1} ve {name2} (Benzerlik: %{val*100:.0f})")
+                                        
+                                        # En yüksek 10 ilişkiyi seç
+                                        iliski_metni = "\n".join(high_corr_pairs[:15]) if high_corr_pairs else "Belirgin bir ilişki bulunamadı."
+                                        
+                                    except Exception as e:
+                                        iliski_metni = "İlişki hesaplanırken hata oluştu."
+                                    # ----------------------------------------------------
+                            
                                     # 5. AI İçin Veri Bağlamını (Context) Hazırla
-                                    # Burada senin hesapladığın değişkenleri bir metin bloğuna dönüştürüyoruz.
+                                    # ARTIK 'İLİŞKİ ANALİZİ'Nİ DE EKLEDİK
                                     context_data = f"""
                                     ŞU ANKİ SİSTEM VERİLERİ (Buna göre cevap ver):
                                     - Tarih: {bugun}
-                                    - Genel Enflasyon (Senin Hesapladığın): %{enf_genel:.2f}
-                                    - Gıda Enflasyonu: %{enf_gida:.2f}
-                                    - Ay Sonu Tahmini (Simülasyon): %{month_end_forecast:.2f}
+                                    - Genel Enflasyon: %{enf_genel:.2f}
                                     - En Çok Artan Ürün: {top[ad_col]} (Artış Oranı: %{top['Fark']*100:.2f})
-                                    - Günlük En Yüksek Risk (24s): {daily_risk_name} (%{daily_risk_rate*100:.1f})
+                                    
+                                    GEÇMİŞ DÖNEM İLİŞKİ ANALİZİ (BİRLİKTE HAREKET EDENLER):
+                                    Bu liste, tarihsel olarak fiyat grafiği birbirine en çok benzeyen ürünleri gösterir:
+                                    {iliski_metni}
                                     
                                     SEKTÖREL DURUM:
                                     - Veri setindeki toplam ürün sayısı: {len(df_analiz)}
-                                    - Enflasyon Sepetindeki Gıda Ağırlığı: Yüksek
                                     """
                             
                                     # 6. AI Sorgusu
@@ -1037,13 +1075,16 @@ def dashboard_modu():
                                         message_placeholder = st.empty()
                                         full_response = ""
                                         
-                                        with st.spinner("Veriler analiz ediliyor..."):
+                                        with st.spinner("Geçmiş veriler ve korelasyonlar taranıyor..."):
                                             try:
-                                                # Sistem Promptu
+                                                # System Prompt
                                                 system_instruction = f"""
                                                 Sen profesyonel bir veri analisti ve ekonomi asistanısın. 
-                                                Kullanıcının sorularını, sana sağlanan aşağıdaki "SİSTEM VERİLERİ"ne dayanarak cevapla.
-                                                Asla hayali veriler uydurma. Sadece elindeki veriyi yorumla.
+                                                
+                                                GÖREVİN:
+                                                Kullanıcının sorularını, sana sağlanan "SİSTEM VERİLERİ" ve özellikle "GEÇMİŞ DÖNEM İLİŞKİ ANALİZİ" kısmına dayanarak cevapla.
+                                                Eğer kullanıcı "hangi ürünler birlikte arttı" diye sorarsa, "İlişki Analizi" listesinden örnekler ver.
+                                                Hangi tarihlerde olduğu sorulursa, genel bir yorum yap (Örn: "Verilerimizdeki tarih aralığı boyunca bu ürünler yüksek korelasyon göstermiştir").
                                                 
                                                 VERİLER:
                                                 {context_data}
@@ -1054,14 +1095,15 @@ def dashboard_modu():
                                                 model_chat = genai.GenerativeModel('gemini-2.5-flash')
                                                 response = model_chat.generate_content(system_instruction)
                                                 
-                                                # Cevabı yazdır
                                                 full_response = response.text
                                                 message_placeholder.markdown(full_response)
                                                 
                                             except Exception as e:
-                                                full_response = f"Üzgünüm, bir bağlantı hatası oluştu: {str(e)}"
+                                                full_response = f"Hata: {str(e)}"
                                                 message_placeholder.error(full_response)
                                         
+                                        st.session_state.messages.append({"role": "assistant", "content": full_response})
+                                                                    
                                         # 7. AI Cevabını Geçmişe Kaydet
                                         st.session_state.messages.append({"role": "assistant", "content": full_response})
 
@@ -1080,6 +1122,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
