@@ -599,28 +599,20 @@ def dashboard_modu():
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # --- YENİ ÇÖZÜM: Mini Symbol Overview (Büyük Boy) ---
-            # O yazı sorunu olan "Symbol Info" yerine bunu kullanıyoruz.
-            # Hem fiyat, hem grafik var, hem de o çirkin yazı yok.
+            # --- YENİ ÇÖZÜM: LOGO İÇİN "Symbol Info" + GENİŞ ALAN ---
             
             combined_widget_html = f"""
             <div style="display: flex; flex-direction: column; gap: 20px;">
                 
-                <div class="tradingview-widget-container">
+                <div class="tradingview-widget-container" style="height: 250px; width: 100%;">
                     <div class="tradingview-widget-container__widget"></div>
-                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
                     {{
                     "symbol": "BIST:{arama}",
                     "width": "100%",
-                    "height": 220,
                     "locale": "tr",
-                    "dateRange": "12M",
                     "colorTheme": "dark",
-                    "isTransparent": true,
-                    "autosize": false,
-                    "largeChartUrl": "",
-                    "chartOnly": false,
-                    "noTimeScale": false
+                    "isTransparent": true
                     }}
                     </script>
                 </div>
@@ -645,8 +637,8 @@ def dashboard_modu():
             </div>
             """
             
-            # Toplam yükseklik
-            components.html(combined_widget_html, height=650)
+            # Toplam yükseklik (250 + 400 + boşluklar)
+            components.html(combined_widget_html, height=680)
             
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
                 st.rerun()
@@ -1136,6 +1128,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
