@@ -511,11 +511,12 @@ def html_isleyici(log_callback):
 
 
 # --- DASHBOARD MODU (TEMİZLENMİŞ KART VERSİYONU) ---
-# --- DASHBOARD MODU (STABİL, LOGOLU VERSİYON) ---
+# --- DASHBOARD MODU (EN STABİL - MİNİ GRAFİKLİ VERSİYON) ---
 def dashboard_modu():
     # --- 1. GEREKLİ TANIMLAMALAR ---
     bugun = datetime.now().strftime("%Y-%m-%d")
     
+    # Renk Paleti (Hata almamak için)
     colors = {
         "bg": "#0E1117",
         "sidebar": "#262730",
@@ -526,6 +527,7 @@ def dashboard_modu():
         "border_color": "#414141"
     }
 
+    # Verileri Çek
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
@@ -533,7 +535,7 @@ def dashboard_modu():
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
 
-        # --- ARAMA KUTUSU İÇİN ÖZEL CSS (KUTU GÖRÜNSÜN DİYE) ---
+        # --- ARAMA KUTUSU GÖRÜNÜRLÜĞÜ İÇİN CSS ---
         st.markdown("""
         <style>
             section[data-testid="stSidebar"] .stTextInput input {
@@ -550,7 +552,7 @@ def dashboard_modu():
         </style>
         """, unsafe_allow_html=True)
         
-        # --- CANLI KURLAR ---
+        # --- 1. BÖLÜM: CANLI KURLAR ---
         tv_theme = "dark"
         symbols = [
             {"s": "FX:USDTRY", "d": "Dolar / TL"},
@@ -588,41 +590,37 @@ def dashboard_modu():
         
         st.markdown("---")
 
-        # --- ARAMA MOTORU ---
+        # --- 2. BÖLÜM: ARAMA MOTORU ---
         st.markdown("### 🔍 HİSSE ARA & LİSTE")
         
-        arama = st.text_input("HİSSE KODU GİRİN:", placeholder="Örn: VAKBN, THYAO...", key="sidebar_arama").upper().strip()
+        arama = st.text_input("HİSSE KODU GİRİN:", placeholder="Örn: GARAN, THYAO...", key="sidebar_arama").upper().strip()
         
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # --- AGRESİF MASKELEME KODU ---
-            # 1. components.html yüksekliğini 160 yaptık (Sadece bu kadar yer kaplasın).
-            # 2. Dış Kutu (Wrapper) yüksekliğini 150px yaptık ve taşanı gizledik.
-            # 3. Widget (İçerik) yüksekliğini 500px yaptık! (ÖNEMLİ: Widget kendini rahat hissetsin, hata moduna girmesin)
+            # --- STABİL ÇÖZÜM: Mini Symbol Overview ---
+            # Logo yok ama Fiyat + Grafik var. Yazı sorunu yok.
             
             combined_widget_html = f"""
             <div style="display: flex; flex-direction: column; gap: 20px;">
                 
-                <div style="
-                    height: 150px;              /* Görünen pencere boyutu */
-                    overflow: hidden;           /* Pencereden taşan her şeyi (o yazıyı) yok et */
-                    border-radius: 12px; 
-                    border: 1px solid #414141;
-                    position: relative;
-                ">
-                    <div class="tradingview-widget-container" style="height: 500px; width: 100%;">
-                        <div class="tradingview-widget-container__widget"></div>
-                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
-                        {{
-                        "symbol": "BIST:{arama}",
-                        "width": "100%",
-                        "locale": "tr",
-                        "colorTheme": "dark",
-                        "isTransparent": true
-                        }}
-                        </script>
-                    </div>
+                <div class="tradingview-widget-container">
+                    <div class="tradingview-widget-container__widget"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+                    {{
+                    "symbol": "BIST:{arama}",
+                    "width": "100%",
+                    "height": 220,
+                    "locale": "tr",
+                    "dateRange": "12M",
+                    "colorTheme": "dark",
+                    "isTransparent": true,
+                    "autosize": false,
+                    "largeChartUrl": "",
+                    "chartOnly": false,
+                    "noTimeScale": false
+                    }}
+                    </script>
                 </div>
 
                 <div class="tradingview-widget-container" style="height: 400px; width: 100%;">
@@ -644,14 +642,14 @@ def dashboard_modu():
             </div>
             """
             
-            # Streamlit'e diyoruz ki: Bu bloğa toplam 600px yer ayır.
-            components.html(combined_widget_html, height=600)
+            # Toplam yükseklik
+            components.html(combined_widget_html, height=650)
             
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
                 st.rerun()
 
         else:
-            # Liste Görünümü (Screener)
+            # Arama Yoksa: Liste (Screener)
             all_stocks_html = """
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
@@ -1135,6 +1133,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
