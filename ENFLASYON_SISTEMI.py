@@ -24,6 +24,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
+import streamlit.components.v1 as components  # EKLENDİ
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
 st.set_page_config(
@@ -156,35 +157,6 @@ apply_theme()
 
 if "gemini" in st.secrets:
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
-
-
-# --- KUR ÇEKME FONKSİYONU ---
-@st.cache_data(ttl=1800)
-def get_exchange_rates():
-    rates = {"USD": 0.0, "EUR": 0.0, "GA": 0.0}
-    try:
-        url_tcmb = "https://www.tcmb.gov.tr/kurlar/today.xml"
-        res = requests.get(url_tcmb, timeout=5)
-        soup = BeautifulSoup(res.content, 'xml')
-        rates["USD"] = float(soup.find(attrs={"CurrencyCode": "USD"}).BanknoteSelling.text)
-        rates["EUR"] = float(soup.find(attrs={"CurrencyCode": "EUR"}).BanknoteSelling.text)
-    except:
-        pass
-
-    try:
-        url_gold = "https://bigpara.hurriyet.com.tr/altin/gram-altin-fiyati/"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        res_gold = requests.get(url_gold, headers=headers, timeout=5)
-        soup_gold = BeautifulSoup(res_gold.content, 'html.parser')
-        fiyat_text = soup_gold.select_one("span.value").text
-        temiz_fiyat = fiyat_text.replace(".", "").replace(",", ".").strip()
-        rates["GA"] = float(temiz_fiyat)
-    except Exception as e:
-        if rates["USD"] > 0:
-            rates["GA"] = (2700 * rates["USD"]) / 31.10
-    return rates
-
 
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
@@ -385,6 +357,7 @@ def get_official_inflation():
     except Exception as e:
         return None, str(e)
 
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def predict_inflation_prophet(df_trend):
     try:
@@ -541,33 +514,63 @@ def dashboard_modu():
 
     # --- SIDEBAR ---
     with st.sidebar:
-        # 1. PİYASA GÖSTERGELERİ
-        try:
-            rates = get_exchange_rates()
-            st.markdown(
-                "<h3 style='color:#1e293b; font-size:14px; margin-bottom:10px; padding-left:5px;'>💱 PİYASA GÖSTERGELERİ</h3>",
-                unsafe_allow_html=True)
+        # 1. PİYASA GÖSTERGELERİ (TRADINGVIEW WIDGET)
+        st.markdown(
+            "<h3 style='color:#1e293b; font-size:14px; margin-bottom:10px; padding-left:5px;'>💱 PİYASA ÖZETİ (CANLI)</h3>",
+            unsafe_allow_html=True)
 
-            st.markdown(f"""
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
-                    <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:10px; text-align:center;">
-                        <div style="font-size:10px; color:#64748b; font-weight:700;">USD/TRY</div>
-                        <div style="font-size:15px; color:#0f172a; font-weight:800;">{rates['USD']:.2f} ₺</div>
-                    </div>
-                    <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:10px; text-align:center;">
-                        <div style="font-size:10px; color:#64748b; font-weight:700;">EUR/TRY</div>
-                        <div style="font-size:15px; color:#0f172a; font-weight:800;">{rates['EUR']:.2f} ₺</div>
-                    </div>
-                </div>
-                <div style="background:white; border:1px solid #cbd5e1; border-radius:8px; padding:10px; text-align:center;">
-                    <div style="font-size:10px; color:#64748b; font-weight:700;">GRAM ALTIN </div>
-                    <div style="font-size:15px; color:#f59e0b; font-weight:800;">{rates['GA']:.2f} ₺</div>
-                </div>
-                <div style="text-align:right; font-size:9px; color:#94a3b8; margin-top:5px; margin-bottom:20px;">Veriler: TCMB</div>
-                <div style="border-bottom:1px solid #e2e8f0; margin-bottom:20px;"></div>
-                """, unsafe_allow_html=True)
-        except:
-            pass
+        # Tema ayarına göre widget rengini belirle
+        tv_theme = "dark" if st.session_state.theme == 'dark' else "light"
+
+        # TradingView Widget HTML Kodu
+        tradingview_html = f"""
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
+          {{
+          "colorTheme": "{tv_theme}",
+          "dateRange": "12M",
+          "showChart": false,
+          "locale": "tr",
+          "largeChartUrl": "",
+          "isTransparent": true,
+          "showSymbolLogo": true,
+          "showFloatingTooltip": false,
+          "width": "100%",
+          "height": "280",
+          "tabs": [
+            {{
+              "title": "Piyasa",
+              "symbols": [
+                {{
+                  "s": "FX:USDTRY",
+                  "d": "USD / TRY"
+                }},
+                {{
+                  "s": "FX:EURTRY",
+                  "d": "EUR / TRY"
+                }},
+                {{
+                  "s": "FX_IDC:XAUTRYG",
+                  "d": "Gram Altın"
+                }},
+                {{
+                  "s": "BIST:XU100",
+                  "d": "BIST 100"
+                }}
+              ],
+              "originalTitle": "Indices"
+            }}
+          ]
+        }}
+          </script>
+        </div>
+        """
+
+        # HTML'i Sidebar'a gömüyoruz
+        components.html(tradingview_html, height=280)
+
+        st.markdown("<div style='border-bottom:1px solid #e2e8f0; margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # --- CSS: Global Styles ---
     st.markdown("""
@@ -761,7 +764,8 @@ def dashboard_modu():
                 with c2:
                     kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
                 with c3:
-                    kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
+                    kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı",
+                             "#8b5cf6",
                              "card-purple")
                 with c4:
                     kpi_card("En Yüksek Risk (24s)", f"{daily_risk_name[:15]}", f"%{daily_risk_rate * 100:.1f} Artış",
@@ -852,8 +856,8 @@ def dashboard_modu():
                                        line=dict(color='#f59e0b', dash='dot')))
                         fig_main.add_trace(go.Scatter(x=future_only['ds'].tolist() + future_only['ds'].tolist()[::-1],
                                                       y=future_only['yhat_upper'].tolist() + future_only[
-                                                          'yhat_lower'].tolist()[
-                                                          ::-1], fill='toself',
+                                                                                                 'yhat_lower'].tolist()[
+                                                                                             ::-1], fill='toself',
                                                       fillcolor='rgba(245, 158, 11, 0.2)',
                                                       line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip",
                                                       showlegend=False))
