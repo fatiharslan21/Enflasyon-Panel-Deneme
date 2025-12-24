@@ -599,27 +599,30 @@ def dashboard_modu():
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # --- HİLE BURADA ---
-            # 1. Dış Kutu (Wrapper): Sadece 120px yüksekliğinde. Taşanı gizle (overflow: hidden).
-            # 2. İç Widget: Yüksekliği "1000" yaptık! Yazıyı en dibe ittik.
-            # Sonuç: Yazı 1000. pikselde kaldığı için, 120px'lik pencerede asla görünemez.
+            # --- YENİ ÇÖZÜM: Mini Symbol Overview (Büyük Boy) ---
+            # O yazı sorunu olan "Symbol Info" yerine bunu kullanıyoruz.
+            # Hem fiyat, hem grafik var, hem de o çirkin yazı yok.
             
             combined_widget_html = f"""
-            <div style="display: flex; flex-direction: column; gap: 15px;">
+            <div style="display: flex; flex-direction: column; gap: 20px;">
                 
-                <div style="height: 120px; overflow: hidden; border-radius: 12px; border: 1px solid #414141;">
-                    <div class="tradingview-widget-container" style="height: 1000px; width: 100%;">
-                        <div class="tradingview-widget-container__widget"></div>
-                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
-                        {{
-                        "symbol": "BIST:{arama}",
-                        "width": "100%",
-                        "locale": "tr",
-                        "colorTheme": "dark",
-                        "isTransparent": true
-                        }}
-                        </script>
-                    </div>
+                <div class="tradingview-widget-container">
+                    <div class="tradingview-widget-container__widget"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+                    {{
+                    "symbol": "BIST:{arama}",
+                    "width": "100%",
+                    "height": 220,
+                    "locale": "tr",
+                    "dateRange": "12M",
+                    "colorTheme": "dark",
+                    "isTransparent": true,
+                    "autosize": false,
+                    "largeChartUrl": "",
+                    "chartOnly": false,
+                    "noTimeScale": false
+                    }}
+                    </script>
                 </div>
 
                 <div class="tradingview-widget-container" style="height: 400px; width: 100%;">
@@ -638,11 +641,12 @@ def dashboard_modu():
                     }}
                     </script>
                 </div>
+                
             </div>
             """
             
-            # Toplam yükseklik (120 + 400 + boşluklar)
-            components.html(combined_widget_html, height=560)
+            # Toplam yükseklik
+            components.html(combined_widget_html, height=650)
             
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
                 st.rerun()
@@ -1132,6 +1136,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
