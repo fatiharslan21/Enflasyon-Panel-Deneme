@@ -591,7 +591,7 @@ def dashboard_modu():
         # --- ARAMA MOTORU ---
         st.markdown("### 🔍 HİSSE ARA & LİSTE")
         
-        arama = st.text_input("HİSSE KODU GİRİN:", placeholder="Örn: GARAN, THYAO...", key="sidebar_arama").upper().strip()
+        arama = st.text_input("HİSSE KODU GİRİN:", placeholder="Örn: VAKBN, THYAO...", key="sidebar_arama").upper().strip()
         
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
@@ -1126,6 +1126,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
