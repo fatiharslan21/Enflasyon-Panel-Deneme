@@ -514,7 +514,6 @@ def html_isleyici(log_callback):
 
 
 # --- DASHBOARD MODU ---
-# --- DASHBOARD MODU ---
 def dashboard_modu():
     bugun = datetime.now().strftime("%Y-%m-%d")
     df_f = github_excel_oku(FIYAT_DOSYASI)
@@ -522,7 +521,7 @@ def dashboard_modu():
 
     # --- SIDEBAR ---
     with st.sidebar:
-        # 1. CANLI PİYASA KARTLARI (SADE GÖRÜNÜM - SADECE FİYAT VE DEĞİŞİM)
+        # 1. CANLI PİYASA KARTLARI (KART GÖRÜNÜMÜ)
         st.markdown(
             "<h3 style='color:#1e293b; font-size:14px; margin-bottom:10px; padding-left:5px;'>💎 CANLI PİYASA</h3>",
             unsafe_allow_html=True)
@@ -530,7 +529,8 @@ def dashboard_modu():
         # Tema ayarına göre widget rengini belirle
         tv_theme = "dark" if st.session_state.theme == 'dark' else "light"
         
-        # Gösterilecek Semboller
+        # Gösterilecek Semboller Listesi
+        # Not: Sembol kodları TradingView formatındadır.
         symbols = [
             {"s": "FX:USDTRY", "d": "Dolar / TL"},
             {"s": "FX:EURTRY", "d": "Euro / TL"},
@@ -539,29 +539,34 @@ def dashboard_modu():
             {"s": "BINANCE:BTCUSDT", "d": "Bitcoin ($)"}
         ]
         
-        # HTML Oluşturucu: "Single Quote" widget'ı grafik içermez, sadece veriyi net gösterir.
+        # HTML Oluşturucu: Her sembol için ayrı bir "Mini Chart" oluşturup alt alta dizer.
         widgets_html = ""
         for sym in symbols:
             widgets_html += f"""
-            <div class="tradingview-widget-container" style="margin-bottom: 10px;">
+            <div class="tradingview-widget-container" style="margin-bottom: 15px;">
               <div class="tradingview-widget-container__widget"></div>
-              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
+              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
               {{
               "symbol": "{sym['s']}",
               "width": "100%",
+              "height": 120,
+              "locale": "tr",
+              "dateRange": "12M",
               "colorTheme": "{tv_theme}",
               "isTransparent": true,
-              "locale": "tr",
-              "largeChartUrl": ""
+              "autosize": true,
+              "largeChartUrl": "",
+              "chartOnly": false,
+              "noTimeScale": true
               }}
               </script>
             </div>
             """
         
-        # Yükseklik hesaplaması: Grafikler kalktığı için kartlar çok daha kısa.
-        # Her kart yaklaşık 50-60px yer kaplar.
-        total_height = len(symbols) * 80
-        components.html(f'<div style="display:flex; flex-direction:column;">{widgets_html}</div>', height=total_height)
+        # Tüm kartları tek bir HTML bloğu olarak sidebar'a gömüyoruz
+        # Yükseklik = (Kart Sayısı * Kart Yüksekliği) + Boşluklar
+        total_height = len(symbols) * 135 
+        components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
         
         st.markdown("<div style='border-bottom:1px solid #e2e8f0; margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
@@ -1003,4 +1008,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
