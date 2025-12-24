@@ -596,14 +596,14 @@ def dashboard_modu():
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # --- BURASI ESKİ STABİL HALİNE DÖNDÜ ---
-            # Hile hurda yok. height=200 verdik ki rahat sığsın.
-            # Logo kesin görünür. Yazı altta kalır ama ibreye binmez.
+            # --- YENİ ÇÖZÜM: YÜKSEKLİK AYARIYLA YAZIYI DİBE İTME ---
+            # Üstteki widget'a 300px yükseklik verdik. 
+            # Bu sayede TradingView o yazıyı verilerin üstüne değil, kartın en dibine basar.
             
             combined_widget_html = f"""
-            <div style="display: flex; flex-direction: column; gap: 20px;">
+            <div style="display: flex; flex-direction: column; gap: 0px;">
                 
-                <div class="tradingview-widget-container">
+                <div class="tradingview-widget-container" style="height: 300px; width: 100%;">
                     <div class="tradingview-widget-container__widget"></div>
                     <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
                     {{
@@ -616,7 +616,7 @@ def dashboard_modu():
                     </script>
                 </div>
 
-                <div class="tradingview-widget-container" style="height: 400px; width: 100%;">
+                <div class="tradingview-widget-container" style="height: 400px; width: 100%; margin-top: -30px;">
                     <div class="tradingview-widget-container__widget"></div>
                     <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
                     {{
@@ -635,7 +635,7 @@ def dashboard_modu():
             </div>
             """
             
-            # Yüksekliği artırdık ki kesilme olmasın
+            # Toplam yükseklik (Rahat sığması için 700px)
             components.html(combined_widget_html, height=700)
             
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
@@ -1126,6 +1126,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
