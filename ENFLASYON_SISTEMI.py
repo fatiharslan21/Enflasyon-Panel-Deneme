@@ -568,25 +568,28 @@ def dashboard_modu():
         st.markdown("### 🇹🇷 BIST TÜM PİYASA")
         
         # Tüm Türkiye Piyasası Widget'ı
+        # DİKKAT: "width": 550 yaptık ki sığmasın ve altta kaydırma çubuğu çıksın.
         all_stocks_html = """
-        <div class="tradingview-widget-container">
-          <div class="tradingview-widget-container__widget"></div>
-          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
-          {
-          "width": "100%",
-          "height": 600,
-          "defaultColumn": "overview",
-          "defaultScreen": "general",
-          "market": "turkey",
-          "showToolbar": true,
-          "colorTheme": "dark",
-          "locale": "tr",
-          "isTransparent": true
-          }
-          </script>
+        <div style="overflow-x: auto; padding-bottom: 10px;"> <div class="tradingview-widget-container">
+              <div class="tradingview-widget-container__widget"></div>
+              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+              {
+              "width": 550, 
+              "height": 600,
+              "defaultColumn": "overview",
+              "defaultScreen": "general",
+              "market": "turkey",
+              "showToolbar": true,
+              "colorTheme": "dark",
+              "locale": "tr",
+              "isTransparent": true
+              }
+              </script>
+            </div>
         </div>
         """
-        components.html(all_stocks_html, height=600)
+        # height=620 yaptık ki alttaki kaydırma çubuğu kesilmesin
+        components.html(all_stocks_html, height=620)
 
     # --- CSS: Global Styles ---
     st.markdown("""
@@ -1047,6 +1050,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
