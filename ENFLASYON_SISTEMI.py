@@ -596,23 +596,22 @@ def dashboard_modu():
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # --- CERRAHİ MÜDAHALE KODU ---
-            # Mantık: 
-            # 1. Widget'a "height: 600" veriyoruz. Yazı en dibe, 600. piksele gidiyor.
-            # 2. Dış Kutuyu "height: 150" yapıp "overflow: hidden" diyoruz.
-            # 3. Sonuç: Sadece üstteki 150px (Logo+Fiyat) görünüyor, alttaki hata yazısı kesiliyor.
+            # --- AGRESİF MASKELEME KODU ---
+            # 1. components.html yüksekliğini 160 yaptık (Sadece bu kadar yer kaplasın).
+            # 2. Dış Kutu (Wrapper) yüksekliğini 150px yaptık ve taşanı gizledik.
+            # 3. Widget (İçerik) yüksekliğini 500px yaptık! (ÖNEMLİ: Widget kendini rahat hissetsin, hata moduna girmesin)
             
             combined_widget_html = f"""
             <div style="display: flex; flex-direction: column; gap: 20px;">
                 
                 <div style="
-                    height: 150px;              /* Görünen Yükseklik */
-                    overflow: hidden;           /* Taşan kısmı (Hata yazısını) GİZLE */
+                    height: 150px;              /* Görünen pencere boyutu */
+                    overflow: hidden;           /* Pencereden taşan her şeyi (o yazıyı) yok et */
                     border-radius: 12px; 
                     border: 1px solid #414141;
                     position: relative;
                 ">
-                    <div class="tradingview-widget-container" style="height: 600px; width: 100%; margin-top: 0px;">
+                    <div class="tradingview-widget-container" style="height: 500px; width: 100%;">
                         <div class="tradingview-widget-container__widget"></div>
                         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
                         {{
@@ -645,7 +644,7 @@ def dashboard_modu():
             </div>
             """
             
-            # Toplam yükseklik (150 + 400 + boşluklar)
+            # Streamlit'e diyoruz ki: Bu bloğa toplam 600px yer ayır.
             components.html(combined_widget_html, height=600)
             
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
@@ -1136,6 +1135,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
