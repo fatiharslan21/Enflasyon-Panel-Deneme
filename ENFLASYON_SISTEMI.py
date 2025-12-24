@@ -511,13 +511,13 @@ def html_isleyici(log_callback):
 
 
 # --- DASHBOARD MODU ---
+# --- DASHBOARD MODU ---
 def dashboard_modu():
     bugun = datetime.now().strftime("%Y-%m-%d")
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # --- SIDEBAR (SADELEŞTİRİLDİ, SADECE GRAFİKLER) ---
-    # --- SIDEBAR (DÜZELTİLMİŞ VE TEK PARÇA HALİ) ---
+    # --- SIDEBAR (DÜZELTİLMİŞ: TEK PARÇA & SIRALI) ---
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
         
@@ -587,12 +587,6 @@ def dashboard_modu():
         </div>
         """
         components.html(all_stocks_html, height=600)
-        
-        # Tüm kartları tek bir HTML bloğu olarak sidebar'a gömüyoruz
-        total_height = len(symbols) * 135 
-        components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
-        
-        st.markdown("<div style='border-bottom:1px solid #e2e8f0; margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
     # --- CSS: Global Styles ---
     st.markdown("""
@@ -794,7 +788,7 @@ def dashboard_modu():
                              "card-orange", is_long_text=True)
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- SEKMELER (DÜZENLENDİ: PİYASA VERİLERİ KALDIRILDI) ---
+                # --- SEKMELER ---
                 t_analiz, t_istatistik, t_harita, t_liste, t_haber, t_rapor = st.tabs(
                     ["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📋 LİSTE", "📰 HABERLER", "📝 RAPOR"])
 
@@ -1046,7 +1040,6 @@ def dashboard_modu():
         '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">VALIDASYON MUDURLUGU © 2025</div>',
         unsafe_allow_html=True)
 
-
 # --- 5. ANA GİRİŞ SİSTEMİ ---
 def main():
     dashboard_modu()
@@ -1054,6 +1047,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
