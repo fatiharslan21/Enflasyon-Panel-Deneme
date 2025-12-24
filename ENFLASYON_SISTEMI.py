@@ -512,19 +512,14 @@ def html_isleyici(log_callback):
 
 # --- DASHBOARD MODU ---
 # --- DASHBOARD MODU ---
-def dashboard_modu():
-    bugun = datetime.now().strftime("%Y-%m-%d")
-    df_f = github_excel_oku(FIYAT_DOSYASI)
-    df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
-
-    # --- SIDEBAR (DÜZELTİLMİŞ: TEK PARÇA & SIRALI) ---
+# --- SIDEBAR (TAMAMEN DÜZELTİLMİŞ & ARAMA KUTUSU GÖRÜNÜR) ---
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
         
-        # --- 1. KISIM: CANLI DÖVİZ & EMTIA KARTLARI ---
+        # ---------------------------------------------------------
+        # 1. BÖLÜM: DÖVİZ & EMTİA (Sabit Kartlar)
+        # ---------------------------------------------------------
         tv_theme = "dark"
-        
-        # Gösterilecek Semboller
         symbols = [
             {"s": "FX:USDTRY", "d": "Dolar / TL"},
             {"s": "FX:EURTRY", "d": "Euro / TL"},
@@ -533,17 +528,16 @@ def dashboard_modu():
             {"s": "BINANCE:BTCUSDT", "d": "Bitcoin ($)"}
         ]
         
-        # HTML Oluştur (Döngü sadece burada çalışacak)
         widgets_html = ""
         for sym in symbols:
             widgets_html += f"""
-            <div class="tradingview-widget-container" style="margin-bottom: 15px;">
+            <div class="tradingview-widget-container" style="margin-bottom: 10px;">
               <div class="tradingview-widget-container__widget"></div>
               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
               {{
               "symbol": "{sym['s']}",
               "width": "100%",
-              "height": 120,
+              "height": 110,
               "locale": "tr",
               "dateRange": "12M",
               "colorTheme": "{tv_theme}",
@@ -557,24 +551,28 @@ def dashboard_modu():
             </div>
             """
         
-        # Kartları tek seferde ekrana bas
-        total_height = len(symbols) * 135 
+        # HTML Kartları Bas
+        total_height = len(symbols) * 125 
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
         
-        # Ayırıcı Çizgi
-        st.markdown("<div style='border-bottom:1px solid #e2e8f0; margin-bottom:20px;'></div>", unsafe_allow_html=True)
+        # --- AYIRICI ÇİZGİ (Kutunun üstte kalmasını önler) ---
+        st.markdown("<hr style='margin-top: 0; margin-bottom: 20px; border-top: 1px solid #414141;'>", unsafe_allow_html=True)
 
-        # --- 2. KISIM: AKILLI HİSSE ARAMA VE LİSTE ---
-        st.markdown("### 🇹🇷 BIST TÜM PİYASA")
-
-        # 1. Arama Kutusu
-        arama = st.text_input("🔍 Hisse Kodu Yaz (Örn: THYAO)", placeholder="Hisse ara...").upper().strip()
+        # ---------------------------------------------------------
+        # 2. BÖLÜM: AKILLI HİSSE ARAMA & LİSTE
+        # ---------------------------------------------------------
+        st.markdown("### 🔍 HİSSE ARA & LİSTE")
+        
+        # Arama Kutusunu Buraya Koyuyoruz (Görünür olması için label ekledim)
+        arama = st.text_input("Hisse Kodu (Örn: THYAO)", placeholder="Buraya yaz...", key="hisse_arama").upper().strip()
+        
+        st.markdown("<br>", unsafe_allow_html=True) # Hafif boşluk bırak
 
         if arama:
-            # --- EĞER ARAMA YAPILDIYSA: TEK HİSSE KARTI GÖSTER ---
-            st.info(f"🎯 **{arama}** Getiriliyor...")
+            # --- DURUM A: ARAMA YAPILDIYSA (TEK KART + ANALİZ) ---
+            st.info(f"🎯 **{arama}** Analiz Ediliyor...")
             
-            # TradingView Symbol Info Widget (Detaylı Tek Kart)
+            # 1. Fiyat Kartı
             single_stock_html = f"""
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
@@ -588,7 +586,11 @@ def dashboard_modu():
               }}
               </script>
             </div>
-            <br>
+            """
+            components.html(single_stock_html, height=200)
+
+            # 2. Teknik İbre (Al/Sat)
+            technical_html = f"""
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
@@ -596,7 +598,7 @@ def dashboard_modu():
               "interval": "1D",
               "width": "100%",
               "isTransparent": true,
-              "height": 450,
+              "height": 400,
               "symbol": "BIST:{arama}",
               "showIntervalTabs": true,
               "displayMode": "single",
@@ -606,13 +608,15 @@ def dashboard_modu():
               </script>
             </div>
             """
-            components.html(single_stock_html, height=600)
-            
-            if st.button("⬅️ Listeye Dön"):
+            components.html(technical_html, height=410)
+
+            # Geri Dön Butonu
+            if st.button("⬅️ Listeye Dön", type="primary"):
                 st.rerun()
 
         else:
-            # --- EĞER ARAMA YOKSA: TÜM LİSTEYİ (SCREENER) GÖSTER ---
+            # --- DURUM B: ARAMA YOKSA (TÜM LİSTE) ---
+            # Sade görünüm (Toolbar kapalı)
             all_stocks_html = """
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
@@ -1092,6 +1096,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
