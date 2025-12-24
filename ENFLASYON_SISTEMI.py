@@ -494,7 +494,7 @@ def dashboard_modu():
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
     # --- SIDEBAR (SADELEŞTİRİLDİ, SADECE GRAFİKLER) ---
-        with st.sidebar:
+    with st.sidebar:
         st.title("💎 CANLI PİYASA")
         # 1. CANLI PİYASA KARTLARI (KART GÖRÜNÜMÜ)
         
@@ -1000,5 +1000,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
