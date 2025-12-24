@@ -511,12 +511,12 @@ def html_isleyici(log_callback):
 
 
 # --- DASHBOARD MODU (TEMİZLENMİŞ KART VERSİYONU) ---
-# --- DASHBOARD MODU (SON KARAR - LOGOLU VE DÜZENLİ) ---
+# --- DASHBOARD MODU (ORİJİNAL, SADE VE STABİL HALİ) ---
 def dashboard_modu():
     # --- 1. GEREKLİ TANIMLAMALAR ---
     bugun = datetime.now().strftime("%Y-%m-%d")
     
-    # Renk Paleti
+    # Renk Paleti (Hata almamak için)
     colors = {
         "bg": "#0E1117",
         "sidebar": "#262730",
@@ -534,25 +534,8 @@ def dashboard_modu():
     # --- 2. SIDEBAR (YAN MENÜ) ---
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
-
-        # --- ARAMA KUTUSU GÖRÜNÜRLÜĞÜ İÇİN CSS ---
-        st.markdown("""
-        <style>
-            section[data-testid="stSidebar"] .stTextInput input {
-                background-color: #ffffff !important;
-                color: #000000 !important;
-                border: 2px solid #3b82f6 !important;
-                font-weight: bold !important;
-            }
-            section[data-testid="stSidebar"] .stTextInput label {
-                color: #3b82f6 !important;
-                font-size: 14px !important;
-                font-weight: bold !important;
-            }
-        </style>
-        """, unsafe_allow_html=True)
         
-        # --- 1. BÖLÜM: CANLI KURLAR ---
+        # --- 1. KISIM: CANLI KURLAR (Dolar, Altın vb.) ---
         tv_theme = "dark"
         symbols = [
             {"s": "FX:USDTRY", "d": "Dolar / TL"},
@@ -585,90 +568,38 @@ def dashboard_modu():
             </div>
             """
         
+        # Kartları tek seferde bas (Kayma yapmaz)
         total_height = len(symbols) * 120
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
         
+        # Ayırıcı Çizgi
         st.markdown("---")
 
-        # --- 2. BÖLÜM: ARAMA MOTORU ---
-        st.markdown("### 🔍 HİSSE ARA & LİSTE")
+        # --- 2. KISIM: BIST TÜM PİYASA LİSTESİ ---
+        st.markdown("### 🇹🇷 BIST TÜM PİYASA")
         
-        arama = st.text_input("HİSSE KODU GİRİN:", placeholder="Örn: GARAN, THYAO...", key="sidebar_arama").upper().strip()
-        
-        if arama:
-            st.warning(f"🎯 **{arama}** ANALİZİ")
-            
-            # --- FİNAL ÇÖZÜM: YÜKSEKLİK AYARLI LOGOLU KART ---
-            # Hile yok, makaslama yok.
-            # height: 260px verdik. Bu sayede:
-            # 1. Logo ve Fiyat en üstte rahatça durur.
-            # 2. O uyarı yazısı en alta iner, kimseyi rahatsız etmez.
-            # 3. Logo kesin görünür (Hayalet olmaz).
-            
-            combined_widget_html = f"""
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                
-                <div class="tradingview-widget-container" style="height: 260px; width: 100%;">
-                    <div class="tradingview-widget-container__widget"></div>
-                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
-                    {{
-                    "symbol": "BIST:{arama}",
-                    "width": "100%",
-                    "locale": "tr",
-                    "colorTheme": "dark",
-                    "isTransparent": true
-                    }}
-                    </script>
-                </div>
+        # Arama kutusu YOK. Sadece akan liste var.
+        all_stocks_html = """
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+          {
+          "width": "100%",
+          "height": 600,
+          "defaultColumn": "overview",
+          "defaultScreen": "general",
+          "market": "turkey",
+          "showToolbar": false,
+          "colorTheme": "dark",
+          "locale": "tr",
+          "isTransparent": true
+          }
+          </script>
+        </div>
+        """
+        components.html(all_stocks_html, height=600)
 
-                <div class="tradingview-widget-container" style="height: 400px; width: 100%; margin-top: -40px;">
-                    <div class="tradingview-widget-container__widget"></div>
-                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
-                    {{
-                    "interval": "1D",
-                    "width": "100%",
-                    "isTransparent": true,
-                    "height": "400",
-                    "symbol": "BIST:{arama}",
-                    "showIntervalTabs": true,
-                    "displayMode": "single",
-                    "locale": "tr",
-                    "colorTheme": "dark"
-                    }}
-                    </script>
-                </div>
-            </div>
-            """
-            
-            # Toplam yükseklik (Rahat sığması için 700px)
-            components.html(combined_widget_html, height=700)
-            
-            if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
-                st.rerun()
-
-        else:
-            # Arama Yoksa: Liste (Screener)
-            all_stocks_html = """
-            <div class="tradingview-widget-container">
-              <div class="tradingview-widget-container__widget"></div>
-              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
-              {
-              "width": "100%",
-              "height": 600,
-              "defaultColumn": "overview",
-              "defaultScreen": "general",
-              "market": "turkey",
-              "showToolbar": false,
-              "colorTheme": "dark",
-              "locale": "tr",
-              "isTransparent": true
-              }
-              </script>
-            </div>
-            """
-            components.html(all_stocks_html, height=600)
-
-    # --- 3. ANA SAYFA TASARIM VE CSS (Değişmedi) ---
+    # --- 3. ANA SAYFA TASARIM VE CSS (Hata vermemesi için burada durmalı) ---
     st.markdown(f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -1131,6 +1062,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
