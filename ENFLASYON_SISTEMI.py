@@ -532,6 +532,7 @@ def dashboard_modu():
 
     # --- 2. SIDEBAR (YAN MENÜ) ---
     # --- SIDEBAR (LOGO VAR + YAZI GİZLENDİ) ---
+    # --- SIDEBAR (SONSUZ YÜKSEKLİK HİLESİYLE KESİN ÇÖZÜM) ---
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
 
@@ -598,16 +599,16 @@ def dashboard_modu():
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # --- MAKASLAMA OPERASYONU BURADA ---
-            # 1. Dış kutu (Outer Div): Yüksekliği 160px ile sınırlandırdık.
-            # 2. İç Widget: Yüksekliği 250px yaptık (Yazı altta kalsın diye).
-            # 3. overflow: hidden sayesinde alttaki yazı KESİLDİ.
+            # --- HİLE BURADA ---
+            # 1. Dış Kutu (Wrapper): Sadece 120px yüksekliğinde. Taşanı gizle (overflow: hidden).
+            # 2. İç Widget: Yüksekliği "1000" yaptık! Yazıyı en dibe ittik.
+            # Sonuç: Yazı 1000. pikselde kaldığı için, 120px'lik pencerede asla görünemez.
             
             combined_widget_html = f"""
             <div style="display: flex; flex-direction: column; gap: 15px;">
                 
-                <div style="height: 160px; overflow: hidden; border-radius: 12px; border: 1px solid #414141;">
-                    <div class="tradingview-widget-container" style="height: 250px; width: 100%;">
+                <div style="height: 120px; overflow: hidden; border-radius: 12px; border: 1px solid #414141;">
+                    <div class="tradingview-widget-container" style="height: 1000px; width: 100%;">
                         <div class="tradingview-widget-container__widget"></div>
                         <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
                         {{
@@ -640,8 +641,8 @@ def dashboard_modu():
             </div>
             """
             
-            # Toplam yükseklik (160 + 400 + boşluklar)
-            components.html(combined_widget_html, height=600)
+            # Toplam yükseklik (120 + 400 + boşluklar)
+            components.html(combined_widget_html, height=560)
             
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
                 st.rerun()
@@ -667,7 +668,7 @@ def dashboard_modu():
             </div>
             """
             components.html(all_stocks_html, height=600)
-
+            
     # --- 3. ANA SAYFA TASARIM VE CSS ---
     st.markdown(f"""
     <style>
@@ -1131,6 +1132,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
