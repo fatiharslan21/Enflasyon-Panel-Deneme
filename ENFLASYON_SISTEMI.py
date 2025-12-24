@@ -517,14 +517,14 @@ def dashboard_modu():
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
     # --- SIDEBAR (SADELEŞTİRİLDİ, SADECE GRAFİKLER) ---
-    # --- SIDEBAR (GÜNCELLENMİŞ HALİ) ---
+    # --- SIDEBAR (DÜZELTİLMİŞ VE TEK PARÇA HALİ) ---
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
         
-        # --- BÖLÜM 1: CANLI PİYASA KARTLARI (Dolar, Altın, BTC vb.) ---
+        # --- 1. KISIM: CANLI DÖVİZ & EMTIA KARTLARI ---
         tv_theme = "dark"
         
-        # Gösterilecek Semboller Listesi
+        # Gösterilecek Semboller
         symbols = [
             {"s": "FX:USDTRY", "d": "Dolar / TL"},
             {"s": "FX:EURTRY", "d": "Euro / TL"},
@@ -533,7 +533,7 @@ def dashboard_modu():
             {"s": "BINANCE:BTCUSDT", "d": "Bitcoin ($)"}
         ]
         
-        # HTML Oluşturucu
+        # HTML Oluştur (Döngü sadece burada çalışacak)
         widgets_html = ""
         for sym in symbols:
             widgets_html += f"""
@@ -557,16 +557,17 @@ def dashboard_modu():
             </div>
             """
         
-        # Kartları bas
+        # Kartları tek seferde ekrana bas
         total_height = len(symbols) * 135 
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
         
+        # Ayırıcı Çizgi
         st.markdown("<div style='border-bottom:1px solid #e2e8f0; margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-        # --- BÖLÜM 2: BIST TÜM PİYASA (YENİ EKLENEN KISIM) ---
+        # --- 2. KISIM: BIST TÜM HİSSELER (SCREENER) ---
         st.markdown("### 🇹🇷 BIST TÜM PİYASA")
         
-        # TradingView Screener Widget (Tüm Türkiye Piyasası)
+        # Tüm Türkiye Piyasası Widget'ı
         all_stocks_html = """
         <div class="tradingview-widget-container">
           <div class="tradingview-widget-container__widget"></div>
@@ -1053,6 +1054,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
