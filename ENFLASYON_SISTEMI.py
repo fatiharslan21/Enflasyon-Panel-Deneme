@@ -596,27 +596,37 @@ def dashboard_modu():
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # --- YENİ ÇÖZÜM: YÜKSEKLİK AYARIYLA YAZIYI DİBE İTME ---
-            # Üstteki widget'a 300px yükseklik verdik. 
-            # Bu sayede TradingView o yazıyı verilerin üstüne değil, kartın en dibine basar.
+            # --- CERRAHİ MÜDAHALE KODU ---
+            # Mantık: 
+            # 1. Widget'a "height: 600" veriyoruz. Yazı en dibe, 600. piksele gidiyor.
+            # 2. Dış Kutuyu "height: 150" yapıp "overflow: hidden" diyoruz.
+            # 3. Sonuç: Sadece üstteki 150px (Logo+Fiyat) görünüyor, alttaki hata yazısı kesiliyor.
             
             combined_widget_html = f"""
-            <div style="display: flex; flex-direction: column; gap: 0px;">
+            <div style="display: flex; flex-direction: column; gap: 20px;">
                 
-                <div class="tradingview-widget-container" style="height: 300px; width: 100%;">
-                    <div class="tradingview-widget-container__widget"></div>
-                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
-                    {{
-                    "symbol": "BIST:{arama}",
-                    "width": "100%",
-                    "locale": "tr",
-                    "colorTheme": "dark",
-                    "isTransparent": true
-                    }}
-                    </script>
+                <div style="
+                    height: 150px;              /* Görünen Yükseklik */
+                    overflow: hidden;           /* Taşan kısmı (Hata yazısını) GİZLE */
+                    border-radius: 12px; 
+                    border: 1px solid #414141;
+                    position: relative;
+                ">
+                    <div class="tradingview-widget-container" style="height: 600px; width: 100%; margin-top: 0px;">
+                        <div class="tradingview-widget-container__widget"></div>
+                        <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
+                        {{
+                        "symbol": "BIST:{arama}",
+                        "width": "100%",
+                        "locale": "tr",
+                        "colorTheme": "dark",
+                        "isTransparent": true
+                        }}
+                        </script>
+                    </div>
                 </div>
 
-                <div class="tradingview-widget-container" style="height: 400px; width: 100%; margin-top: -30px;">
+                <div class="tradingview-widget-container" style="height: 400px; width: 100%;">
                     <div class="tradingview-widget-container__widget"></div>
                     <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
                     {{
@@ -635,8 +645,8 @@ def dashboard_modu():
             </div>
             """
             
-            # Toplam yükseklik (Rahat sığması için 700px)
-            components.html(combined_widget_html, height=700)
+            # Toplam yükseklik (150 + 400 + boşluklar)
+            components.html(combined_widget_html, height=600)
             
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
                 st.rerun()
@@ -1126,6 +1136,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
