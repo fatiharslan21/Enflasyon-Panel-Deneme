@@ -510,7 +510,7 @@ def html_isleyici(log_callback):
         return f"Hata: {str(e)}"
 
 
-# --- DASHBOARD MODU (GRAFİK HATASI GİDERİLMİŞ VERSİYON) ---
+# --- DASHBOARD MODU (TEMİZLENMİŞ KART VERSİYONU) ---
 def dashboard_modu():
     # --- 1. GEREKLİ TANIMLAMALAR ---
     bugun = datetime.now().strftime("%Y-%m-%d")
@@ -534,7 +534,7 @@ def dashboard_modu():
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
 
-        # --- ARAMA KUTUSU İÇİN ÖZEL CSS ---
+        # --- ARAMA KUTUSU CSS ---
         st.markdown("""
         <style>
             section[data-testid="stSidebar"] .stTextInput input {
@@ -589,7 +589,7 @@ def dashboard_modu():
         
         st.markdown("---")
 
-        # --- ARAMA MOTORU VE LİSTE ---
+        # --- ARAMA MOTORU ---
         st.markdown("### 🔍 HİSSE ARA & LİSTE")
         
         arama = st.text_input("HİSSE KODU GİRİN:", placeholder="Örn: GARAN, THYAO...", key="sidebar_arama").upper().strip()
@@ -597,21 +597,20 @@ def dashboard_modu():
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # --- DÜZELTME BURADA YAPILDI ---
-            # İki widget'ı TEK BİR HTML string içinde birleştirdik.
-            # Araya style="margin-bottom: 20px" ekledik ki birbirine yapışmasın.
+            # --- DÜZELTME BURADA: 'Single Quote' Widget'ına Geçtik ---
+            # Bu widget o çirkin yazıyı göstermez, sadece LOGO ve FİYAT gösterir.
             
             combined_widget_html = f"""
-            <div style="display: flex; flex-direction: column; gap: 20px;">
-                <div class="tradingview-widget-container" style="height: 220px; width: 100%;">
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div class="tradingview-widget-container">
                     <div class="tradingview-widget-container__widget"></div>
-                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js" async>
                     {{
                     "symbol": "BIST:{arama}",
                     "width": "100%",
-                    "locale": "tr",
                     "colorTheme": "dark",
-                    "isTransparent": true
+                    "isTransparent": true,
+                    "locale": "tr"
                     }}
                     </script>
                 </div>
@@ -635,13 +634,14 @@ def dashboard_modu():
             </div>
             """
             
-            # Tek seferde render ediyoruz, toplam yüksekliği (220 + 400 + boşluklar) veriyoruz.
-            components.html(combined_widget_html, height=650)
+            # Single Quote (120px) + Technical (400px) + Gap
+            components.html(combined_widget_html, height=550)
             
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
                 st.rerun()
 
         else:
+            # Liste Görünümü
             all_stocks_html = """
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
@@ -1125,6 +1125,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
