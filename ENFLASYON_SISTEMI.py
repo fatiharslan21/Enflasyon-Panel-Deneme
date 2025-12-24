@@ -494,12 +494,9 @@ def dashboard_modu():
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
     # --- SIDEBAR (SADELEŞTİRİLDİ, SADECE GRAFİKLER) ---
-    with st.sidebar:
-        
+        with st.sidebar:
+        st.title("💎 CANLI PİYASA")
         # 1. CANLI PİYASA KARTLARI (KART GÖRÜNÜMÜ)
-        st.markdown(
-            "<h3 style='color:#FAFAFA; font-size:14px; margin-bottom:10px; padding-left:5px;'>💎 CANLI PİYASA</h3>",
-            unsafe_allow_html=True)
         
         # Tema sabit dark
         tv_theme = "dark"
@@ -1003,4 +1000,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
