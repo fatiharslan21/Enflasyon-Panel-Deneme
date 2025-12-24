@@ -511,13 +511,31 @@ def html_isleyici(log_callback):
 
 
 # --- DASHBOARD MODU ---
-# --- DASHBOARD MODU ---
-# --- SIDEBAR (TAMAMEN DÜZELTİLMİŞ & ARAMA KUTUSU GÖRÜNÜR) ---
-    # --- SIDEBAR (KESİN GÖRÜNÜR ARAMA KUTUSU VERSİYONU) ---
+# --- DASHBOARD MODU (TAMİR EDİLMİŞ VERSİYON) ---
+def dashboard_modu():
+    # --- 1. GEREKLİ TANIMLAMALAR ---
+    bugun = datetime.now().strftime("%Y-%m-%d")
+    
+    # Renk Paleti (Hata almamak için buraya da ekledik)
+    colors = {
+        "bg": "#0E1117",
+        "sidebar": "#262730",
+        "text": "#FAFAFA",
+        "input_bg": "#1A1C24",
+        "input_border": "#4A4A4A",
+        "card_bg": "#1A1C24",
+        "border_color": "#414141"
+    }
+
+    # Verileri Çek
+    df_f = github_excel_oku(FIYAT_DOSYASI)
+    df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
+
+    # --- 2. SIDEBAR (YAN MENÜ) ---
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
 
-        # --- ARAMA KUTUSU İÇİN ÖZEL CSS (Bunu eklemezsek kayboluyor) ---
+        # --- ARAMA KUTUSU İÇİN ÖZEL CSS ---
         st.markdown("""
         <style>
             /* Sidebar'daki input kutusunu zorla görünür yap */
@@ -536,7 +554,7 @@ def html_isleyici(log_callback):
         </style>
         """, unsafe_allow_html=True)
         
-        # --- 1. KISIM: CANLI KURLAR ---
+        # --- CANLI KURLAR ---
         tv_theme = "dark"
         symbols = [
             {"s": "FX:USDTRY", "d": "Dolar / TL"},
@@ -569,17 +587,17 @@ def html_isleyici(log_callback):
             </div>
             """
         
-        # Yüksekliği biraz kıstık ki aşağı taşmasın
+        # Kartları bas
         total_height = len(symbols) * 120
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
         
-        # Ayırıcı Çizgi
+        # Ayırıcı
         st.markdown("---")
 
-        # --- 2. KISIM: ARAMA MOTORU VE LİSTE ---
+        # --- ARAMA MOTORU VE LİSTE ---
         st.markdown("### 🔍 HİSSE ARA & LİSTE")
         
-        # Arama kutusu (CSS ile rengini zorla değiştirdik)
+        # Arama kutusu
         arama = st.text_input("HİSSE KODU GİRİN:", placeholder="Örn: GARAN, THYAO...", key="sidebar_arama").upper().strip()
         
         if arama:
@@ -628,7 +646,7 @@ def html_isleyici(log_callback):
                 st.rerun()
 
         else:
-            # Arama yoksa LİSTE görünür (Toolbar kapalı, sade)
+            # Arama yoksa LİSTE görünür
             all_stocks_html = """
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
@@ -649,32 +667,38 @@ def html_isleyici(log_callback):
             """
             components.html(all_stocks_html, height=600)
 
-    # --- CSS: Global Styles ---
-    st.markdown("""
+    # --- 3. ANA SAYFA TASARIM VE CSS ---
+    st.markdown(f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
-        .header-container { display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: #1A1C24; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); border-bottom: 4px solid #3b82f6; }
-        .app-title { font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #FFFFFF 0%, #3b82f6 50%, #FFFFFF 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }
-        @keyframes shine { to { background-position: 200% center; } }
-        .update-btn-container button { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }
-        .update-btn-container button:hover { transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
-        .ticker-wrap { width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }
-        .ticker { display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }
-        .ticker-item { display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }
-        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-        .bot-bubble { background: #1A1C24; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #FAFAFA; font-size: 14px; line-height: 1.5; }
-        .bot-log { background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }
-        #live_clock_js { font-family: 'JetBrains Mono', monospace; color: #2563eb; }
+        
+        .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
+        
+        .header-container {{ display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: #1A1C24; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); border-bottom: 4px solid #3b82f6; }}
+        .app-title {{ font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #FFFFFF 0%, #3b82f6 50%, #FFFFFF 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }}
+        @keyframes shine {{ to {{ background-position: 200% center; }} }}
+        
+        .update-btn-container button {{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }}
+        .update-btn-container button:hover {{ transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }}
+        @keyframes pulse {{ 0% {{ box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }} 70% {{ box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }} 100% {{ box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }} }}
+        
+        .ticker-wrap {{ width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }}
+        .ticker {{ display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }}
+        .ticker-item {{ display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }}
+        @keyframes ticker {{ 0% {{ transform: translateX(100%); }} 100% {{ transform: translateX(-100%); }} }}
+        
+        .bot-bubble {{ background: #1A1C24; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #FAFAFA; font-size: 14px; line-height: 1.5; }}
+        .bot-log {{ background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }}
+        #live_clock_js {{ font-family: 'JetBrains Mono', monospace; color: #2563eb; }}
 
         /* Metric Card Styles */
-        .metric-card { padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; overflow: hidden; transition: all 0.3s ease; }
-        .metric-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }
-        .metric-card::before { content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }
-        .card-blue::before { background: #3b82f6; } .card-purple::before { background: #8b5cf6; } .card-emerald::before { background: #10b981; } .card-orange::before { background: #f59e0b; }
-        .metric-label { color: #94a3b8; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }
-        .metric-val { color: #FAFAFA; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }
-        .metric-val.long-text { font-size: 24px !important; line-height: 1.2; }
+        .metric-card {{ padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; overflow: hidden; transition: all 0.3s ease; }}
+        .metric-card:hover {{ transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }}
+        .metric-card::before {{ content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }}
+        .card-blue::before {{ background: #3b82f6; }} .card-purple::before {{ background: #8b5cf6; }} .card-emerald::before {{ background: #10b981; }} .card-orange::before {{ background: #f59e0b; }}
+        .metric-label {{ color: #94a3b8; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }}
+        .metric-val {{ color: #FAFAFA; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }}
+        .metric-val.long-text {{ font-size: 24px !important; line-height: 1.2; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -1100,7 +1124,6 @@ def html_isleyici(log_callback):
     st.markdown(
         '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">VALIDASYON MUDURLUGU © 2025</div>',
         unsafe_allow_html=True)
-
 # --- 5. ANA GİRİŞ SİSTEMİ ---
 def main():
     dashboard_modu()
@@ -1108,6 +1131,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
