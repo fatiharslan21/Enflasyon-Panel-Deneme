@@ -510,13 +510,12 @@ def html_isleyici(log_callback):
         return f"Hata: {str(e)}"
 
 
-# --- DASHBOARD MODU ---
-# --- DASHBOARD MODU (TAMİR EDİLMİŞ VERSİYON) ---
+# --- DASHBOARD MODU (GRAFİK HATASI GİDERİLMİŞ VERSİYON) ---
 def dashboard_modu():
     # --- 1. GEREKLİ TANIMLAMALAR ---
     bugun = datetime.now().strftime("%Y-%m-%d")
     
-    # Renk Paleti (Hata almamak için buraya da ekledik)
+    # Renk Paleti
     colors = {
         "bg": "#0E1117",
         "sidebar": "#262730",
@@ -538,14 +537,12 @@ def dashboard_modu():
         # --- ARAMA KUTUSU İÇİN ÖZEL CSS ---
         st.markdown("""
         <style>
-            /* Sidebar'daki input kutusunu zorla görünür yap */
             section[data-testid="stSidebar"] .stTextInput input {
-                background-color: #ffffff !important; /* Arka plan BEYAZ */
-                color: #000000 !important; /* Yazı SİYAH */
-                border: 2px solid #3b82f6 !important; /* Kenarlık MAVİ */
+                background-color: #ffffff !important;
+                color: #000000 !important;
+                border: 2px solid #3b82f6 !important;
                 font-weight: bold !important;
             }
-            /* Label rengini belirginleştir */
             section[data-testid="stSidebar"] .stTextInput label {
                 color: #3b82f6 !important;
                 font-size: 14px !important;
@@ -587,66 +584,64 @@ def dashboard_modu():
             </div>
             """
         
-        # Kartları bas
         total_height = len(symbols) * 120
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
         
-        # Ayırıcı
         st.markdown("---")
 
         # --- ARAMA MOTORU VE LİSTE ---
         st.markdown("### 🔍 HİSSE ARA & LİSTE")
         
-        # Arama kutusu
         arama = st.text_input("HİSSE KODU GİRİN:", placeholder="Örn: GARAN, THYAO...", key="sidebar_arama").upper().strip()
         
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # Tek Hisse Detayı
-            single_stock_html = f"""
-            <div class="tradingview-widget-container">
-              <div class="tradingview-widget-container__widget"></div>
-              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
-              {{
-              "symbol": "BIST:{arama}",
-              "width": "100%",
-              "locale": "tr",
-              "colorTheme": "dark",
-              "isTransparent": true
-              }}
-              </script>
-            </div>
-            """
-            components.html(single_stock_html, height=200)
-
-            # Teknik Analiz İbresi
-            technical_html = f"""
-            <div class="tradingview-widget-container">
-              <div class="tradingview-widget-container__widget"></div>
-              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
-              {{
-              "interval": "1D",
-              "width": "100%",
-              "isTransparent": true,
-              "height": 400,
-              "symbol": "BIST:{arama}",
-              "showIntervalTabs": true,
-              "displayMode": "single",
-              "locale": "tr",
-              "colorTheme": "dark"
-              }}
-              </script>
-            </div>
-            """
-            components.html(technical_html, height=410)
+            # --- DÜZELTME BURADA YAPILDI ---
+            # İki widget'ı TEK BİR HTML string içinde birleştirdik.
+            # Araya style="margin-bottom: 20px" ekledik ki birbirine yapışmasın.
             
-            # Geri Dön
+            combined_widget_html = f"""
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="tradingview-widget-container" style="height: 220px; width: 100%;">
+                    <div class="tradingview-widget-container__widget"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
+                    {{
+                    "symbol": "BIST:{arama}",
+                    "width": "100%",
+                    "locale": "tr",
+                    "colorTheme": "dark",
+                    "isTransparent": true
+                    }}
+                    </script>
+                </div>
+
+                <div class="tradingview-widget-container" style="height: 400px; width: 100%;">
+                    <div class="tradingview-widget-container__widget"></div>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+                    {{
+                    "interval": "1D",
+                    "width": "100%",
+                    "isTransparent": true,
+                    "height": "400",
+                    "symbol": "BIST:{arama}",
+                    "showIntervalTabs": true,
+                    "displayMode": "single",
+                    "locale": "tr",
+                    "colorTheme": "dark"
+                    }}
+                    </script>
+                </div>
+            </div>
+            """
+            
+            # Tek seferde render ediyoruz, toplam yüksekliği (220 + 400 + boşluklar) veriyoruz.
+            components.html(combined_widget_html, height=650)
+            
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
                 st.rerun()
 
         else:
-            # Arama yoksa LİSTE görünür
             all_stocks_html = """
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
@@ -691,7 +686,6 @@ def dashboard_modu():
         .bot-log {{ background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }}
         #live_clock_js {{ font-family: 'JetBrains Mono', monospace; color: #2563eb; }}
 
-        /* Metric Card Styles */
         .metric-card {{ padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; overflow: hidden; transition: all 0.3s ease; }}
         .metric-card:hover {{ transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }}
         .metric-card::before {{ content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }}
@@ -1131,6 +1125,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
