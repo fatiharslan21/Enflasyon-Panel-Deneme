@@ -495,8 +495,6 @@ def dashboard_modu():
 
     # --- SIDEBAR (SADELEŞTİRİLDİ, SADECE GRAFİKLER) ---
     with st.sidebar:
-        st.title("Ayarlar")
-        st.info("Karanlık mod (Dark Theme) sistemde varsayılan ve sabit olarak ayarlanmıştır.")
         
         # 1. CANLI PİYASA KARTLARI (KART GÖRÜNÜMÜ)
         st.markdown(
@@ -1005,3 +1003,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
