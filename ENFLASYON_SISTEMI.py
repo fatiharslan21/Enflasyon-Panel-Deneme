@@ -517,11 +517,11 @@ def dashboard_modu():
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
     # --- SIDEBAR (SADELEŞTİRİLDİ, SADECE GRAFİKLER) ---
+    # --- SIDEBAR (GÜNCELLENMİŞ HALİ) ---
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
-        # 1. CANLI PİYASA KARTLARI (KART GÖRÜNÜMÜ)
         
-        # Tema sabit dark
+        # --- BÖLÜM 1: CANLI PİYASA KARTLARI (Dolar, Altın, BTC vb.) ---
         tv_theme = "dark"
         
         # Gösterilecek Semboller Listesi
@@ -533,7 +533,7 @@ def dashboard_modu():
             {"s": "BINANCE:BTCUSDT", "d": "Bitcoin ($)"}
         ]
         
-        # HTML Oluşturucu: Her sembol için ayrı bir "Mini Chart" oluşturup alt alta dizer.
+        # HTML Oluşturucu
         widgets_html = ""
         for sym in symbols:
             widgets_html += f"""
@@ -556,6 +556,36 @@ def dashboard_modu():
               </script>
             </div>
             """
+        
+        # Kartları bas
+        total_height = len(symbols) * 135 
+        components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
+        
+        st.markdown("<div style='border-bottom:1px solid #e2e8f0; margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
+        # --- BÖLÜM 2: BIST TÜM PİYASA (YENİ EKLENEN KISIM) ---
+        st.markdown("### 🇹🇷 BIST TÜM PİYASA")
+        
+        # TradingView Screener Widget (Tüm Türkiye Piyasası)
+        all_stocks_html = """
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+          {
+          "width": "100%",
+          "height": 600,
+          "defaultColumn": "overview",
+          "defaultScreen": "general",
+          "market": "turkey",
+          "showToolbar": true,
+          "colorTheme": "dark",
+          "locale": "tr",
+          "isTransparent": true
+          }
+          </script>
+        </div>
+        """
+        components.html(all_stocks_html, height=600)
         
         # Tüm kartları tek bir HTML bloğu olarak sidebar'a gömüyoruz
         total_height = len(symbols) * 135 
@@ -1023,5 +1053,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
