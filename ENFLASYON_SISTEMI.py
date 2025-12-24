@@ -988,82 +988,82 @@ def dashboard_modu():
                                                              mime="application/pdf")
 
                         with t_asistan:
-    st.markdown("### 🤖 Veri Asistanı ile Sohbet")
-    st.caption("Aşağıdaki sohbet kutusu, şu an ekranda gördüğünüz analiz sonuçlarına ve verilere tam erişime sahiptir.")
-
-    # 1. Sohbet Geçmişini Başlat
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Merhaba! Mevcut enflasyon verileri, fiyat değişimleri ve gelecek tahminleri hakkında bana soru sorabilirsiniz. Nasıl yardımcı olabilirim?"}
-        ]
-
-    # 2. "Sohbeti Temizle" Butonu
-    if st.button("🗑️ Sohbeti Temizle", key="clear_chat"):
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Sohbet temizlendi. Verilerinizle ilgili sorularınızı bekliyorum."}
-        ]
-        st.rerun()
-
-    # 3. Geçmiş Mesajları Ekrana Bas
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # 4. Kullanıcıdan Girdi Al
-    if prompt := st.chat_input("Örn: Gıda fiyatları neden bu kadar yüksek?"):
-        # Kullanıcı mesajını ekle ve göster
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # 5. AI İçin Veri Bağlamını (Context) Hazırla
-        # Burada senin hesapladığın değişkenleri bir metin bloğuna dönüştürüyoruz.
-        context_data = f"""
-        ŞU ANKİ SİSTEM VERİLERİ (Buna göre cevap ver):
-        - Tarih: {bugun}
-        - Genel Enflasyon (Senin Hesapladığın): %{enf_genel:.2f}
-        - Gıda Enflasyonu: %{enf_gida:.2f}
-        - Ay Sonu Tahmini (Simülasyon): %{month_end_forecast:.2f}
-        - En Çok Artan Ürün: {top[ad_col]} (Artış Oranı: %{top['Fark']*100:.2f})
-        - Günlük En Yüksek Risk (24s): {daily_risk_name} (%{daily_risk_rate*100:.1f})
-        
-        SEKTÖREL DURUM:
-        - Veri setindeki toplam ürün sayısı: {len(df_analiz)}
-        - Enflasyon Sepetindeki Gıda Ağırlığı: Yüksek
-        """
-
-        # 6. AI Sorgusu
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = ""
-            
-            with st.spinner("Veriler analiz ediliyor..."):
-                try:
-                    # Sistem Promptu
-                    system_instruction = f"""
-                    Sen profesyonel bir veri analisti ve ekonomi asistanısın. 
-                    Kullanıcının sorularını, sana sağlanan aşağıdaki "SİSTEM VERİLERİ"ne dayanarak cevapla.
-                    Asla hayali veriler uydurma. Sadece elindeki veriyi yorumla.
-                    
-                    VERİLER:
-                    {context_data}
-                    
-                    SORU: {prompt}
-                    """
-                    
-                    model_chat = genai.GenerativeModel('gemini-2.5-flash')
-                    response = model_chat.generate_content(system_instruction)
-                    
-                    # Cevabı yazdır
-                    full_response = response.text
-                    message_placeholder.markdown(full_response)
-                    
-                except Exception as e:
-                    full_response = f"Üzgünüm, bir bağlantı hatası oluştu: {str(e)}"
-                    message_placeholder.error(full_response)
-            
-            # 7. AI Cevabını Geçmişe Kaydet
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+                                st.markdown("### 🤖 Veri Asistanı ile Sohbet")
+                                st.caption("Aşağıdaki sohbet kutusu, şu an ekranda gördüğünüz analiz sonuçlarına ve verilere tam erişime sahiptir.")
+                            
+                                # 1. Sohbet Geçmişini Başlat
+                                if "messages" not in st.session_state:
+                                    st.session_state.messages = [
+                                        {"role": "assistant", "content": "Merhaba! Mevcut enflasyon verileri, fiyat değişimleri ve gelecek tahminleri hakkında bana soru sorabilirsiniz. Nasıl yardımcı olabilirim?"}
+                                    ]
+                            
+                                # 2. "Sohbeti Temizle" Butonu
+                                if st.button("🗑️ Sohbeti Temizle", key="clear_chat"):
+                                    st.session_state.messages = [
+                                        {"role": "assistant", "content": "Sohbet temizlendi. Verilerinizle ilgili sorularınızı bekliyorum."}
+                                    ]
+                                    st.rerun()
+                            
+                                # 3. Geçmiş Mesajları Ekrana Bas
+                                for message in st.session_state.messages:
+                                    with st.chat_message(message["role"]):
+                                        st.markdown(message["content"])
+                            
+                                # 4. Kullanıcıdan Girdi Al
+                                if prompt := st.chat_input("Örn: Gıda fiyatları neden bu kadar yüksek?"):
+                                    # Kullanıcı mesajını ekle ve göster
+                                    st.session_state.messages.append({"role": "user", "content": prompt})
+                                    with st.chat_message("user"):
+                                        st.markdown(prompt)
+                            
+                                    # 5. AI İçin Veri Bağlamını (Context) Hazırla
+                                    # Burada senin hesapladığın değişkenleri bir metin bloğuna dönüştürüyoruz.
+                                    context_data = f"""
+                                    ŞU ANKİ SİSTEM VERİLERİ (Buna göre cevap ver):
+                                    - Tarih: {bugun}
+                                    - Genel Enflasyon (Senin Hesapladığın): %{enf_genel:.2f}
+                                    - Gıda Enflasyonu: %{enf_gida:.2f}
+                                    - Ay Sonu Tahmini (Simülasyon): %{month_end_forecast:.2f}
+                                    - En Çok Artan Ürün: {top[ad_col]} (Artış Oranı: %{top['Fark']*100:.2f})
+                                    - Günlük En Yüksek Risk (24s): {daily_risk_name} (%{daily_risk_rate*100:.1f})
+                                    
+                                    SEKTÖREL DURUM:
+                                    - Veri setindeki toplam ürün sayısı: {len(df_analiz)}
+                                    - Enflasyon Sepetindeki Gıda Ağırlığı: Yüksek
+                                    """
+                            
+                                    # 6. AI Sorgusu
+                                    with st.chat_message("assistant"):
+                                        message_placeholder = st.empty()
+                                        full_response = ""
+                                        
+                                        with st.spinner("Veriler analiz ediliyor..."):
+                                            try:
+                                                # Sistem Promptu
+                                                system_instruction = f"""
+                                                Sen profesyonel bir veri analisti ve ekonomi asistanısın. 
+                                                Kullanıcının sorularını, sana sağlanan aşağıdaki "SİSTEM VERİLERİ"ne dayanarak cevapla.
+                                                Asla hayali veriler uydurma. Sadece elindeki veriyi yorumla.
+                                                
+                                                VERİLER:
+                                                {context_data}
+                                                
+                                                SORU: {prompt}
+                                                """
+                                                
+                                                model_chat = genai.GenerativeModel('gemini-2.5-flash')
+                                                response = model_chat.generate_content(system_instruction)
+                                                
+                                                # Cevabı yazdır
+                                                full_response = response.text
+                                                message_placeholder.markdown(full_response)
+                                                
+                                            except Exception as e:
+                                                full_response = f"Üzgünüm, bir bağlantı hatası oluştu: {str(e)}"
+                                                message_placeholder.error(full_response)
+                                        
+                                        # 7. AI Cevabını Geçmişe Kaydet
+                                        st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 
         except Exception as e:
@@ -1080,6 +1080,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
