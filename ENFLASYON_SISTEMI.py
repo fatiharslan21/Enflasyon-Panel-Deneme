@@ -50,36 +50,41 @@ def apply_theme():
 
     # --- CSS MOTORU ---
     # --- CSS MOTORU (MOBİL UYUMLU VERSİYON) ---
+   # --- CSS MOTORU (MOBİLDE SİDEBAR YOK EDİCİ) ---
     final_css = f"""
     <style>
-        /* --- MASAÜSTÜ (PC) İÇİN ÖZEL AYARLAR (768px'den geniş ekranlar) --- */
+        /* --- MASAÜSTÜ (PC) AYARLARI (768px'den büyük ekranlar) --- */
         @media (min-width: 768px) {{
-            /* Sidebar'ı sadece PC'de 400px'e zorla */
+            /* PC'de Sidebar 400px olsun ve sabitlensin */
             section[data-testid="stSidebar"] {{
                 width: 400px !important;
                 min-width: 400px !important;
                 max-width: 400px !important;
+                display: block !important; /* PC'de göster */
             }}
-            /* Menü aç/kapa butonunu sadece PC'de gizle (Zaten açık olacağı için) */
+            /* PC'de açma/kapama butonu gizli olsun */
             [data-testid="collapsedControl"] {{ display: none !important; }}
         }}
 
-        /* --- MOBİL İÇİN DÜZELTMELER (768px'den dar ekranlar) --- */
+        /* --- MOBİL AYARLARI (768px ve altı) --- */
         @media (max-width: 768px) {{
-            /* Mobilde menü butonunu GÖSTER ki basıp açabilsinler */
-            [data-testid="collapsedControl"] {{ 
-                display: block !important; 
-                color: {colors['text']} !important;
-            }}
-            /* Mobilde sidebar genişliği otomatik olsun */
+            /* Mobilde Sidebar'ı KOMPLE YOK ET */
             section[data-testid="stSidebar"] {{
-                width: auto !important;
-                min-width: auto !important;
-                max-width: 80% !important; /* Ekranın %80'ini kaplasın */
+                display: none !important;
+                width: 0px !important;
+            }}
+            /* Sidebar açma butonunu da YOK ET (basamasınlar) */
+            [data-testid="collapsedControl"] {{
+                display: none !important;
+            }}
+            /* Üstteki boşlukları ayarla */
+            .block-container {{
+                padding-top: 1rem !important;
+                max-width: 100% !important;
             }}
         }}
 
-        /* --- KESİN GİZLEME KODLARI (HER YERDE GEÇERLİ) --- */
+        /* --- GENEL GİZLEME VE RENK AYARLARI --- */
         div[class*="viewerBadge"] {{ display: none !important; }}
         footer {{ visibility: hidden !important; display: none !important; height: 0px !important; }}
         #MainMenu {{ visibility: hidden !important; display: none !important; }}
@@ -88,11 +93,11 @@ def apply_theme():
         [data-testid="stDecoration"] {{ display: none !important; }}
         .stDeployButton {{ display: none !important; }}
 
-        .block-container {{ padding-top: 1rem !important; }}
-
-        /* --- DİĞER TASARIM AYARLARI --- */
+        /* --- RENKLER --- */
         .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
+        /* Masaüstünde sidebar rengi */
         section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
+        
         h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown, .stRadio label {{ color: {colors['text']} !important; }}
 
         .stTextInput input, .stNumberInput input {{
@@ -114,6 +119,7 @@ def apply_theme():
             background-color: {colors['sidebar']} !important;
         }}
 
+        /* Buton Stilleri */
         div.stButton > button, 
         div.stFormSubmitButton > button,
         [data-testid="stDownloadButton"] button {{
@@ -123,11 +129,8 @@ def apply_theme():
             border-radius: 8px !important;
             font-weight: bold !important;
         }}
-        div.stButton > button p,
-        div.stFormSubmitButton > button p,
-        [data-testid="stDownloadButton"] button * {{
-            color: #000000 !important;
-        }}
+        div.stButton > button * {{ color: #000000 !important; }}
+        
         div.stButton > button:hover,
         div.stFormSubmitButton > button:hover,
         [data-testid="stDownloadButton"] button:hover {{
@@ -1020,4 +1023,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
