@@ -49,23 +49,43 @@ def apply_theme():
     st.session_state.plotly_template = "plotly_dark"
 
     # --- CSS MOTORU ---
+    # --- CSS MOTORU (MOBİL UYUMLU VERSİYON) ---
     final_css = f"""
     <style>
-        /* --- SIDEBAR SABİTLEME VE KİLİTLEME --- */
-        section[data-testid="stSidebar"] {{
-            width: 400px !important;
-            min-width: 400px !important;
-            max-width: 400px !important;
+        /* --- MASAÜSTÜ (PC) İÇİN ÖZEL AYARLAR (768px'den geniş ekranlar) --- */
+        @media (min-width: 768px) {{
+            /* Sidebar'ı sadece PC'de 400px'e zorla */
+            section[data-testid="stSidebar"] {{
+                width: 400px !important;
+                min-width: 400px !important;
+                max-width: 400px !important;
+            }}
+            /* Menü aç/kapa butonunu sadece PC'de gizle (Zaten açık olacağı için) */
+            [data-testid="collapsedControl"] {{ display: none !important; }}
         }}
 
-        /* --- KESİN GİZLEME KODLARI --- */
+        /* --- MOBİL İÇİN DÜZELTMELER (768px'den dar ekranlar) --- */
+        @media (max-width: 768px) {{
+            /* Mobilde menü butonunu GÖSTER ki basıp açabilsinler */
+            [data-testid="collapsedControl"] {{ 
+                display: block !important; 
+                color: {colors['text']} !important;
+            }}
+            /* Mobilde sidebar genişliği otomatik olsun */
+            section[data-testid="stSidebar"] {{
+                width: auto !important;
+                min-width: auto !important;
+                max-width: 80% !important; /* Ekranın %80'ini kaplasın */
+            }}
+        }}
+
+        /* --- KESİN GİZLEME KODLARI (HER YERDE GEÇERLİ) --- */
         div[class*="viewerBadge"] {{ display: none !important; }}
         footer {{ visibility: hidden !important; display: none !important; height: 0px !important; }}
         #MainMenu {{ visibility: hidden !important; display: none !important; }}
         header {{ visibility: hidden !important; }}
         header[data-testid="stHeader"] {{ display: none !important; }}
         [data-testid="stDecoration"] {{ display: none !important; }}
-        [data-testid="collapsedControl"] {{ display: none !important; }}
         .stDeployButton {{ display: none !important; }}
 
         .block-container {{ padding-top: 1rem !important; }}
@@ -1000,3 +1020,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
