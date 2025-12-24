@@ -24,7 +24,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
-import streamlit.components.v1 as components  # EKLENDİ
+import streamlit.components.v1 as components
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
 st.set_page_config(
@@ -82,6 +82,13 @@ def apply_theme():
     # --- CSS MOTORU ---
     final_css = f"""
     <style>
+        /* --- SIDEBAR SABİTLEME VE KİLİTLEME --- */
+        section[data-testid="stSidebar"] {{
+            width: 350px !important; /* Genişliği sabitle */
+            min-width: 350px !important; /* Küçültmeyi engelle */
+            max-width: 350px !important; /* Büyütmeyi engelle */
+        }}
+
         /* --- KESİN GİZLEME KODLARI --- */
         div[class*="viewerBadge"] {{ display: none !important; }}
         footer {{ visibility: hidden !important; display: none !important; height: 0px !important; }}
@@ -157,6 +164,7 @@ apply_theme()
 
 if "gemini" in st.secrets:
     genai.configure(api_key=st.secrets["gemini"]["api_key"])
+
 
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
@@ -357,7 +365,6 @@ def get_official_inflation():
     except Exception as e:
         return None, str(e)
 
-
 @st.cache_data(ttl=3600, show_spinner=False)
 def predict_inflation_prophet(df_trend):
     try:
@@ -507,7 +514,6 @@ def html_isleyici(log_callback):
 
 
 # --- DASHBOARD MODU ---
-# --- DASHBOARD MODU ---
 def dashboard_modu():
     bugun = datetime.now().strftime("%Y-%m-%d")
     df_f = github_excel_oku(FIYAT_DOSYASI)
@@ -519,10 +525,10 @@ def dashboard_modu():
         st.markdown(
             "<h3 style='color:#1e293b; font-size:14px; margin-bottom:10px; padding-left:5px;'>💎 CANLI PİYASA</h3>",
             unsafe_allow_html=True)
-
+        
         # Tema ayarına göre widget rengini belirle
         tv_theme = "dark" if st.session_state.theme == 'dark' else "light"
-
+        
         # Gösterilecek Semboller Listesi
         # Not: Sembol kodları TradingView formatındadır.
         symbols = [
@@ -532,7 +538,7 @@ def dashboard_modu():
             {"s": "TVC:UKOIL", "d": "Brent Petrol"},
             {"s": "BINANCE:BTCUSDT", "d": "Bitcoin ($)"}
         ]
-
+        
         # HTML Oluşturucu: Her sembol için ayrı bir "Mini Chart" oluşturup alt alta dizer.
         widgets_html = ""
         for sym in symbols:
@@ -556,14 +562,14 @@ def dashboard_modu():
               </script>
             </div>
             """
-
+        
         # Tüm kartları tek bir HTML bloğu olarak sidebar'a gömüyoruz
         # Yükseklik = (Kart Sayısı * Kart Yüksekliği) + Boşluklar
-        total_height = len(symbols) * 135
-        components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>',
-                        height=total_height)
-
+        total_height = len(symbols) * 135 
+        components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
+        
         st.markdown("<div style='border-bottom:1px solid #e2e8f0; margin-bottom:20px;'></div>", unsafe_allow_html=True)
+
     # --- CSS: Global Styles ---
     st.markdown("""
     <style>
@@ -756,8 +762,7 @@ def dashboard_modu():
                 with c2:
                     kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
                 with c3:
-                    kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı",
-                             "#8b5cf6",
+                    kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
                              "card-purple")
                 with c4:
                     kpi_card("En Yüksek Risk (24s)", f"{daily_risk_name[:15]}", f"%{daily_risk_rate * 100:.1f} Artış",
@@ -848,8 +853,8 @@ def dashboard_modu():
                                        line=dict(color='#f59e0b', dash='dot')))
                         fig_main.add_trace(go.Scatter(x=future_only['ds'].tolist() + future_only['ds'].tolist()[::-1],
                                                       y=future_only['yhat_upper'].tolist() + future_only[
-                                                                                                 'yhat_lower'].tolist()[
-                                                                                             ::-1], fill='toself',
+                                                          'yhat_lower'].tolist()[
+                                                          ::-1], fill='toself',
                                                       fillcolor='rgba(245, 158, 11, 0.2)',
                                                       line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip",
                                                       showlegend=False))
