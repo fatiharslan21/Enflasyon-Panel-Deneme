@@ -84,9 +84,9 @@ def apply_theme():
     <style>
         /* --- SIDEBAR SABİTLEME VE KİLİTLEME --- */
         section[data-testid="stSidebar"] {{
-            width: 350px !important; /* Genişliği sabitle */
-            min-width: 350px !important; /* Küçültmeyi engelle */
-            max-width: 350px !important; /* Büyütmeyi engelle */
+            width: 400px !important; /* Genişliği sabitle */
+            min-width: 400px !important; /* Küçültmeyi engelle */
+            max-width: 400px !important; /* Büyütmeyi engelle */
         }}
 
         /* --- KESİN GİZLEME KODLARI --- */
@@ -1008,3 +1008,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
