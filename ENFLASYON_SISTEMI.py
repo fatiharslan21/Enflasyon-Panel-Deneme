@@ -511,11 +511,11 @@ def html_isleyici(log_callback):
 
 
 # --- DASHBOARD MODU (TEMİZLENMİŞ KART VERSİYONU) ---
+# --- DASHBOARD MODU (STABİL, LOGOLU VERSİYON) ---
 def dashboard_modu():
     # --- 1. GEREKLİ TANIMLAMALAR ---
     bugun = datetime.now().strftime("%Y-%m-%d")
     
-    # Renk Paleti
     colors = {
         "bg": "#0E1117",
         "sidebar": "#262730",
@@ -526,17 +526,14 @@ def dashboard_modu():
         "border_color": "#414141"
     }
 
-    # Verileri Çek
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
     # --- 2. SIDEBAR (YAN MENÜ) ---
-    # --- SIDEBAR (LOGO VAR + YAZI GİZLENDİ) ---
-    # --- SIDEBAR (SONSUZ YÜKSEKLİK HİLESİYLE KESİN ÇÖZÜM) ---
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
 
-        # --- ARAMA KUTUSU CSS ---
+        # --- ARAMA KUTUSU İÇİN ÖZEL CSS (KUTU GÖRÜNSÜN DİYE) ---
         st.markdown("""
         <style>
             section[data-testid="stSidebar"] .stTextInput input {
@@ -553,7 +550,7 @@ def dashboard_modu():
         </style>
         """, unsafe_allow_html=True)
         
-        # --- 1. CANLI KURLAR ---
+        # --- CANLI KURLAR ---
         tv_theme = "dark"
         symbols = [
             {"s": "FX:USDTRY", "d": "Dolar / TL"},
@@ -591,7 +588,7 @@ def dashboard_modu():
         
         st.markdown("---")
 
-        # --- 2. ARAMA MOTORU ---
+        # --- ARAMA MOTORU ---
         st.markdown("### 🔍 HİSSE ARA & LİSTE")
         
         arama = st.text_input("HİSSE KODU GİRİN:", placeholder="Örn: GARAN, THYAO...", key="sidebar_arama").upper().strip()
@@ -599,12 +596,14 @@ def dashboard_modu():
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # --- YENİ ÇÖZÜM: LOGO İÇİN "Symbol Info" + GENİŞ ALAN ---
+            # --- BURASI ESKİ STABİL HALİNE DÖNDÜ ---
+            # Hile hurda yok. height=200 verdik ki rahat sığsın.
+            # Logo kesin görünür. Yazı altta kalır ama ibreye binmez.
             
             combined_widget_html = f"""
             <div style="display: flex; flex-direction: column; gap: 20px;">
                 
-                <div class="tradingview-widget-container" style="height: 250px; width: 100%;">
+                <div class="tradingview-widget-container">
                     <div class="tradingview-widget-container__widget"></div>
                     <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
                     {{
@@ -633,18 +632,17 @@ def dashboard_modu():
                     }}
                     </script>
                 </div>
-                
             </div>
             """
             
-            # Toplam yükseklik (250 + 400 + boşluklar)
-            components.html(combined_widget_html, height=680)
+            # Yüksekliği artırdık ki kesilme olmasın
+            components.html(combined_widget_html, height=700)
             
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
                 st.rerun()
 
         else:
-            # Liste Görünümü
+            # Liste Görünümü (Screener)
             all_stocks_html = """
             <div class="tradingview-widget-container">
               <div class="tradingview-widget-container__widget"></div>
@@ -664,8 +662,8 @@ def dashboard_modu():
             </div>
             """
             components.html(all_stocks_html, height=600)
-            
-    # --- 3. ANA SAYFA TASARIM VE CSS ---
+
+    # --- 3. ANA SAYFA TASARIM VE CSS (Değişmedi) ---
     st.markdown(f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -1128,6 +1126,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
