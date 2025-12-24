@@ -514,61 +514,52 @@ def dashboard_modu():
 
     # --- SIDEBAR ---
     with st.sidebar:
-        # 1. PİYASA GÖSTERGELERİ (TRADINGVIEW WIDGET)
+        # 1. CANLI PİYASA KARTLARI (KART GÖRÜNÜMÜ - Üstte Kur / Altta Tutar)
         st.markdown(
-            "<h3 style='color:#1e293b; font-size:14px; margin-bottom:10px; padding-left:5px;'>💱 PİYASA ÖZETİ (CANLI)</h3>",
+            "<h3 style='color:#1e293b; font-size:14px; margin-bottom:10px; padding-left:5px;'>💎 CANLI PİYASA</h3>",
             unsafe_allow_html=True)
 
         # Tema ayarına göre widget rengini belirle
         tv_theme = "dark" if st.session_state.theme == 'dark' else "light"
 
-        # TradingView Widget HTML Kodu
-        tradingview_html = f"""
-        <div class="tradingview-widget-container">
-          <div class="tradingview-widget-container__widget"></div>
-          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-market-overview.js" async>
-          {{
-          "colorTheme": "{tv_theme}",
-          "dateRange": "12M",
-          "showChart": false,
-          "locale": "tr",
-          "largeChartUrl": "",
-          "isTransparent": true,
-          "showSymbolLogo": true,
-          "showFloatingTooltip": false,
-          "width": "100%",
-          "height": "280",
-          "tabs": [
-            {{
-              "title": "Piyasa",
-              "symbols": [
-                {{
-                  "s": "FX:USDTRY",
-                  "d": "USD / TRY"
-                }},
-                {{
-                  "s": "FX:EURTRY",
-                  "d": "EUR / TRY"
-                }},
-                {{
-                  "s": "FX_IDC:XAUTRYG",
-                  "d": "Gram Altın"
-                }},
-                {{
-                  "s": "BIST:XU100",
-                  "d": "BIST 100"
-                }}
-              ],
-              "originalTitle": "Indices"
-            }}
-          ]
-        }}
-          </script>
-        </div>
-        """
+        # Gösterilecek Semboller Listesi
+        symbols = [
+            {"s": "FX:USDTRY", "d": "Dolar / TL"},
+            {"s": "FX:EURTRY", "d": "Euro / TL"},
+            {"s": "FX_IDC:XAUTRYG", "d": "Gram Altın"},
+            {"s": "TVC:UKOIL", "d": "Brent Petrol"},
+            {"s": "BINANCE:BTCUSDT", "d": "Bitcoin ($)"}
+        ]
 
-        # HTML'i Sidebar'a gömüyoruz
-        components.html(tradingview_html, height=280)
+        # HTML Oluşturucu: Her sembol için ayrı bir "Mini Chart" oluşturup alt alta dizer.
+        # Bu yapı "Üstte Kur, Altta Tutar" görünümünü sağlar.
+        widgets_html = ""
+        for sym in symbols:
+            widgets_html += f"""
+            <div class="tradingview-widget-container" style="margin-bottom: 10px;">
+              <div class="tradingview-widget-container__widget"></div>
+              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+              {{
+              "symbol": "{sym['s']}",
+              "width": "100%",
+              "height": 110,
+              "locale": "tr",
+              "dateRange": "12M",
+              "colorTheme": "{tv_theme}",
+              "isTransparent": true,
+              "autosize": false,
+              "largeChartUrl": "",
+              "chartOnly": false,
+              "noTimeScale": true
+              }}
+              </script>
+            </div>
+            """
+
+        # Tüm kartları tek bir HTML bloğu olarak sidebar'a gömüyoruz
+        # Yükseklik = (Kart Sayısı * Kart Yüksekliği) + Boşluklar
+        total_height = len(symbols) * 120
+        components.html(f'<div style="display:flex; flex-direction:column;">{widgets_html}</div>', height=total_height)
 
         st.markdown("<div style='border-bottom:1px solid #e2e8f0; margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
