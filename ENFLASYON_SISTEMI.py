@@ -564,32 +564,32 @@ def dashboard_modu():
         # Ayırıcı Çizgi
         st.markdown("<div style='border-bottom:1px solid #e2e8f0; margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-        # --- 2. KISIM: BIST TÜM HİSSELER (SCREENER) ---
+        # --- 2. KISIM: BIST TÜM HİSSELER (SADE GÖRÜNÜM) ---
         st.markdown("### 🇹🇷 BIST TÜM PİYASA")
         
-        # Tüm Türkiye Piyasası Widget'ı
-        # DİKKAT: "width": 550 yaptık ki sığmasın ve altta kaydırma çubuğu çıksın.
+        # Genişliği "100%" yaptık. Böylece sağdaki gereksiz sütunlar
+        # sidebar'ın dışında kalarak görünmeyecek.
+        # Sadece Sembol, Fiyat ve Değişim görünecek.
         all_stocks_html = """
-        <div style="overflow-x: auto; padding-bottom: 10px;"> <div class="tradingview-widget-container">
-              <div class="tradingview-widget-container__widget"></div>
-              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
-              {
-              "width": 550, 
-              "height": 600,
-              "defaultColumn": "overview",
-              "defaultScreen": "general",
-              "market": "turkey",
-              "showToolbar": true,
-              "colorTheme": "dark",
-              "locale": "tr",
-              "isTransparent": true
-              }
-              </script>
-            </div>
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+          {
+          "width": "100%",
+          "height": 600,
+          "defaultColumn": "overview",
+          "defaultScreen": "general",
+          "market": "turkey",
+          "showToolbar": false, 
+          "colorTheme": "dark",
+          "locale": "tr",
+          "isTransparent": true
+          }
+          </script>
         </div>
         """
-        # height=620 yaptık ki alttaki kaydırma çubuğu kesilmesin
-        components.html(all_stocks_html, height=620)
+        # showToolbar: false yaptık ki üstteki "Genel Bakış" yazıları da kalksın, iyice sadesleşsin.
+        components.html(all_stocks_html, height=600)
 
     # --- CSS: Global Styles ---
     st.markdown("""
@@ -1050,6 +1050,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
