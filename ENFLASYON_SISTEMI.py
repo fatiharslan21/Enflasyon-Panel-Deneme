@@ -564,32 +564,74 @@ def dashboard_modu():
         # Ayırıcı Çizgi
         st.markdown("<div style='border-bottom:1px solid #e2e8f0; margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-        # --- 2. KISIM: BIST TÜM HİSSELER (SADE GÖRÜNÜM) ---
+        # --- 2. KISIM: AKILLI HİSSE ARAMA VE LİSTE ---
         st.markdown("### 🇹🇷 BIST TÜM PİYASA")
-        
-        # Genişliği "100%" yaptık. Böylece sağdaki gereksiz sütunlar
-        # sidebar'ın dışında kalarak görünmeyecek.
-        # Sadece Sembol, Fiyat ve Değişim görünecek.
-        all_stocks_html = """
-        <div class="tradingview-widget-container">
-          <div class="tradingview-widget-container__widget"></div>
-          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
-          {
-          "width": "100%",
-          "height": 600,
-          "defaultColumn": "overview",
-          "defaultScreen": "general",
-          "market": "turkey",
-          "showToolbar": false, 
-          "colorTheme": "dark",
-          "locale": "tr",
-          "isTransparent": true
-          }
-          </script>
-        </div>
-        """
-        # showToolbar: false yaptık ki üstteki "Genel Bakış" yazıları da kalksın, iyice sadesleşsin.
-        components.html(all_stocks_html, height=600)
+
+        # 1. Arama Kutusu
+        arama = st.text_input("🔍 Hisse Kodu Yaz (Örn: THYAO)", placeholder="Hisse ara...").upper().strip()
+
+        if arama:
+            # --- EĞER ARAMA YAPILDIYSA: TEK HİSSE KARTI GÖSTER ---
+            st.info(f"🎯 **{arama}** Getiriliyor...")
+            
+            # TradingView Symbol Info Widget (Detaylı Tek Kart)
+            single_stock_html = f"""
+            <div class="tradingview-widget-container">
+              <div class="tradingview-widget-container__widget"></div>
+              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
+              {{
+              "symbol": "BIST:{arama}",
+              "width": "100%",
+              "locale": "tr",
+              "colorTheme": "dark",
+              "isTransparent": true
+              }}
+              </script>
+            </div>
+            <br>
+            <div class="tradingview-widget-container">
+              <div class="tradingview-widget-container__widget"></div>
+              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
+              {{
+              "interval": "1D",
+              "width": "100%",
+              "isTransparent": true,
+              "height": 450,
+              "symbol": "BIST:{arama}",
+              "showIntervalTabs": true,
+              "displayMode": "single",
+              "locale": "tr",
+              "colorTheme": "dark"
+              }}
+              </script>
+            </div>
+            """
+            components.html(single_stock_html, height=600)
+            
+            if st.button("⬅️ Listeye Dön"):
+                st.rerun()
+
+        else:
+            # --- EĞER ARAMA YOKSA: TÜM LİSTEYİ (SCREENER) GÖSTER ---
+            all_stocks_html = """
+            <div class="tradingview-widget-container">
+              <div class="tradingview-widget-container__widget"></div>
+              <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+              {
+              "width": "100%",
+              "height": 600,
+              "defaultColumn": "overview",
+              "defaultScreen": "general",
+              "market": "turkey",
+              "showToolbar": false,
+              "colorTheme": "dark",
+              "locale": "tr",
+              "isTransparent": true
+              }
+              </script>
+            </div>
+            """
+            components.html(all_stocks_html, height=600)
 
     # --- CSS: Global Styles ---
     st.markdown("""
@@ -1050,6 +1092,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
