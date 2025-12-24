@@ -511,12 +511,12 @@ def html_isleyici(log_callback):
 
 
 # --- DASHBOARD MODU (TEMİZLENMİŞ KART VERSİYONU) ---
-# --- DASHBOARD MODU (EN STABİL - MİNİ GRAFİKLİ VERSİYON) ---
+# --- DASHBOARD MODU (SON KARAR - LOGOLU VE DÜZENLİ) ---
 def dashboard_modu():
     # --- 1. GEREKLİ TANIMLAMALAR ---
     bugun = datetime.now().strftime("%Y-%m-%d")
     
-    # Renk Paleti (Hata almamak için)
+    # Renk Paleti
     colors = {
         "bg": "#0E1117",
         "sidebar": "#262730",
@@ -598,32 +598,30 @@ def dashboard_modu():
         if arama:
             st.warning(f"🎯 **{arama}** ANALİZİ")
             
-            # --- STABİL ÇÖZÜM: Mini Symbol Overview ---
-            # Logo yok ama Fiyat + Grafik var. Yazı sorunu yok.
+            # --- FİNAL ÇÖZÜM: YÜKSEKLİK AYARLI LOGOLU KART ---
+            # Hile yok, makaslama yok.
+            # height: 260px verdik. Bu sayede:
+            # 1. Logo ve Fiyat en üstte rahatça durur.
+            # 2. O uyarı yazısı en alta iner, kimseyi rahatsız etmez.
+            # 3. Logo kesin görünür (Hayalet olmaz).
             
             combined_widget_html = f"""
             <div style="display: flex; flex-direction: column; gap: 20px;">
                 
-                <div class="tradingview-widget-container">
+                <div class="tradingview-widget-container" style="height: 260px; width: 100%;">
                     <div class="tradingview-widget-container__widget"></div>
-                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
+                    <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js" async>
                     {{
                     "symbol": "BIST:{arama}",
                     "width": "100%",
-                    "height": 220,
                     "locale": "tr",
-                    "dateRange": "12M",
                     "colorTheme": "dark",
-                    "isTransparent": true,
-                    "autosize": false,
-                    "largeChartUrl": "",
-                    "chartOnly": false,
-                    "noTimeScale": false
+                    "isTransparent": true
                     }}
                     </script>
                 </div>
 
-                <div class="tradingview-widget-container" style="height: 400px; width: 100%;">
+                <div class="tradingview-widget-container" style="height: 400px; width: 100%; margin-top: -40px;">
                     <div class="tradingview-widget-container__widget"></div>
                     <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js" async>
                     {{
@@ -642,8 +640,8 @@ def dashboard_modu():
             </div>
             """
             
-            # Toplam yükseklik
-            components.html(combined_widget_html, height=650)
+            # Toplam yükseklik (Rahat sığması için 700px)
+            components.html(combined_widget_html, height=700)
             
             if st.button("❌ KAPAT / LİSTEYE DÖN", type="secondary"):
                 st.rerun()
@@ -1133,6 +1131,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
