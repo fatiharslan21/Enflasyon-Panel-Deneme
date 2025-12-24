@@ -27,11 +27,12 @@ from webdriver_manager.chrome import ChromeDriverManager
 import streamlit.components.v1 as components
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
+# --- 1. AYARLAR VE TEMA YÖNETİMİ ---
 st.set_page_config(
-    page_title="Enflasyon Monitörü",
-    layout="wide",
-    page_icon="💎",
-    initial_sidebar_state="expanded"
+    page_title="Enflasyon Monitörü",
+    layout="wide",
+    page_icon="💎",
+    initial_sidebar_state="expanded"
 )
 
 # --- CSS MOTORU (SADECE DARK MODE) ---
@@ -1000,3 +1001,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
