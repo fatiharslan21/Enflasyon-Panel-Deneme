@@ -342,32 +342,39 @@ class PDFReport(FPDF):
                 self.cell(w, 8, self.fix_text(txt), 1, 0, 'C', True)
             self.ln()
 
-def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, date_str_ignored):
+def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, date_str):
+    # Not: date_str argümanı ana koddan geliyor (örn: December 2025)
+    # Ancak biz bunu aşağıda ezip Türkçe yapacağız.
+    
     pdf = PDFReport()
     
-    # 1. TARİHİ ZORLA TÜRKÇE YAP (December sorununu çözer)
-    aylar = {1:"Ocak", 2:"Subat", 3:"Mart", 4:"Nisan", 5:"Mayis", 6:"Haziran", 
-             7:"Temmuz", 8:"Agustos", 9:"Eylul", 10:"Ekim", 11:"Kasim", 12:"Aralik"}
+    # 1. TARİHİ OTOMATİK TÜRKÇE YAP (Gelen 'December' verisini ez)
+    aylar = {1:"Ocak", 2:"Şubat", 3:"Mart", 4:"Nisan", 5:"Mayıs", 6:"Haziran", 
+             7:"Temmuz", 8:"Ağustos", 9:"Eylül", 10:"Ekim", 11:"Kasım", 12:"Aralık"}
     simdi = datetime.now()
+    
+    # Rapor tarihi dinamik olarak şu anki aydır
     tr_tarih = f"{aylar[simdi.month]} {simdi.year}"
     
-    # Kapak
+    # 2. KAPAK OLUŞTUR (Vakıfbank Sarısı + TR Tarih)
     pdf.create_cover(tr_tarih, f"{manset_oran:.2f}")
     
-    # Özet
+    # 3. YÖNETİCİ ÖZETİ
     pdf.add_page()
     pdf.chapter_title("YÖNETİCİ ÖZETİ")
     pdf.write_markdown(text_content)
     
-    # 2. İMZA EKLE (Otomatik)
+    # 4. İMZA EKLE (VALIDASYON MÜDÜRLÜĞÜ)
     pdf.ln(10)
-    pdf.set_y(pdf.get_y() + 10)
+    pdf.set_y(pdf.get_y() + 10) # Biraz boşluk bırak
     pdf.set_font(pdf.font_family, 'B', 12)
     pdf.set_text_color(*pdf.c_koyu)
+    
+    # Sağa yaslı imza bloğu
     pdf.cell(0, 6, pdf.fix_text("Saygilarimizla,"), 0, 1, 'R')
     pdf.cell(0, 6, pdf.fix_text("VALIDASYON MUDURLUGU"), 0, 1, 'R')
 
-    # Grafikler
+    # 5. GRAFİKLER
     if figures:
         pdf.add_page()
         pdf.chapter_title("PİYASA GRAFİKLERİ")
@@ -377,13 +384,14 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, dat
                 pdf.add_plot_image(img, title=title)
             except: pass
 
-    # Tablo
+    # 6. TABLO
     if not df_table.empty:
         pdf.add_page()
         pdf.chapter_title("DETAYLI FİYAT HAREKETLERİ")
         cols = [c for c in df_table.columns if 'Kod' not in c and 'URL' not in c]
         pdf.create_table(df_table[cols].head(25))
 
+    # 7. ÇIKTIYI OLUŞTUR
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
         tmp.close()
@@ -392,7 +400,6 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, dat
         except: pass
             
     return pdf_bytes
-
 # --- HABER MOTORU ---
 def get_market_sentiment():
     rss_url = "https://news.google.com/rss/search?q=ekonomi+enflasyon+faiz+borsa+dolar&hl=tr&gl=TR&ceid=TR:tr"
@@ -998,6 +1005,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
