@@ -179,55 +179,85 @@ import shutil
 # --- PROFESYONEL PDF MOTORU (Encode Hatası Çözülmüş Sürüm) ---
 # --- GÜVENLİ PDF MOTORU (TÜRKÇE KARAKTER HATASI GİDERİLMİŞ) ---
 # --- 3. GÜVENLİ VE SARI TEMALI PDF MOTORU ---
+# --- 4. ULTIMATE PDF MOTORU (TÜRKÇE + VAKIFBANK TEMASI) ---
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
-        self.font_family = 'Arial'  # Standart font, indirme yok
+        self.font_family = 'Arial'  # Varsayılan
+        self.tr_active = False      # Türkçe font aktif mi?
         
-        # VAKIFBANK SARISI VE RENKLERİ
-        self.c_sari = (253, 185, 19)   # Vakıfbank Sarısı
-        self.c_koyu = (30, 30, 30)     # Koyu Antrasit (Metin için)
-        self.c_gri = (128, 128, 128)   # Yardımcı Gri
-        self.c_beyaz = (255, 255, 255) # Beyaz
+        # VAKIFBANK RENK PALETİ
+        self.c_sari = (253, 185, 19)   # Kurumsal Sarı
+        self.c_koyu = (30, 30, 30)     # Antrasit Siyah
+        self.c_gri = (100, 100, 100)   # Orta Gri
+        
+        # 1. YÖNTEM: İnternetten TR Fontu İndirmeyi Dene (En Temizi)
+        self.font_path = 'Roboto-Regular.ttf'
+        self.font_bold_path = 'Roboto-Bold.ttf'
+        
+        if self._try_download_font():
+            try:
+                self.add_font('Roboto', '', self.font_path, uni=True)
+                self.add_font('Roboto', 'B', self.font_bold_path, uni=True)
+                self.font_family = 'Roboto'
+                self.tr_active = True
+            except:
+                pass
 
-    def clean_text(self, text):
+    def _try_download_font(self):
+        """Fontları 'requests' ile indirir (Daha kararlı)"""
+        if os.path.exists(self.font_path) and os.path.exists(self.font_bold_path):
+            return True
+        try:
+            import requests
+            url_base = "https://github.com/google/fonts/raw/main/apache/roboto/"
+            
+            r1 = requests.get(url_base + "Roboto-Regular.ttf", timeout=5)
+            with open(self.font_path, 'wb') as f: f.write(r1.content)
+            
+            r2 = requests.get(url_base + "Roboto-Bold.ttf", timeout=5)
+            with open(self.font_bold_path, 'wb') as f: f.write(r2.content)
+            return True
+        except:
+            return False
+
+    def fix_text(self, text):
         """
-        Bu fonksiyon 'İ' harfi gibi Latin-1 setinde olmayan karakterleri
-        ZORLA İngilizce karakterlere çevirir. Hata riskini sıfırlar.
+        Metin İşleyici:
+        - Eğer TR font (Roboto) yüklendiyse: Olduğu gibi bas.
+        - Yüklenemediyse: Türkçe karakterleri Windows-1254 (Latin-5) uyumlu hale getir.
         """
         if text is None: return ""
         text = str(text)
         
-        # Türkçe -> İngilizce Haritalama (Kesin Çözüm)
-        replacements = {
-            "İ": "I", "ı": "i",
-            "Ğ": "G", "ğ": "g",
-            "Ş": "S", "ş": "s",
-            "Ö": "O", "ö": "o",
-            "Ü": "U", "ü": "u",
-            "Ç": "C", "ç": "c",
-            "â": "a", "î": "i", "€": "EUR", "₺": "TL"
-        }
-        for tr, eng in replacements.items():
-            text = text.replace(tr, eng)
+        if self.tr_active:
+            return text  # Sorun yok, UTF-8 bas
         
-        # Son güvenlik ağı: Latin-1 dışındaki her şeyi temizle
+        # Eğer font inmezse Arial ile TR basmayı dene (fallback)
+        # Latin-1 yerine encoding hatası vermemesi için map ediyoruz
+        tr_map = {
+            'Ğ': 'G', 'ğ': 'g', 'Ş': 'S', 'ş': 's', 
+            'İ': 'I', 'ı': 'i', # İ ve ı Arial'da sorunludur, mecbur değişir
+            'Ö': 'O', 'ö': 'o', 'Ü': 'U', 'ü': 'u', 'Ç': 'C', 'ç': 'c'
+        }
+        for k, v in tr_map.items():
+            text = text.replace(k, v)
         return text.encode('latin-1', 'replace').decode('latin-1')
 
     def header(self):
         if self.page_no() > 1:
             self.set_font(self.font_family, 'B', 10)
             self.set_text_color(*self.c_koyu)
-            self.cell(0, 10, self.clean_text("ENFLASYON MONITORU"), 0, 0, 'L')
+            self.cell(0, 10, self.fix_text("ENFLASYON MONİTÖRÜ"), 0, 0, 'L')
             
             self.set_font(self.font_family, '', 8)
             self.set_text_color(*self.c_gri)
             tarih = datetime.now().strftime("%d.%m.%Y")
-            self.cell(0, 10, self.clean_text(f'Rapor Tarihi: {tarih}'), 0, 1, 'R')
+            self.cell(0, 10, self.fix_text(f'Rapor Tarihi: {tarih}'), 0, 1, 'R')
             
-            # Çizgiyi Sarı Yapalım
-            self.set_draw_color(*self.c_sari) 
-            self.set_line_width(0.5)
+            # Altın Sarısı Çizgi
+            self.set_draw_color(*self.c_sari)
+            self.set_line_width(0.8)
             self.line(10, 20, 200, 20)
             self.ln(5)
 
@@ -235,16 +265,16 @@ class PDFReport(FPDF):
         self.set_y(-15)
         self.set_font(self.font_family, '', 8)
         self.set_text_color(*self.c_gri)
-        self.cell(0, 10, self.clean_text(f'Sayfa {self.page_no()}'), 0, 0, 'C')
+        self.cell(0, 10, self.fix_text(f'Sayfa {self.page_no()}'), 0, 0, 'C')
 
     def chapter_title(self, label):
         self.ln(5)
         self.set_font(self.font_family, 'B', 14)
-        self.set_text_color(*self.c_koyu) 
-        # Bölüm başlığı altı sarı çizgi
-        self.cell(0, 10, self.clean_text(str(label)), 0, 1, 'L')
+        self.set_text_color(*self.c_koyu)
+        self.cell(0, 10, self.fix_text(str(label)), 0, 1, 'L')
+        # Altın Çizgi
         self.set_draw_color(*self.c_sari)
-        self.set_line_width(1)
+        self.set_line_width(1.5)
         self.line(self.get_x(), self.get_y(), self.get_x() + 190, self.get_y())
         self.ln(5)
 
@@ -255,7 +285,7 @@ class PDFReport(FPDF):
         
         lines = str(text).split('\n')
         for line in lines:
-            line = self.clean_text(line)
+            line = self.fix_text(line)
             if not line.strip():
                 self.ln(5); continue
             
@@ -270,39 +300,41 @@ class PDFReport(FPDF):
 
     def create_cover(self, date_str, rate_val):
         self.add_page()
-        # Arka Plan: SARI
+        # Full Sarı Arka Plan
         self.set_fill_color(*self.c_sari)
-        self.rect(0, 0, 210, 297, 'F') # Tüm sayfayı sarı yap
+        self.rect(0, 0, 210, 297, 'F')
         
-        # İçerik Kutusu: Hafif Beyaz Transparanlık etkisi yerine direkt Beyaz kutu
+        # Beyaz Kart
         self.set_fill_color(255, 255, 255)
-        self.rect(20, 40, 170, 200, 'F')
+        self.rect(20, 40, 170, 200, 'F') # Ortada beyaz alan
 
+        # Başlıklar
         self.set_y(60)
         self.set_font(self.font_family, 'B', 28)
         self.set_text_color(*self.c_koyu)
-        self.cell(0, 15, self.clean_text("PIYASA & ENFLASYON"), 0, 1, 'C')
-        self.cell(0, 15, self.clean_text("STRATEJI RAPORU"), 0, 1, 'C')
+        self.cell(0, 15, self.fix_text("PİYASA & ENFLASYON"), 0, 1, 'C')
+        self.cell(0, 15, self.fix_text("STRATEJİ RAPORU"), 0, 1, 'C')
         
-        self.ln(30)
+        self.ln(25)
         
-        # Büyük Rakam
+        # Rakam (Sarı renk, koyu kontur etkisi için büyük font)
         self.set_font(self.font_family, 'B', 70)
-        self.set_text_color(*self.c_sari) # Rakam Sarı olsun ama etrafı koyu
-        # Rakamın okunması için arkaplan değil text rengini koyu yapalım
-        self.set_text_color(*self.c_koyu) 
-        self.cell(0, 30, self.clean_text(f"%{rate_val}"), 0, 1, 'C')
+        self.set_text_color(*self.c_sari) 
+        self.set_text_color(253, 185, 19) # Sarı yazı
+        # Ancak beyaz zemin üstünde sarı okunmaz, o yüzden KOYU GRİ yapıyoruz rakamı:
+        self.set_text_color(*self.c_koyu)
+        self.cell(0, 30, self.fix_text(f"%{rate_val}"), 0, 1, 'C')
         
         self.set_font(self.font_family, 'B', 14)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 15, self.clean_text("AYLIK ENFLASYON GOSTERGESI"), 0, 1, 'C')
+        self.cell(0, 15, self.fix_text("AYLIK ENFLASYON GÖSTERGESİ"), 0, 1, 'C')
         
         self.ln(30)
         self.set_font(self.font_family, '', 12)
         self.set_text_color(*self.c_koyu)
-        aciklama = f"Bu rapor, {date_str} donemi icin yapay zeka destekli piyasa analiz sistemi tarafindan olusturulmustur."
+        aciklama = f"Bu rapor, {date_str} dönemi için yapay zeka destekli piyasa analiz sistemi tarafından oluşturulmuştur."
         self.set_x(40)
-        self.multi_cell(130, 6, self.clean_text(aciklama), 0, 'C')
+        self.multi_cell(130, 6, self.fix_text(aciklama), 0, 'C')
 
     def add_plot_image(self, plot_bytes, title="Grafik"):
         if plot_bytes:
@@ -313,7 +345,7 @@ class PDFReport(FPDF):
             self.ln(5)
             self.set_font(self.font_family, 'B', 11)
             self.set_text_color(*self.c_koyu)
-            self.cell(0, 8, self.clean_text(title), 0, 1, 'L')
+            self.cell(0, 8, self.fix_text(title), 0, 1, 'L')
             try:
                 x = (210 - 180) / 2
                 self.image(path, x=x, w=180)
@@ -324,57 +356,59 @@ class PDFReport(FPDF):
 
     def create_table(self, df):
         self.set_font(self.font_family, 'B', 9)
-        # Tablo Başlığı: SARI Arkaplan, KOYU Yazı
+        # Tablo Başlığı: SARI
         self.set_fill_color(*self.c_sari)
-        self.set_text_color(*self.c_koyu)
+        self.set_text_color(*self.c_koyu) # Sarı üstüne siyah yazı
         
         cols = df.columns
         w = 190 / len(cols) if len(cols) > 0 else 190
         
         for col in cols:
-            self.cell(w, 9, self.clean_text(str(col)), 1, 0, 'C', True)
+            self.cell(w, 9, self.fix_text(str(col)), 1, 0, 'C', True)
         self.ln()
         
         self.set_font(self.font_family, '', 8)
         self.set_text_color(0, 0, 0)
         
         for i, row in df.iterrows():
-            # Satırlar: Beyaz ve Çok Açık Gri
-            if i % 2 == 0: self.set_fill_color(250, 250, 250)
+            if i % 2 == 0: self.set_fill_color(248, 248, 248)
             else: self.set_fill_color(255, 255, 255)
             
             for col in cols:
                 val = row[col]
                 txt = f"{val:.2f}" if isinstance(val, (int, float)) else str(val)
-                self.cell(w, 8, self.clean_text(txt), 1, 0, 'C', True)
+                self.cell(w, 8, self.fix_text(txt), 1, 0, 'C', True)
             self.ln()
 
 def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, date_str):
     pdf = PDFReport()
-    # Tarihi de temizle
-    safe_date = date_str.replace('ı', 'i').replace('ğ', 'g').replace('ü', 'u').replace('ş', 's').replace('ö', 'o').replace('ç', 'c').replace('İ', 'I')
     
-    pdf.create_cover(safe_date, f"{manset_oran:.2f}")
+    # Kapağı Oluştur
+    pdf.create_cover(date_str, f"{manset_oran:.2f}")
     
+    # Yönetici Özeti
     pdf.add_page()
-    pdf.chapter_title("YONETICI OZETI")
+    pdf.chapter_title("YÖNETİCİ ÖZETİ")
     pdf.write_markdown(text_content)
     
+    # Grafikler
     if figures:
         pdf.add_page()
-        pdf.chapter_title("PIYASA GRAFIKLERI")
+        pdf.chapter_title("PİYASA GRAFİKLERİ")
         for title, fig in figures.items():
             try:
                 img = fig.to_image(format="png", width=1200, height=600, scale=2)
                 pdf.add_plot_image(img, title=title)
             except: pass
 
+    # Tablo
     if not df_table.empty:
         pdf.add_page()
-        pdf.chapter_title("DETAYLI FIYAT HAREKETLERI")
+        pdf.chapter_title("DETAYLI FİYAT HAREKETLERİ")
         cols = [c for c in df_table.columns if 'Kod' not in c and 'URL' not in c]
         pdf.create_table(df_table[cols].head(25))
 
+    # Binary Çıktı
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
         tmp.close()
@@ -990,6 +1024,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
