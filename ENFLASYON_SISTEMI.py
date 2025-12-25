@@ -775,6 +775,8 @@ def dashboard_modu():
 
                 # ... (Kodun üst kısımları, Ticker/Kayan yazı bitişi) ...
                 
+                # ... (Kodun üst kısımları, Ticker/Kayan yazı bitişi) ...
+                
                 if not items: items.append("Piyasada son 24 saatte önemli bir fiyat değişimi olmadı.")
 
                 st.markdown(
@@ -838,8 +840,6 @@ def dashboard_modu():
                 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- SEKMELER ---
-                # ... (Kodun devamı aynı kalacak) ...
 
                 # --- SEKMELER ---
                 t_analiz, t_istatistik, t_harita, t_liste, t_haber, t_rapor = st.tabs(
@@ -1099,6 +1099,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
