@@ -180,6 +180,7 @@ import shutil
 # --- GÜVENLİ PDF MOTORU (TÜRKÇE KARAKTER HATASI GİDERİLMİŞ) ---
 # --- 3. GÜVENLİ VE SARI TEMALI PDF MOTORU ---
 # --- 4. ULTIMATE PDF MOTORU (TÜRKÇE + VAKIFBANK TEMASI) ---
+# --- 5. NİHAİ PDF MOTORU (TR TARİH + İMZA + VAKIFBANK TEMASI) ---
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -191,7 +192,7 @@ class PDFReport(FPDF):
         self.c_koyu = (30, 30, 30)     # Antrasit Siyah
         self.c_gri = (100, 100, 100)   # Orta Gri
         
-        # 1. YÖNTEM: İnternetten TR Fontu İndirmeyi Dene (En Temizi)
+        # Font Yükleme Denemesi
         self.font_path = 'Roboto-Regular.ttf'
         self.font_bold_path = 'Roboto-Bold.ttf'
         
@@ -201,47 +202,29 @@ class PDFReport(FPDF):
                 self.add_font('Roboto', 'B', self.font_bold_path, uni=True)
                 self.font_family = 'Roboto'
                 self.tr_active = True
-            except:
-                pass
+            except: pass
 
     def _try_download_font(self):
-        """Fontları 'requests' ile indirir (Daha kararlı)"""
-        if os.path.exists(self.font_path) and os.path.exists(self.font_bold_path):
-            return True
+        if os.path.exists(self.font_path) and os.path.exists(self.font_bold_path): return True
         try:
             import requests
             url_base = "https://github.com/google/fonts/raw/main/apache/roboto/"
-            
-            r1 = requests.get(url_base + "Roboto-Regular.ttf", timeout=5)
+            r1 = requests.get(url_base + "Roboto-Regular.ttf", timeout=5); 
             with open(self.font_path, 'wb') as f: f.write(r1.content)
-            
-            r2 = requests.get(url_base + "Roboto-Bold.ttf", timeout=5)
+            r2 = requests.get(url_base + "Roboto-Bold.ttf", timeout=5); 
             with open(self.font_bold_path, 'wb') as f: f.write(r2.content)
             return True
-        except:
-            return False
+        except: return False
 
     def fix_text(self, text):
-        """
-        Metin İşleyici:
-        - Eğer TR font (Roboto) yüklendiyse: Olduğu gibi bas.
-        - Yüklenemediyse: Türkçe karakterleri Windows-1254 (Latin-5) uyumlu hale getir.
-        """
+        """Metni TR karakterlerden arındırır veya uygun font varsa basar."""
         if text is None: return ""
         text = str(text)
+        if self.tr_active: return text
         
-        if self.tr_active:
-            return text  # Sorun yok, UTF-8 bas
-        
-        # Eğer font inmezse Arial ile TR basmayı dene (fallback)
-        # Latin-1 yerine encoding hatası vermemesi için map ediyoruz
-        tr_map = {
-            'Ğ': 'G', 'ğ': 'g', 'Ş': 'S', 'ş': 's', 
-            'İ': 'I', 'ı': 'i', # İ ve ı Arial'da sorunludur, mecbur değişir
-            'Ö': 'O', 'ö': 'o', 'Ü': 'U', 'ü': 'u', 'Ç': 'C', 'ç': 'c'
-        }
-        for k, v in tr_map.items():
-            text = text.replace(k, v)
+        # TR -> ENG Haritalama
+        tr_map = {'Ğ': 'G', 'ğ': 'g', 'Ş': 'S', 'ş': 's', 'İ': 'I', 'ı': 'i', 'Ö': 'O', 'ö': 'o', 'Ü': 'U', 'ü': 'u', 'Ç': 'C', 'ç': 'c'}
+        for k, v in tr_map.items(): text = text.replace(k, v)
         return text.encode('latin-1', 'replace').decode('latin-1')
 
     def header(self):
@@ -255,7 +238,6 @@ class PDFReport(FPDF):
             tarih = datetime.now().strftime("%d.%m.%Y")
             self.cell(0, 10, self.fix_text(f'Rapor Tarihi: {tarih}'), 0, 1, 'R')
             
-            # Altın Sarısı Çizgi
             self.set_draw_color(*self.c_sari)
             self.set_line_width(0.8)
             self.line(10, 20, 200, 20)
@@ -272,7 +254,6 @@ class PDFReport(FPDF):
         self.set_font(self.font_family, 'B', 14)
         self.set_text_color(*self.c_koyu)
         self.cell(0, 10, self.fix_text(str(label)), 0, 1, 'L')
-        # Altın Çizgi
         self.set_draw_color(*self.c_sari)
         self.set_line_width(1.5)
         self.line(self.get_x(), self.get_y(), self.get_x() + 190, self.get_y())
@@ -282,33 +263,28 @@ class PDFReport(FPDF):
         if not text: return
         self.set_text_color(50, 50, 50)
         self.set_font(self.font_family, '', 11)
-        
         lines = str(text).split('\n')
         for line in lines:
-            line = self.fix_text(line)
-            if not line.strip():
-                self.ln(5); continue
+            # AI imza atıyorsa onu basma, biz aşağıda manuel basacağız
+            if "Basekonomist" in line or "Saygilarimizla" in line or "Kurum Adi" in line: continue
             
+            line = self.fix_text(line)
+            if not line.strip(): self.ln(5); continue
             parts = line.split('**')
             for i, part in enumerate(parts):
-                if i % 2 == 1: 
-                    self.set_font(self.font_family, 'B', 11)
-                else:
-                    self.set_font(self.font_family, '', 11)
+                if i % 2 == 1: self.set_font(self.font_family, 'B', 11)
+                else: self.set_font(self.font_family, '', 11)
                 self.write(6, part)
             self.ln(6)
 
     def create_cover(self, date_str, rate_val):
         self.add_page()
-        # Full Sarı Arka Plan
         self.set_fill_color(*self.c_sari)
         self.rect(0, 0, 210, 297, 'F')
         
-        # Beyaz Kart
         self.set_fill_color(255, 255, 255)
-        self.rect(20, 40, 170, 200, 'F') # Ortada beyaz alan
+        self.rect(20, 40, 170, 200, 'F')
 
-        # Başlıklar
         self.set_y(60)
         self.set_font(self.font_family, 'B', 28)
         self.set_text_color(*self.c_koyu)
@@ -316,12 +292,7 @@ class PDFReport(FPDF):
         self.cell(0, 15, self.fix_text("STRATEJİ RAPORU"), 0, 1, 'C')
         
         self.ln(25)
-        
-        # Rakam (Sarı renk, koyu kontur etkisi için büyük font)
         self.set_font(self.font_family, 'B', 70)
-        self.set_text_color(*self.c_sari) 
-        self.set_text_color(253, 185, 19) # Sarı yazı
-        # Ancak beyaz zemin üstünde sarı okunmaz, o yüzden KOYU GRİ yapıyoruz rakamı:
         self.set_text_color(*self.c_koyu)
         self.cell(0, 30, self.fix_text(f"%{rate_val}"), 0, 1, 'C')
         
@@ -339,9 +310,7 @@ class PDFReport(FPDF):
     def add_plot_image(self, plot_bytes, title="Grafik"):
         if plot_bytes:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-                tmpfile.write(plot_bytes)
-                path = tmpfile.name
-            
+                tmpfile.write(plot_bytes); path = tmpfile.name
             self.ln(5)
             self.set_font(self.font_family, 'B', 11)
             self.set_text_color(*self.c_koyu)
@@ -356,41 +325,48 @@ class PDFReport(FPDF):
 
     def create_table(self, df):
         self.set_font(self.font_family, 'B', 9)
-        # Tablo Başlığı: SARI
         self.set_fill_color(*self.c_sari)
-        self.set_text_color(*self.c_koyu) # Sarı üstüne siyah yazı
-        
+        self.set_text_color(*self.c_koyu)
         cols = df.columns
         w = 190 / len(cols) if len(cols) > 0 else 190
-        
-        for col in cols:
-            self.cell(w, 9, self.fix_text(str(col)), 1, 0, 'C', True)
+        for col in cols: self.cell(w, 9, self.fix_text(str(col)), 1, 0, 'C', True)
         self.ln()
-        
         self.set_font(self.font_family, '', 8)
         self.set_text_color(0, 0, 0)
-        
         for i, row in df.iterrows():
             if i % 2 == 0: self.set_fill_color(248, 248, 248)
             else: self.set_fill_color(255, 255, 255)
-            
             for col in cols:
                 val = row[col]
                 txt = f"{val:.2f}" if isinstance(val, (int, float)) else str(val)
                 self.cell(w, 8, self.fix_text(txt), 1, 0, 'C', True)
             self.ln()
 
-def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, date_str):
+def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, date_str_ignored):
     pdf = PDFReport()
     
-    # Kapağı Oluştur
-    pdf.create_cover(date_str, f"{manset_oran:.2f}")
+    # 1. TARİHİ ZORLA TÜRKÇE YAP (December sorununu çözer)
+    aylar = {1:"Ocak", 2:"Subat", 3:"Mart", 4:"Nisan", 5:"Mayis", 6:"Haziran", 
+             7:"Temmuz", 8:"Agustos", 9:"Eylul", 10:"Ekim", 11:"Kasim", 12:"Aralik"}
+    simdi = datetime.now()
+    tr_tarih = f"{aylar[simdi.month]} {simdi.year}"
     
-    # Yönetici Özeti
+    # Kapak
+    pdf.create_cover(tr_tarih, f"{manset_oran:.2f}")
+    
+    # Özet
     pdf.add_page()
     pdf.chapter_title("YÖNETİCİ ÖZETİ")
     pdf.write_markdown(text_content)
     
+    # 2. İMZA EKLE (Otomatik)
+    pdf.ln(10)
+    pdf.set_y(pdf.get_y() + 10)
+    pdf.set_font(pdf.font_family, 'B', 12)
+    pdf.set_text_color(*pdf.c_koyu)
+    pdf.cell(0, 6, pdf.fix_text("Saygilarimizla,"), 0, 1, 'R')
+    pdf.cell(0, 6, pdf.fix_text("VALIDASYON MUDURLUGU"), 0, 1, 'R')
+
     # Grafikler
     if figures:
         pdf.add_page()
@@ -408,12 +384,10 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, dat
         cols = [c for c in df_table.columns if 'Kod' not in c and 'URL' not in c]
         pdf.create_table(df_table[cols].head(25))
 
-    # Binary Çıktı
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
         tmp.close()
-        with open(tmp.name, "rb") as f:
-            pdf_bytes = f.read()
+        with open(tmp.name, "rb") as f: pdf_bytes = f.read()
         try: os.unlink(tmp.name)
         except: pass
             
@@ -1024,6 +998,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
