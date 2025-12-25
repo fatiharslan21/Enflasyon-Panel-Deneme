@@ -689,7 +689,7 @@ def dashboard_modu():
                   "autosize": true,
                   "largeChartUrl": "",
                   "chartOnly": false,
-                  "noTimeScale": false
+                  "noTimeScale": true
               }}
               </script>
             </div>
@@ -1065,5 +1065,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
