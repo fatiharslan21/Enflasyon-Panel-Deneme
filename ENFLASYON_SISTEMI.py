@@ -12,7 +12,8 @@ from github import Github
 from io import BytesIO
 import zipfile
 import base64
-import google.generativeai as genai
+from openai import OpenAI  # <-- BUNU EKLE
+import time
 import requests
 from prophet import Prophet
 import feedparser
@@ -96,8 +97,13 @@ def apply_theme():
 
 apply_theme()
 
-if "gemini" in st.secrets:
-    genai.configure(api_key=st.secrets["gemini"]["api_key"])
+# --- YAPAY ZEKA MOTORU (GROQ - ÜCRETSİZ & HIZLI) ---
+client = None
+if "groq" in st.secrets:
+    client = OpenAI(
+        base_url="https://api.groq.com/openai/v1",
+        api_key=st.secrets["groq"]["api_key"]
+    )
 
 
 # --- 2. GITHUB & VERİ MOTORU ---
@@ -565,29 +571,40 @@ def get_market_sentiment():
     rss_url = "https://news.google.com/rss/search?q=ekonomi+enflasyon+faiz+borsa+dolar&hl=tr&gl=TR&ceid=TR:tr"
     try:
         feed = feedparser.parse(rss_url)
-        headlines = [entry.title for entry in feed.entries[:12]]
+        # Token limiti yememek için sadece ilk 8 haberi alalım
+        headlines = [entry.title for entry in feed.entries[:8]]
         news_text = "\n".join([f"- {h}" for h in headlines])
 
         prompt = f"""
-        Aşağıdaki haber başlıkları Türkiye ekonomi gündemine aittir.
-        Bir Kıdemli Piyasa Analisti olarak bu başlıkları süz ve yorumla.
+        Sen uzman bir Türk ekonomistisin. Aşağıdaki haber başlıklarına bakarak piyasayı yorumla.
         
         HABERLER:
         {news_text}
         
-        GÖREVİN:
-        1. Başlıklar arasından SADECE ekonomi, finans, kur ve enflasyon ile doğrudan ilgili olanları dikkate al.
-        2. "Piyasa Havası"nı (Market Sentiment) tek kelimeyle tanımla (Örn: Risk İştahı Yüksek, Tedirgin, Bekle-Gör, Negatif).
-        3. En kritik 3 ekonomik gelişmeyi maddeler halinde özetle.
-        4. Bu haberlerin kısa vadeli enflasyon veya döviz kuru üzerindeki olası etkisini 1 cümle ile belirt.
+        GÖREV:
+        1. Piyasa Havası: (Tek kelime: Riskli, Olumlu, Sakin vb.)
+        2. Kritik Gelişmeler: En önemli 3 maddeyi özetle.
+        3. Etki: Kısa vadede enflasyon veya dolara etkisi ne olur? (1 cümle)
         
-        Çıktıyı profesyonel, kısa ve net ver. Magazin veya siyasi polemikleri yoksay.
+        Sadece Türkçe cevap ver. Yorumun kısa ve profesyonel olsun.
         """
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        response = model.generate_content(prompt)
-        return response.text, headlines
+        
+        if not client:
+            return "API Key Eksik (Groq)", headlines
+
+        response = client.chat.completions.create(
+            model="llama3-8b-8192",  # Ücretsiz ve Hızlı Model
+            messages=[
+                {"role": "system", "content": "Sen kıdemli bir piyasa analistisin."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=500
+        )
+        
+        return response.choices[0].message.content, headlines
     except Exception as e:
-        return f"Haberler alınamadı: {str(e)}", []
+        return f"Analiz Hatası: {str(e)}", []
 
 
 # --- 7. DASHBOARD MODU ---
@@ -913,15 +930,38 @@ def dashboard_modu():
 
                 with t_rapor:
                     st.markdown("### 📝 Stratejik Yönetim Raporu")
+                    # ... t_rapor içindeki butonun altı ...
+
                     if st.button("🚀 PROFESYONEL RAPORU OLUŞTUR", type="primary"):
-                        with st.spinner("Veriler işleniyor, grafikler çiziliyor ve rapor diziliyor..."):
+                        with st.spinner("Llama-3 Piyasayı Analiz Ediyor..."):
                             
-                            # A. METNİ HAZIRLA
-                            prompt = f"Tarih: {son}. Genel Enflasyon: %{enf_genel:.2f}. Gıda: %{enf_gida:.2f}. Piyasa özeti yaz."
+                            # --- AI METİN OLUŞTURMA (GROQ) ---
+                            prompt = f"""
+                            Tarih: {son}. 
+                            Genel Enflasyon: %{enf_genel:.2f}. 
+                            Gıda Enflasyonu: %{enf_gida:.2f}. 
+                            
+                            Bir ekonomi raporunun "Yönetici Özeti" bölümünü yaz.
+                            Verileri yorumla, gelecek ay için riskleri belirt.
+                            Dili resmi ve finansal terminolojiye uygun olsun.
+                            Yaklaşık 150 kelime. Markdown kullanma, düz metin yaz.
+                            """
+                            
+                            rap_text = "Rapor oluşturulamadı."
                             try:
-                                model = genai.GenerativeModel('gemini-2.5-flash')
-                                rap_text = model.generate_content(prompt).text
-                            except: rap_text = "AI Bağlantı Hatası."
+                                if client:
+                                    resp = client.chat.completions.create(
+                                        model="llama3-8b-8192",
+                                        messages=[{"role": "user", "content": prompt}],
+                                        temperature=0.5
+                                    )
+                                    rap_text = resp.choices[0].message.content
+                                else:
+                                    rap_text = "API Key yok."
+                            except Exception as e:
+                                rap_text = f"Yapay Zeka Hatası: {str(e)}"
+                
+                            # ... PDF oluşturma kodları buradan devam eder ...
 
                             # B. GRAFİKLERİ PDF FORMATINA ÇEVİR (Dergi Modu)
                             # Trend Grafiğini Kopyala ve Beyazlat
@@ -963,3 +1003,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
