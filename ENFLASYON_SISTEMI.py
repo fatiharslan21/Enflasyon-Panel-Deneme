@@ -30,6 +30,7 @@ import os
 import urllib.request
 from fpdf import FPDF
 import tempfile
+import shutil
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
 st.set_page_config(
@@ -169,28 +170,40 @@ import urllib.request
 
 # --- PROFESYONEL PDF MOTORU (Türkçe Font & Markdown Destekli) ---
 # --- GÜVENLİ PDF MOTORU (Renk Hatası Giderildi) ---
+import os
+import urllib.request
+from fpdf import FPDF
+import tempfile
+import shutil
+
+# --- PROFESYONEL PDF MOTORU (Encode Hatası Çözülmüş Sürüm) ---
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
         # Font Ayarları: Roboto varsa indir, yoksa Arial kullan
         self.font_family = 'Roboto'
+        
+        # Fontları indirip kaydetmeye çalış
         self.download_font('Roboto-Regular.ttf', 'https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf')
         self.download_font('Roboto-Bold.ttf', 'https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Bold.ttf', style='B')
         
     def download_font(self, filename, url, style=''):
+        # Dosya yoksa indir
         if not os.path.exists(filename):
             try:
                 urllib.request.urlretrieve(url, filename)
             except: pass
+        
+        # Fontu sisteme ekle (uni=True ile Türkçe desteği açılır)
         try:
             self.add_font(self.font_family, style, filename, uni=True)
         except:
+            # Roboto yüklenemezse Arial'e dön
             self.font_family = 'Arial'
 
     def header(self):
         if self.page_no() > 1:
             self.set_font(self.font_family, 'B', 10)
-            # Renkleri MANUEL veriyoruz (Hata ihtimali %0)
             self.set_text_color(44, 62, 80) 
             self.cell(0, 10, "ENFLASYON MONITORU", 0, 0, 'L')
             
@@ -224,6 +237,7 @@ class PDFReport(FPDF):
             if not line.strip():
                 self.ln(5); continue
             
+            # Kalın metinleri ayıkla (**text**)
             parts = line.split('**')
             for i, part in enumerate(parts):
                 if i % 2 == 1: 
@@ -231,8 +245,12 @@ class PDFReport(FPDF):
                 else:
                     self.set_font(self.font_family, '', 11)
                 
-                try: self.write(6, part)
-                except: self.write(6, str(part).encode('latin-1', 'replace').decode('latin-1'))
+                # 'İ' harfi bazen sorun çıkarırsa diye safe-write
+                try: 
+                    self.write(6, part)
+                except: 
+                    # Çok nadir durumda karakteri replace et
+                    self.write(6, str(part).replace('\u0130', 'I'))
             self.ln(6)
 
     def create_cover(self, date_str, rate_val):
@@ -304,7 +322,7 @@ class PDFReport(FPDF):
                 self.cell(w, 8, txt, 1, 0, 'C', True)
             self.ln()
 
-# --- ÇALIŞTIRICI FONKSİYON ---
+# --- ÇALIŞTIRICI FONKSİYON (TempFile İle Güvenli Çıktı) ---
 def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, date_str):
     pdf = PDFReport()
     pdf.create_cover(date_str, f"{manset_oran:.2f}")
@@ -328,7 +346,16 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, dat
         cols = [c for c in df_table.columns if 'Kod' not in c and 'URL' not in c]
         pdf.create_table(df_table[cols].head(25))
 
-    return pdf.output(dest='S').encode('latin-1', 'ignore')
+    # EN ÖNEMLİ DEĞİŞİKLİK BURADA:
+    # String olarak almak yerine, geçici dosyaya yazıp BYTE olarak okuyoruz.
+    # Bu, 'latin-1' hatasını %100 çözer.
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        pdf.output(tmp.name)  # Dosyaya kaydet
+        tmp.close()           # Dosyayı kapat
+        with open(tmp.name, "rb") as f:
+            pdf_bytes = f.read() # Byte olarak oku
+            
+    return pdf_bytes
 
 # --- HABER MOTORU ---
 def get_market_sentiment():
@@ -935,6 +962,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
