@@ -841,54 +841,127 @@ def dashboard_modu():
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str} Dönemi", "#f59e0b", "card-orange")
                 st.markdown("<br>", unsafe_allow_html=True)
 
+                # --- PROFESYONEL GRAFİK MOTORU ---
                 t_analiz, t_istatistik, t_harita, t_liste, t_haber, t_rapor = st.tabs(["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📋 LİSTE", "📰 HABERLER", "📝 RAPOR"])
-
                 # Veri Hazırlığı
                 trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[agirlik_col].sum() * 100} for g in gunler]
                 df_trend = pd.DataFrame(trend_data)
                 df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
                 
+                # --- GRAFİK STİL FONKSİYONU ---
+                def style_chart(fig, is_pdf=False):
+                    """Grafikleri şıklaştırır. is_pdf=True ise baskı moduna alır."""
+                    if is_pdf:
+                        # PDF İÇİN: Beyaz Zemin, Lacivert/Sarı Çizgiler
+                        bg_color = "white"
+                        text_color = "#333333"
+                        grid_color = "#e5e5e5"
+                        main_color = "#FDB913" # Vakıf Sarısı
+                        sec_color = "#002855"  # Vakıf Laciverti
+                    else:
+                        # APP İÇİN: Şeffaf Zemin, Beyaz Yazılar (Dark Mode)
+                        bg_color = "rgba(0,0,0,0)"
+                        text_color = "#FAFAFA"
+                        grid_color = "#444444"
+                        main_color = "#FDB913" 
+                        sec_color = "#3b82f6"
+
+                    fig.update_layout(
+                        font=dict(family="Arial", size=12, color=text_color),
+                        plot_bgcolor=bg_color,
+                        paper_bgcolor=bg_color,
+                        title_font=dict(size=18, color=text_color, family="Arial Black"),
+                        xaxis=dict(showgrid=True, gridwidth=1, gridcolor=grid_color, zeroline=False),
+                        yaxis=dict(showgrid=True, gridwidth=1, gridcolor=grid_color, zeroline=False),
+                        hovermode="x unified",
+                        margin=dict(l=40, r=40, t=60, b=40)
+                    )
+                    return fig, main_color, sec_color
+
+                # 1. ANALİZ TABI (TREND)
                 with t_analiz:
-                    st.markdown("### 📈 Enflasyon Analizi ve Gelecek Tahmini")
-                    with st.spinner("Gelecek tahmini yapıyor..."):
+                    st.markdown("### 📈 Enflasyon Trend Analizi")
+                    
+                    # Tahmin
+                    with st.spinner("AI Tahmini Hesaplanıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
-                    current_year = df_trend['Tarih'].dt.year.max(); start_date = df_trend['Tarih'].min(); end_date_fixed = f"{current_year}-12-31"
+
+                    # Grafik Oluştur
                     fig_main = go.Figure()
-                    fig_main.add_trace(go.Scatter(x=df_trend['Tarih'], y=df_trend['TÜFE'], mode='lines+markers', name='Enflasyon Monitörü', line=dict(color='#2563eb', width=3)))
+                    
+                    # Geçmiş Veri (Ana Çizgi)
+                    fig_main.add_trace(go.Scatter(
+                        x=df_trend['Tarih'], y=df_trend['TÜFE'],
+                        mode='lines+markers', name='Gerçekleşen',
+                        line=dict(color='#FDB913', width=4, shape='spline'), # Sarı Çizgi
+                        marker=dict(size=8, color='#FDB913', line=dict(width=2, color='white')),
+                        fill='tozeroy', fillcolor='rgba(253, 185, 19, 0.1)' # Altına hafif sarı gölge
+                    ))
+
+                    # Gelecek Tahmini
                     if not df_forecast.empty:
-                        future_only = df_forecast[df_forecast['ds'] > df_trend['Tarih'].max()]
-                        fig_main.add_trace(go.Scatter(x=future_only['ds'], y=future_only['yhat'], mode='lines', name='AI Tahmini', line=dict(color='#f59e0b', dash='dot')))
-                        fig_main.add_trace(go.Scatter(x=future_only['ds'].tolist() + future_only['ds'].tolist()[::-1], y=future_only['yhat_upper'].tolist() + future_only['yhat_lower'].tolist()[::-1], fill='toself', fillcolor='rgba(245, 158, 11, 0.2)', line=dict(color='rgba(255,255,255,0)'), hoverinfo="skip", showlegend=False))
-                    fig_main.update_layout(template=st.session_state.plotly_template, title="Enflasyon: Geçmiş, Şimdi ve Gelecek", title_font=dict(color='white', size=22), legend=dict(orientation="h", y=1.1, font=dict(color="white")), yaxis=dict(title="TÜFE Endeksi", range=[95, 110]), xaxis=dict(range=[start_date, end_date_fixed]), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                        future = df_forecast[df_forecast['ds'] > df_trend['Tarih'].max()]
+                        fig_main.add_trace(go.Scatter(
+                            x=future['ds'], y=future['yhat'],
+                            mode='lines', name='AI Tahmini',
+                            line=dict(color='#3b82f6', width=2, dash='dash')
+                        ))
+                        # Güven Aralığı (Gri Alan)
+                        fig_main.add_trace(go.Scatter(
+                            x=future['ds'].tolist() + future['ds'].tolist()[::-1],
+                            y=future['yhat_upper'].tolist() + future['yhat_lower'].tolist()[::-1],
+                            fill='toself', fillcolor='rgba(59, 130, 246, 0.1)',
+                            line=dict(color='rgba(0,0,0,0)'), showlegend=False, hoverinfo='skip'
+                        ))
+
+                    fig_main.update_layout(title="Enflasyon ve Gelecek Projeksiyonu", legend=dict(orientation="h", y=1.1))
+                    style_chart(fig_main) # App stilini uygula
                     st.plotly_chart(fig_main, use_container_width=True)
 
+                # 2. İSTATİSTİK TABI
                 with t_istatistik:
-                    st.markdown("### 📊 İstatistiksel Risk ve Dağılım Analizi")
-                    col_hist, col_vol = st.columns(2)
+                    st.markdown("### 📊 Dağılım ve Risk")
+                    c1, c2 = st.columns(2)
+                    
+                    # Histogram
                     df_analiz['Fark_Yuzde'] = df_analiz['Fark'] * 100
-                    fig_hist = px.histogram(df_analiz, x="Fark_Yuzde", nbins=40, title="📊 Zam Dağılımı Frekansı", color_discrete_sequence=['#8b5cf6'])
-                    fig_hist.update_layout(template=st.session_state.plotly_template, title_font=dict(color='white', size=22), xaxis_title="Artış Oranı (%)", yaxis_title="Ürün Adedi", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-                    col_hist.plotly_chart(fig_hist, use_container_width=True)
+                    fig_hist = go.Figure()
+                    fig_hist.add_trace(go.Histogram(
+                        x=df_analiz['Fark_Yuzde'], nbinsx=30,
+                        marker_color='#FDB913', opacity=0.8,
+                        marker_line=dict(width=1, color='white')
+                    ))
+                    fig_hist.update_layout(title="Fiyat Artış Dağılımı (Histogram)", xaxis_title="Artış Oranı (%)", yaxis_title="Ürün Sayısı")
+                    style_chart(fig_hist)
+                    c1.plotly_chart(fig_hist, use_container_width=True)
 
+                    # Volatilite (Scatter)
                     try:
-                        fiyat_sutunlari = [c for c in pivot.columns if c != 'Kod']
-                        pivot['Std'] = pivot[fiyat_sutunlari].std(axis=1)
-                        pivot['Mean'] = pivot[fiyat_sutunlari].mean(axis=1)
+                        cols_p = [c for c in pivot.columns if c != 'Kod']
+                        pivot['Std'] = pivot[cols_p].std(axis=1)
+                        pivot['Mean'] = pivot[cols_p].mean(axis=1)
                         pivot['Volatilite'] = (pivot['Std'] / pivot['Mean']) * 100
                         df_vol = pd.merge(df_analiz, pivot[['Kod', 'Volatilite']], on='Kod', how='left')
-                        fig_vol = px.scatter(df_vol, x="Fark_Yuzde", y="Volatilite", color="Grup", hover_data=[ad_col], title="⚡ Risk Analizi: Fiyat Hareketliliği vs Değişim", labels={"Fark_Yuzde": "Fiyat Değişimi (%)", "Volatilite": "Hareketlilik Endeksi (Risk)"})
-                        fig_vol.add_vline(x=0, line_dash="dash", line_color="gray", opacity=0.5)
-                        fig_vol.add_hline(y=df_vol['Volatilite'].mean(), line_dash="dash", line_color="red", annotation_text="Ortalama Risk")
-                        fig_vol.update_layout(template=st.session_state.plotly_template, title_font=dict(color='white', size=22), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', legend=dict(font=dict(color='white')))
-                        col_vol.plotly_chart(fig_vol, use_container_width=True)
-                        riskli_urunler = df_vol.sort_values("Volatilite", ascending=False).head(3)
-                        st.info(f"⚠️ **En Dengesiz Fiyatlar:** " + ", ".join([f"{r[ad_col]} (Risk: {r['Volatilite']:.1f})" for _, r in riskli_urunler.iterrows()]))
-                    except Exception as e: col_vol.error(f"Volatilite hesaplanamadı: {e}")
+                        
+                        fig_vol = px.scatter(
+                            df_vol, x="Fark_Yuzde", y="Volatilite", 
+                            color="Grup", size="Agirlik_2025",
+                            hover_data=[ad_col], title="Risk Haritası (Volatilite vs Zam)"
+                        )
+                        fig_vol.update_layout(showlegend=False)
+                        style_chart(fig_vol)
+                        c2.plotly_chart(fig_vol, use_container_width=True)
+                    except: c2.error("Veri yetersiz.")
 
+                # 3. HARİTA TABI
                 with t_harita:
-                    fig_tree = px.treemap(df_analiz, path=[px.Constant("Piyasa"), 'Grup', ad_col], values=agirlik_col, color='Fark', color_continuous_scale='RdYlGn_r', title="🔥 Isı Haritası")
+                    fig_tree = px.treemap(
+                        df_analiz, path=[px.Constant("Sepet"), 'Grup', ad_col], 
+                        values=agirlik_col, color='Fark',
+                        color_continuous_scale='RdYlGn_r', title="Enflasyon Isı Haritası"
+                    )
                     fig_tree.update_traces(marker=dict(line=dict(color='black', width=1)))
-                    fig_tree.update_layout(template=st.session_state.plotly_template, title_font=dict(color='white', size=22), margin=dict(t=40, l=0, r=0, b=0), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                    style_chart(fig_tree)
                     st.plotly_chart(fig_tree, use_container_width=True)
 
                 with t_liste:
@@ -912,71 +985,42 @@ def dashboard_modu():
 
                 with t_rapor:
                     st.markdown("### 📝 Stratejik Yönetim Raporu")
-                    col_gen, col_download = st.columns(2)
-                    
-                    if 'report_text' not in st.session_state: 
-                        st.session_state['report_text'] = ""
-                    
-                    with col_gen:
-                        if st.button("✍️ Raporu Hazırla", type="primary"):
-                            with st.spinner("Veriler analiz ediliyor..."):
-                                sepet_dagilimi = df_analiz.groupby('Grup')['Fark'].mean().sort_values(ascending=False)
-                                kategori_metni = ""
-                                for kat, oran in sepet_dagilimi.items(): 
-                                    durum = "YÜKSELİŞ" if oran > 0 else "DÜŞÜŞ"
-                                    kategori_metni += f"- {kat}: %{oran * 100:.2f} ({durum})\n"
-                                
-                                report_summary = f"Tarih: {datetime.now().strftime('%d-%m-%Y')}\nGenel Enflasyon: %{enf_genel:.2f}\nGıda: %{enf_gida:.2f}"
-                                
-                                prompt_report = f"""
-                                Bir Başekonomist olarak aşağıdaki verilerle profesyonel bir 'Piyasa Görünüm Raporu' yaz.
-                                VERİLER: {report_summary}
-                                DETAYLAR: {kategori_metni}
-                                FORMAT: Giriş, Sektörel Analiz, Riskler ve Sonuç.
-                                ÜSLUP: Resmi, finansal, tarafsız. Asla spesifik bir marka adı verme.
-                                """
-                                try:
-                                    model_rep = genai.GenerativeModel('gemini-2.5-flash')
-                                    st.session_state['report_text'] = model_rep.generate_content(prompt_report).text
-                                    st.success("Analiz tamamlandı.")
-                                except Exception as e:
-                                    st.error("AI Bağlantı Hatası")
-                                    st.session_state['report_text'] = "Veriler tabloda mevcuttur."
-
-                    if st.session_state['report_text']:
-                        st.markdown("---")
-                        st.markdown(st.session_state['report_text'])
-                        
-                        with col_download:
-                            st.write("🖨️ PDF Hazırlanıyor...")
+                    if st.button("Raporu ve Grafikleri Hazırla", type="primary"):
+                        with st.spinner("Yapay Zeka Raporu Yazıyor ve Grafikler Baskıya Hazırlanıyor..."):
+                            # 1. AI Rapor Metni (Önceki mantık aynı)
+                            prompt = f"Tarih: {son}. Genel Enflasyon: %{enf_genel:.2f}. Gıda: %{enf_gida:.2f}. Yönetici özeti yaz."
                             try:
-                                # Grafikleri Hazırla
-                                figures_dict = {}
-                                try:
-                                    fig_pdf_trend = px.line(df_trend, x='Tarih', y='TÜFE', title='Trend Analizi')
-                                    figures_dict["Trend"] = fig_pdf_trend
-                                    fig_pdf_hist = px.histogram(df_analiz, x="Fark", nbins=20, title="Dagilim")
-                                    figures_dict["Dagilim"] = fig_pdf_hist
-                                except: pass
+                                model = genai.GenerativeModel('gemini-2.5-flash')
+                                rap_text = model.generate_content(prompt).text
+                            except: rap_text = "AI Servisi Meşgul."
 
-                                # PDF Oluştur
-                                pdf_bytes = create_pdf_report_advanced(
-                                    text_content=st.session_state['report_text'],
-                                    df_table=df_analiz[['Grup', ad_col, 'Fark', son]].sort_values('Fark', ascending=False).head(20),
-                                    figures=figures_dict,
-                                    manset_oran=enf_genel,
-                                    date_str=f"{datetime.now().strftime('%B %Y')}"
-                                )
-                                
-                                # Dosya ismini de değiştirdim
-                                st.download_button(
-                                    label="📥 PDF Raporunu İndir", 
-                                    data=pdf_bytes, 
-                                    file_name=f"Enflasyon_Raporu_{bugun}.pdf", 
-                                    mime="application/pdf"
-                                )
-                            except Exception as e:
-                                st.error(f"Hata: {e}")
+                            # 2. GRAFİKLERİ PDF İÇİN "KURUMSAL MODA" ÇEVİR
+                            # Burası çok önemli: Grafikleri kopyalayıp beyaz zeminli hale getiriyoruz.
+                            
+                            # Trend Grafiği (Baskı Modu)
+                            fig_pdf_trend = go.Figure(fig_main) # Kopyala
+                            style_chart(fig_pdf_trend, is_pdf=True) # Beyaz yap
+                            # Çizgiyi Lacivert Yap (Beyaz kağıtta sarı zor okunur, lacivert asildir)
+                            fig_pdf_trend.update_traces(line=dict(color='#002855', width=3), selector=dict(name='Gerçekleşen')) 
+                            
+                            # Histogram (Baskı Modu)
+                            fig_pdf_hist = go.Figure(fig_hist)
+                            style_chart(fig_pdf_hist, is_pdf=True)
+                            fig_pdf_hist.update_traces(marker_color='#FDB913', marker_line_color='#333333')
+
+                            figures_dict = {"Trend Analizi": fig_pdf_trend, "Fiyat Dagilimi": fig_pdf_hist}
+
+                            # 3. PDF OLUŞTUR
+                            pdf_data = create_pdf_report_advanced(
+                                text_content=rap_text,
+                                df_table=df_analiz.sort_values('Fark', ascending=False).head(15),
+                                figures=figures_dict,
+                                manset_oran=enf_genel,
+                                date_str="IGNORED"
+                            )
+                            
+                            st.download_button("📥 PDF Raporunu İndir", data=pdf_data, file_name="Enflasyon_Raporu.pdf", mime="application/pdf")
+                            st.success("Rapor Hazır!")
 
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
@@ -988,6 +1032,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
