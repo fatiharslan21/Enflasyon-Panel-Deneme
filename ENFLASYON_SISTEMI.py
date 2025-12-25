@@ -280,7 +280,38 @@ class PDFReport(FPDF):
                 val_str = f"{val:.2f}" if isinstance(val, (int, float)) else str(val)
                 self.cell(col_width, 7, self.clean_text(val_str), 1, 0, 'C')
             self.ln()
+def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, date_str):
+    pdf = PDFReport()
+    
+    # 1. KAPAK SAYFASI
+    pdf.create_cover(date_str, f"{manset_oran:.2f}")
+    
+    # 2. YÖNETİCİ ÖZETİ
+    pdf.add_page()
+    pdf.chapter_title("YONETICI OZETI VE PIYASA ANALIZI")
+    pdf.chapter_body(text_content)
+    
+    # 3. GRAFİKLER
+    if figures:
+        pdf.add_page()
+        pdf.chapter_title("PIYASA GRAFIKLERI")
+        for title, fig in figures.items():
+            try:
+                # Grafiği resme çevir (Kaleido gerekli)
+                img_bytes = fig.to_image(format="png", width=1200, height=600, scale=2)
+                pdf.add_plot_image(img_bytes, title=title)
+            except Exception as e:
+                pdf.chapter_body(f"{title} grafigi olusturulurken hata: {str(e)}")
 
+    # 4. TABLOLAR
+    if not df_table.empty:
+        pdf.add_page()
+        pdf.chapter_title("DETAYLI FIYAT HAREKETLERI")
+        # Gereksiz sütunları çıkararak tabloyu oluştur
+        cols_to_keep = [c for c in df_table.columns if 'Kod' not in c and 'URL' not in c]
+        pdf.create_table(df_table[cols_to_keep].head(30))
+
+    return pdf.output(dest='S').encode('latin-1', 'ignore')
 
 # --- HABER MOTORU ---
 def get_market_sentiment():
@@ -887,6 +918,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
