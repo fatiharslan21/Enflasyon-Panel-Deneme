@@ -38,7 +38,6 @@ st.set_page_config(
 
 # --- CSS MOTORU (SADECE DARK MODE) ---
 def apply_theme():
-    # --- SABİT KOYU TEMA RENKLERİ ---
     colors = {
         "bg": "#0E1117",
         "sidebar": "#262730",
@@ -50,43 +49,24 @@ def apply_theme():
     }
     st.session_state.plotly_template = "plotly_dark"
 
-    # --- CSS MOTORU ---
-    # --- CSS MOTORU (MOBİL UYUMLU VERSİYON) ---
-   # --- CSS MOTORU (MOBİLDE SİDEBAR YOK EDİCİ) ---
     final_css = f"""
     <style>
-        /* --- MASAÜSTÜ (PC) AYARLARI (768px'den büyük ekranlar) --- */
         @media (min-width: 768px) {{
-            /* PC'de Sidebar 400px olsun ve sabitlensin */
             section[data-testid="stSidebar"] {{
                 width: 400px !important;
                 min-width: 400px !important;
                 max-width: 400px !important;
-                display: block !important; /* PC'de göster */
+                display: block !important;
             }}
-            /* PC'de açma/kapama butonu gizli olsun */
             [data-testid="collapsedControl"] {{ display: none !important; }}
         }}
 
-        /* --- MOBİL AYARLARI (768px ve altı) --- */
         @media (max-width: 768px) {{
-            /* Mobilde Sidebar'ı KOMPLE YOK ET */
-            section[data-testid="stSidebar"] {{
-                display: none !important;
-                width: 0px !important;
-            }}
-            /* Sidebar açma butonunu da YOK ET (basamasınlar) */
-            [data-testid="collapsedControl"] {{
-                display: none !important;
-            }}
-            /* Üstteki boşlukları ayarla */
-            .block-container {{
-                padding-top: 1rem !important;
-                max-width: 100% !important;
-            }}
+            section[data-testid="stSidebar"] {{ display: none !important; width: 0px !important; }}
+            [data-testid="collapsedControl"] {{ display: none !important; }}
+            .block-container {{ padding-top: 1rem !important; max-width: 100% !important; }}
         }}
 
-        /* --- GENEL GİZLEME VE RENK AYARLARI --- */
         div[class*="viewerBadge"] {{ display: none !important; }}
         footer {{ visibility: hidden !important; display: none !important; height: 0px !important; }}
         #MainMenu {{ visibility: hidden !important; display: none !important; }}
@@ -95,9 +75,7 @@ def apply_theme():
         [data-testid="stDecoration"] {{ display: none !important; }}
         .stDeployButton {{ display: none !important; }}
 
-        /* --- RENKLER --- */
         .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
-        /* Masaüstünde sidebar rengi */
         section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
         
         h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown, .stRadio label {{ color: {colors['text']} !important; }}
@@ -121,13 +99,12 @@ def apply_theme():
             background-color: {colors['sidebar']} !important;
         }}
 
-        /* Buton Stilleri */
         div.stButton > button, 
         div.stFormSubmitButton > button,
         [data-testid="stDownloadButton"] button {{
             background-color: #FAFAFA !important;   
             color: #000000 !important;              
-            border: 2px solid #FAFAFA !important;     
+            border: 2px solid #FAFAFA !important;      
             border-radius: 8px !important;
             font-weight: bold !important;
         }}
@@ -153,7 +130,6 @@ def apply_theme():
     st.markdown(final_css, unsafe_allow_html=True)
 
 
-# Temayı Uygula
 apply_theme()
 
 if "gemini" in st.secrets:
@@ -165,15 +141,23 @@ EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 SAYFA_ADI = "Madde_Sepeti"
 
-# Türkçe karakter destekleyen fontu indir (Eğer yoksa)
+
+# --- 3. GELİŞMİŞ PDF RAPOR MOTORU (TÜRKÇE & ESTETİK) ---
+# Fontları Otomatik İndir
 FONT_URL = "https://github.com/font-valet/dejavu-fonts-ttf/raw/master/ttf/DejaVuSans.ttf"
 FONT_BOLD_URL = "https://github.com/font-valet/dejavu-fonts-ttf/raw/master/ttf/DejaVuSans-Bold.ttf"
 
 def download_fonts():
     if not os.path.exists("DejaVuSans.ttf"):
-        urllib.request.urlretrieve(FONT_URL, "DejaVuSans.ttf")
+        try:
+            urllib.request.urlretrieve(FONT_URL, "DejaVuSans.ttf")
+        except:
+            pass # İndirme başarısız olursa standart fonta düşer ama Türkçe bozulur
     if not os.path.exists("DejaVuSans-Bold.ttf"):
-        urllib.request.urlretrieve(FONT_BOLD_URL, "DejaVuSans-Bold.ttf")
+        try:
+            urllib.request.urlretrieve(FONT_BOLD_URL, "DejaVuSans-Bold.ttf")
+        except:
+            pass
 
 download_fonts()
 
@@ -181,8 +165,13 @@ class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
         # Türkçe karakterler için fontları yükle
-        self.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
-        self.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
+        try:
+            self.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+            self.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
+            self.has_font = True
+        except:
+            self.has_font = False # Font dosyası inmemişse
+            
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
@@ -191,39 +180,39 @@ class PDFReport(FPDF):
         self.rect(0, 0, 210, 25, 'F')
         
         # Başlık
-        self.set_font('DejaVu', 'B', 20)
+        if self.has_font: self.set_font('DejaVu', 'B', 20)
+        else: self.set_font('Arial', 'B', 20)
+        
         self.set_text_color(255, 255, 255) # Beyaz
         self.set_y(8)
         self.cell(0, 10, 'ENFLASYON VE PIYASA RAPORU', 0, 1, 'C')
         
         # Alt Başlık
-        self.set_font('DejaVu', '', 9)
+        if self.has_font: self.set_font('DejaVu', '', 9)
+        else: self.set_font('Arial', '', 9)
+        
         self.set_text_color(220, 220, 220)
-        self.cell(0, 0, 'Otomatik Piyasa Analiz Sistemi | Validasyon Müdürlüğü', 0, 1, 'C')
+        self.cell(0, 0, 'Otomatik Piyasa Analiz Sistemi | Validasyon Mudurlugu', 0, 1, 'C')
         
         # Boşluk
         self.ln(20)
 
     def footer(self):
         self.set_y(-15)
-        self.set_font('DejaVu', 'I', 8)
+        if self.has_font: self.set_font('DejaVu', 'I', 8)
+        else: self.set_font('Arial', 'I', 8)
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, f'Sayfa {self.page_no()}', 0, 0, 'C')
 
     def section_title(self, label):
         # Bölüm Başlıkları
-        self.set_font('DejaVu', 'B', 14)
+        if self.has_font: self.set_font('DejaVu', 'B', 14)
+        else: self.set_font('Arial', 'B', 14)
+        
         self.set_text_color(37, 99, 235) # Mavi
         self.cell(0, 10, label, 0, 1, 'L')
         self.line(10, self.get_y(), 200, self.get_y()) # Altına çizgi
         self.ln(4)
-
-    def chapter_body(self, text):
-        # İçerik Metni
-        self.set_font('DejaVu', '', 10)
-        self.set_text_color(50, 50, 50) # Koyu Gri
-        self.multi_cell(0, 6, text)
-        self.ln()
 
 def create_pdf_report(text_content, filename="Rapor.pdf"):
     pdf = PDFReport()
@@ -245,38 +234,33 @@ def create_pdf_report(text_content, filename="Rapor.pdf"):
         
         # Madde İşaretleri
         elif line.startswith('-') or line.startswith('•'):
-            pdf.set_font('DejaVu', '', 10)
+            if pdf.has_font: pdf.set_font('DejaVu', '', 10)
+            else: pdf.set_font('Arial', '', 10)
+            
             pdf.set_text_color(50, 50, 50)
             pdf.set_x(15) # İçerden başla
-            pdf.multi_cell(0, 6, chr(149) + " " + line[1:].strip()) # Bullet point ekle
+            
+            bullet = chr(149) if pdf.has_font else "-"
+            pdf.multi_cell(0, 6, bullet + " " + line[1:].strip()) 
             
         # Normal Metin
         else:
-            pdf.set_font('DejaVu', '', 10)
+            if pdf.has_font: pdf.set_font('DejaVu', '', 10)
+            else: pdf.set_font('Arial', '', 10)
+            
             pdf.set_text_color(50, 50, 50)
             
-            # Kalın yazı varsa (** ile başlıyorsa)
-            if "**" in line:
-                parts = line.split("**")
-                for i, part in enumerate(parts):
-                    if i % 2 == 1: # Kalın olması gereken kısım
-                        pdf.set_font('DejaVu', 'B', 10)
-                        pdf.write(6, part)
-                    else:
-                        pdf.set_font('DejaVu', '', 10)
-                        pdf.write(6, part)
-                pdf.ln()
-            else:
-                pdf.multi_cell(0, 6, line)
+            # Basit bold desteği (sadece satır içinde ** varsa)
+            clean_text = line.replace('**', '') 
+            pdf.multi_cell(0, 6, clean_text)
 
-    return pdf.output(dest='S').encode('latin-1', 'ignore') 
-    # Not: FPDF'in internal encodingi için encode gereklidir, 
-    # ancak fontlar sayesinde karakterler bozulmaz.
+    # Unicode desteği için latin-1 ignore yerine binary mode tercih edilir ama 
+    # FPDF string döndürür, bu stringi encode ederiz.
+    return pdf.output(dest='S').encode('latin-1', 'ignore')
 
 
 # --- HABER MOTORU (GÜNCELLENDİ: SADECE EKONOMİ) ---
 def get_market_sentiment():
-    # Google News üzerinde spesifik ekonomi araması yapan RSS
     rss_url = "https://news.google.com/rss/search?q=ekonomi+enflasyon+faiz+borsa+dolar&hl=tr&gl=TR&ceid=TR:tr"
     try:
         feed = feedparser.parse(rss_url)
@@ -570,23 +554,10 @@ def html_isleyici(log_callback):
         return f"Hata: {str(e)}"
 
 
-# --- DASHBOARD MODU (TEMİZLENMİŞ KART VERSİYONU) ---
-# --- DASHBOARD MODU (ORİJİNAL, SADE VE STABİL HALİ) ---
+# --- DASHBOARD MODU ---
 def dashboard_modu():
-    # --- 1. GEREKLİ TANIMLAMALAR ---
     bugun = datetime.now().strftime("%Y-%m-%d")
     
-    # Renk Paleti (Hata almamak için)
-    colors = {
-        "bg": "#0E1117",
-        "sidebar": "#262730",
-        "text": "#FAFAFA",
-        "input_bg": "#1A1C24",
-        "input_border": "#4A4A4A",
-        "card_bg": "#1A1C24",
-        "border_color": "#414141"
-    }
-
     # Verileri Çek
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
@@ -595,7 +566,6 @@ def dashboard_modu():
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
         
-        # --- 1. KISIM: CANLI KURLAR (Dolar, Altın vb.) ---
         tv_theme = "dark"
         symbols = [
             {"s": "FX:USDTRY", "d": "Dolar / TL"},
@@ -628,17 +598,12 @@ def dashboard_modu():
             </div>
             """
         
-        # Kartları tek seferde bas (Kayma yapmaz)
         total_height = len(symbols) * 120
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=total_height)
         
-        # Ayırıcı Çizgi
         st.markdown("---")
-
-        # --- 2. KISIM: BIST TÜM PİYASA LİSTESİ ---
         st.markdown("### 🇹🇷 BIST TÜM PİYASA")
         
-        # Arama kutusu YOK. Sadece akan liste var.
         all_stocks_html = """
         <div class="tradingview-widget-container">
           <div class="tradingview-widget-container__widget"></div>
@@ -659,12 +624,10 @@ def dashboard_modu():
         """
         components.html(all_stocks_html, height=600)
 
-    # --- 3. ANA SAYFA TASARIM VE CSS (Hata vermemesi için burada durmalı) ---
+    # --- 3. ANA SAYFA TASARIM VE CSS ---
     st.markdown(f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
-        
-        .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
         
         .header-container {{ display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: #1A1C24; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); border-bottom: 4px solid #3b82f6; }}
         .app-title {{ font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #FFFFFF 0%, #3b82f6 50%, #FFFFFF 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }}
@@ -722,7 +685,7 @@ def dashboard_modu():
         st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
         st.session_state['toast_shown'] = True
 
-    # --- SİSTEMİ GÜNCELLE BUTONU (HERKESE AÇIK) ---
+    # --- SİSTEMİ GÜNCELLE BUTONU ---
     st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
     if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
         with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
@@ -815,14 +778,6 @@ def dashboard_modu():
                 inc = df_analiz.sort_values('Gunluk_Degisim', ascending=False).head(5)
                 dec = df_analiz.sort_values('Gunluk_Degisim', ascending=True).head(5)
 
-                if not inc.empty:
-                    daily_risk_row = inc.iloc[0]
-                    daily_risk_name = daily_risk_row[ad_col]
-                    daily_risk_rate = daily_risk_row['Gunluk_Degisim']
-                else:
-                    daily_risk_name = "-"
-                    daily_risk_rate = 0
-
                 items = []
                 for _, r in inc.iterrows():
                     if r['Gunluk_Degisim'] > 0:
@@ -832,10 +787,6 @@ def dashboard_modu():
                     if r['Gunluk_Degisim'] < 0:
                         items.append(
                             f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
-
-                # ... (Kodun üst kısımları, Ticker/Kayan yazı bitişi) ...
-                
-                # ... (Kodun üst kısımları, Ticker/Kayan yazı bitişi) ...
                 
                 if not items: items.append("Piyasada son 24 saatte önemli bir fiyat değişimi olmadı.")
 
@@ -843,36 +794,24 @@ def dashboard_modu():
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>',
                     unsafe_allow_html=True)
 
-                # --- KPI KARTLARI İÇİN VERİ HAZIRLIĞI ---
-                
-                # 1. EVDS'den Resmi Veriyi Çek (Kartlar basılmadan önce hazırlanmalı)
+                # --- KPI KARTLARI ---
                 df_resmi, msg = get_official_inflation()
                 
-                # Varsayılan değerler
                 resmi_aylik_enf = 0.0
                 resmi_tarih_str = "-"
-                resmi_alt_bilgi = "Veri Bekleniyor"
-
-                # Veri varsa işle (Index üzerinden aylık değişim hesabı)
+                
                 if df_resmi is not None and not df_resmi.empty and len(df_resmi) > 1:
                     try:
                         df_resmi = df_resmi.sort_values('Tarih')
                         son_veri = df_resmi.iloc[-1]
                         onceki_veri = df_resmi.iloc[-2]
-                        
-                        # (Yeni Endeks / Eski Endeks - 1) * 100 formülü
                         resmi_aylik_enf = ((son_veri['Resmi_TUFE'] / onceki_veri['Resmi_TUFE']) - 1) * 100
-                        
                         aylar = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
                                  7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
                         resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
-                        resmi_alt_bilgi = "TCMB/TÜİK Kaynaklı"
-                    except Exception as e:
-                        resmi_alt_bilgi = "Hesaplama Hatası"
-                else:
-                    resmi_alt_bilgi = f"Bağlantı Sorunu: {msg}"
+                    except:
+                        pass
 
-                # --- KARTLARI OLUŞTURMA FONKSİYONU ---
                 def kpi_card(title, val, sub, sub_color, color_class, is_long_text=False):
                     val_class = "metric-val long-text" if is_long_text else "metric-val"
                     st.markdown(f"""
@@ -883,7 +822,6 @@ def dashboard_modu():
                         </div>
                     """, unsafe_allow_html=True)
 
-                # --- KARTLARI EKRAÑA BAS ---
                 c1, c2, c3, c4 = st.columns(4)
                 with c1:
                     kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"{gun_farki} Günlük Değişim", "#ef4444",
@@ -894,7 +832,6 @@ def dashboard_modu():
                     kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
                              "card-purple")
                 with c4:
-                    # BURASI DEĞİŞTİ: Artık En Yüksek Risk yerine Resmi TÜİK verisi var
                     kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str} Dönemi", 
                              "#f59e0b", "card-orange")
                 
@@ -908,14 +845,12 @@ def dashboard_modu():
                 with t_analiz:
                     st.markdown("### 📈 Enflasyon Analizi ve Gelecek Tahmini")
 
-                    # --- SENİN VERİNİN HAZIRLANMASI ---
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                             df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
                                                       agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
                     df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
 
-                    # --- GRAFİK ---
                     with st.spinner("Gelecek tahmini yapıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
 
@@ -925,11 +860,9 @@ def dashboard_modu():
 
                     fig_main = go.Figure()
 
-                    # 1. Senin Hesapladığın Enflasyon
                     fig_main.add_trace(go.Scatter(x=df_trend['Tarih'], y=df_trend['TÜFE'], mode='lines+markers',
                                                   name='Enflasyon Monitörü', line=dict(color='#2563eb', width=3)))
 
-                    # 2. AI Tahmini (Prophet)
                     if not df_forecast.empty:
                         future_only = df_forecast[df_forecast['ds'] > df_trend['Tarih'].max()]
                         fig_main.add_trace(
@@ -959,7 +892,6 @@ def dashboard_modu():
                     st.markdown("### 📊 İstatistiksel Risk ve Dağılım Analizi")
                     col_hist, col_vol = st.columns(2)
 
-                    # 1. Histogram
                     df_analiz['Fark_Yuzde'] = df_analiz['Fark'] * 100
                     fig_hist = px.histogram(df_analiz, x="Fark_Yuzde", nbins=40, title="📊 Zam Dağılımı Frekansı",
                                             color_discrete_sequence=['#8b5cf6'])
@@ -973,7 +905,6 @@ def dashboard_modu():
                     )
                     col_hist.plotly_chart(fig_hist, use_container_width=True)
 
-                    # 2. Volatilite Analizi
                     try:
                         fiyat_sutunlari = [c for c in pivot.columns if c != 'Kod']
                         pivot['Std'] = pivot[fiyat_sutunlari].std(axis=1)
@@ -1094,7 +1025,10 @@ def dashboard_modu():
                     if st.session_state['report_text']:
                         st.markdown("---");
                         st.markdown(st.session_state['report_text'])
+                        
+                        # PDF Oluşturma (Yeni Fonksiyon)
                         pdf_bytes = create_pdf_report(st.session_state['report_text'])
+                        
                         with col_download: st.download_button(label="📥 PDF Olarak İndir", data=pdf_bytes,
                                                               file_name=f"Enflasyon_Strateji_Raporu_{bugun}.pdf",
                                                               mime="application/pdf")
@@ -1105,40 +1039,10 @@ def dashboard_modu():
     st.markdown(
         '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">VALIDASYON MUDURLUGU © 2025</div>',
         unsafe_allow_html=True)
+
 # --- 5. ANA GİRİŞ SİSTEMİ ---
 def main():
     dashboard_modu()
 
-
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
