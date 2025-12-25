@@ -909,5 +909,9 @@ def dashboard_modu():
             st.error(f"Kritik Hata: {e}")
     st.markdown('<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">VALIDASYON MUDURLUGU © 2025</div>', unsafe_allow_html=True)
 
+# --- 5. ANA GİRİŞ SİSTEMİ ---
+def main():
+    dashboard_modu()
+
 if __name__ == "__main__":
     main()
