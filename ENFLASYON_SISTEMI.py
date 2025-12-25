@@ -25,6 +25,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 import streamlit.components.v1 as components
+import os
+import urllib.request
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
 st.set_page_config(
@@ -163,55 +165,113 @@ EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 SAYFA_ADI = "Madde_Sepeti"
 
+# Türkçe karakter destekleyen fontu indir (Eğer yoksa)
+FONT_URL = "https://github.com/font-valet/dejavu-fonts-ttf/raw/master/ttf/DejaVuSans.ttf"
+FONT_BOLD_URL = "https://github.com/font-valet/dejavu-fonts-ttf/raw/master/ttf/DejaVuSans-Bold.ttf"
 
-# --- PDF RAPOR MOTORU ---
+def download_fonts():
+    if not os.path.exists("DejaVuSans.ttf"):
+        urllib.request.urlretrieve(FONT_URL, "DejaVuSans.ttf")
+    if not os.path.exists("DejaVuSans-Bold.ttf"):
+        urllib.request.urlretrieve(FONT_BOLD_URL, "DejaVuSans-Bold.ttf")
+
+download_fonts()
+
 class PDFReport(FPDF):
+    def __init__(self):
+        super().__init__()
+        # Türkçe karakterler için fontları yükle
+        self.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
+        self.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
+        self.set_auto_page_break(auto=True, margin=15)
+
     def header(self):
-        self.set_font('Arial', 'B', 16)
+        # Üst Bant (Mavi)
+        self.set_fill_color(37, 99, 235)  # Streamlit App Mavisi
+        self.rect(0, 0, 210, 25, 'F')
+        
+        # Başlık
+        self.set_font('DejaVu', 'B', 20)
+        self.set_text_color(255, 255, 255) # Beyaz
+        self.set_y(8)
         self.cell(0, 10, 'ENFLASYON VE PIYASA RAPORU', 0, 1, 'C')
-        self.set_y(10)
-        self.set_font('Arial', 'B', 8)
-        self.set_text_color(0, 0, 0)
-        self.ln(5)
-        self.line(10, 25, 200, 25)
-        self.ln(10)
+        
+        # Alt Başlık
+        self.set_font('DejaVu', '', 9)
+        self.set_text_color(220, 220, 220)
+        self.cell(0, 0, 'Otomatik Piyasa Analiz Sistemi | Validasyon Müdürlüğü', 0, 1, 'C')
+        
+        # Boşluk
+        self.ln(20)
 
     def footer(self):
         self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
+        self.set_font('DejaVu', 'I', 8)
         self.set_text_color(128, 128, 128)
-        self.cell(0, 10, f'Validasyon Mudurlugu - Sayfa {self.page_no()}', 0, 0, 'C')
+        self.cell(0, 10, f'Sayfa {self.page_no()}', 0, 0, 'C')
 
+    def section_title(self, label):
+        # Bölüm Başlıkları
+        self.set_font('DejaVu', 'B', 14)
+        self.set_text_color(37, 99, 235) # Mavi
+        self.cell(0, 10, label, 0, 1, 'L')
+        self.line(10, self.get_y(), 200, self.get_y()) # Altına çizgi
+        self.ln(4)
+
+    def chapter_body(self, text):
+        # İçerik Metni
+        self.set_font('DejaVu', '', 10)
+        self.set_text_color(50, 50, 50) # Koyu Gri
+        self.multi_cell(0, 6, text)
+        self.ln()
 
 def create_pdf_report(text_content, filename="Rapor.pdf"):
     pdf = PDFReport()
     pdf.add_page()
+    
+    # Metni satır satır işle ve formatla
+    lines = text_content.split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            pdf.ln(2) # Boş satır
+            continue
+            
+        # Başlık Algılama (Yapay zeka genelde **Başlık** veya ## Başlık yapar)
+        if line.startswith('**') or line.startswith('##') or (len(line) < 50 and line.isupper()):
+            clean_line = line.replace('*', '').replace('#', '').strip()
+            pdf.section_title(clean_line)
+        
+        # Madde İşaretleri
+        elif line.startswith('-') or line.startswith('•'):
+            pdf.set_font('DejaVu', '', 10)
+            pdf.set_text_color(50, 50, 50)
+            pdf.set_x(15) # İçerden başla
+            pdf.multi_cell(0, 6, chr(149) + " " + line[1:].strip()) # Bullet point ekle
+            
+        # Normal Metin
+        else:
+            pdf.set_font('DejaVu', '', 10)
+            pdf.set_text_color(50, 50, 50)
+            
+            # Kalın yazı varsa (** ile başlıyorsa)
+            if "**" in line:
+                parts = line.split("**")
+                for i, part in enumerate(parts):
+                    if i % 2 == 1: # Kalın olması gereken kısım
+                        pdf.set_font('DejaVu', 'B', 10)
+                        pdf.write(6, part)
+                    else:
+                        pdf.set_font('DejaVu', '', 10)
+                        pdf.write(6, part)
+                pdf.ln()
+            else:
+                pdf.multi_cell(0, 6, line)
 
-    def clean_text_for_pdf(text):
-        if not text: return ""
-        replacements = {
-            'ı': 'i', 'İ': 'I', '\u0131': 'i',
-            'ğ': 'g', 'Ğ': 'G',
-            'ü': 'u', 'Ü': 'U',
-            'ş': 's', 'Ş': 'S',
-            'ö': 'o', 'Ö': 'O',
-            'ç': 'c', 'Ç': 'C',
-            'â': 'a', 'î': 'i', 'û': 'u',
-            '₺': 'TL', '“': '"', '”': '"', '’': "'", '‘': "'", '–': '-', '—': '-', '…': '...', '*': '-'
-        }
-        temp_text = text
-        for tr, en in replacements.items():
-            temp_text = temp_text.replace(tr, en)
-        return temp_text.encode('latin-1', 'replace').decode('latin-1')
-
-    final_text = clean_text_for_pdf(text_content)
-    pdf.set_font("Arial", size=10)
-    pdf.multi_cell(0, 6, final_text)
-    pdf.ln(10)
-    pdf.set_font("Arial", 'I', 8)
-    pdf.set_text_color(100, 100, 100)
-    pdf.multi_cell(0, 5, "Bu rapor otomatik piyasa analiz sistemi tarafindan olusturulmustur.")
-    return pdf.output(dest='S').encode('latin-1', 'ignore')
+    return pdf.output(dest='S').encode('latin-1', 'ignore') 
+    # Not: FPDF'in internal encodingi için encode gereklidir, 
+    # ancak fontlar sayesinde karakterler bozulmaz.
 
 
 # --- HABER MOTORU (GÜNCELLENDİ: SADECE EKONOMİ) ---
@@ -1052,6 +1112,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
