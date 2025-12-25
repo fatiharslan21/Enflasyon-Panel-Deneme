@@ -119,10 +119,11 @@ SAYFA_ADI = "Madde_Sepeti"
 
 
 # --- 3. PDF MOTORU ---
+# --- 3. GELİŞMİŞ PDF MOTORU (TÜRKÇE KARAKTER DESTEKLİ) ---
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
-        self.font_family = 'Arial'
+        self.font_family = 'Arial' # Varsayılan
         self.tr_active = False
         
         # VAKIFBANK & KURUMSAL RENKLER
@@ -131,34 +132,60 @@ class PDFReport(FPDF):
         self.c_koyu = (30, 30, 30)     # Antrasit
         self.c_gri = (100, 100, 100)   # Gri
         
-        # Font Yükleme
+        # Font Yükleme (Türkçe için Kritik Adım)
         self.font_path = 'Roboto-Regular.ttf'
         self.font_bold_path = 'Roboto-Bold.ttf'
-        if self._try_download_font():
+        
+        # Fontları yüklemeyi dene, başarısız olursa standart fonta dön
+        if self._ensure_fonts_exist():
             try:
+                # uni=True parametresi UTF-8 (Türkçe) desteğini açar
                 self.add_font('Roboto', '', self.font_path, uni=True)
                 self.add_font('Roboto', 'B', self.font_bold_path, uni=True)
                 self.font_family = 'Roboto'
                 self.tr_active = True
-            except: pass
+            except Exception as e:
+                print(f"Font yükleme hatası: {e}")
+                self.tr_active = False
 
-    def _try_download_font(self):
-        if os.path.exists(self.font_path) and os.path.exists(self.font_bold_path): return True
+    def _ensure_fonts_exist(self):
+        # Dosyalar zaten varsa tekrar indirme
+        if os.path.exists(self.font_path) and os.path.exists(self.font_bold_path):
+            return True
+            
+        # Fontları indir (GitHub Raw linkleri)
         try:
-            url_base = "https://github.com/google/fonts/raw/main/apache/roboto/"
-            r1 = requests.get(url_base + "Roboto-Regular.ttf", timeout=5); 
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            url_reg = "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf"
+            url_bold = "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Bold.ttf"
+            
+            r1 = requests.get(url_reg, headers=headers, timeout=10)
             with open(self.font_path, 'wb') as f: f.write(r1.content)
-            r2 = requests.get(url_base + "Roboto-Bold.ttf", timeout=5); 
+            
+            r2 = requests.get(url_bold, headers=headers, timeout=10)
             with open(self.font_bold_path, 'wb') as f: f.write(r2.content)
             return True
-        except: return False
+        except:
+            return False
 
     def fix_text(self, text):
         if text is None: return ""
         text = str(text)
-        if self.tr_active: return text
-        tr_map = {'Ğ': 'G', 'ğ': 'g', 'Ş': 'S', 'ş': 's', 'İ': 'I', 'ı': 'i', 'Ö': 'O', 'ö': 'o', 'Ü': 'U', 'ü': 'u', 'Ç': 'C', 'ç': 'c'}
-        for k, v in tr_map.items(): text = text.replace(k, v)
+        
+        # Eğer Türkçe font başarıyla yüklendiyse (tr_active=True), 
+        # metne ASLA dokunma, olduğu gibi döndür.
+        if self.tr_active:
+            return text
+            
+        # Eğer font yüklenemediyse (Fallback), mecburen karakterleri değiştir
+        # (PDF patlamasın diye yapılan son çare değişikliği)
+        tr_map = {
+            'Ğ': 'G', 'ğ': 'g', 'Ş': 'S', 'ş': 's', 'İ': 'I', 'ı': 'i', 
+            'Ö': 'O', 'ö': 'o', 'Ü': 'U', 'ü': 'u', 'Ç': 'C', 'ç': 'c'
+        }
+        for k, v in tr_map.items(): 
+            text = text.replace(k, v)
+        
         return text.encode('latin-1', 'replace').decode('latin-1')
 
     def header(self):
@@ -1015,3 +1042,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
