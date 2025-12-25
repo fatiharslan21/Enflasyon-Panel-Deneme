@@ -106,7 +106,7 @@ FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 SAYFA_ADI = "Madde_Sepeti"
 
 
-# --- 3. GELİŞMİŞ PDF MOTORU (VAKIFBANK TEMASI & SANDVİÇ MODELİ) ---
+# --- 3. GELİŞMİŞ PDF MOTORU (VAKIFBANK TEMASI & PROFESYONEL DÜZEN) ---
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -178,51 +178,39 @@ class PDFReport(FPDF):
         self.set_draw_color(*self.c_sari)
         self.set_line_width(1.5)
         self.line(self.get_x(), self.get_y(), self.get_x() + 190, self.get_y())
-        self.ln(5)
+        self.ln(10)
 
     def create_kpi_summary(self, enf_genel, enf_gida, en_yuksek_urun):
         self.ln(5)
         self.set_font(self.font_family, 'B', 10)
+        w = 60; h = 25; margin = 5
         
-        # 3 Kutu Yan Yana
-        w = 60
-        h = 25
-        margin = 5
-        
-        # 1. Kutu: Genel Enflasyon (SARI)
-        x = self.get_x()
-        y = self.get_y()
+        x = self.get_x(); y = self.get_y()
         self.set_fill_color(*self.c_sari)
         self.rect(x, y, w, h, 'F')
-        self.set_xy(x, y+5)
-        self.set_text_color(*self.c_lacivert)
+        self.set_xy(x, y+5); self.set_text_color(*self.c_lacivert)
         self.cell(w, 5, self.fix_text("GENEL ENFLASYON"), 0, 2, 'C')
         self.set_font(self.font_family, 'B', 16)
         self.cell(w, 10, self.fix_text(f"%{enf_genel:.2f}"), 0, 0, 'C')
         
-        # 2. Kutu: Gıda (LACİVERT)
         self.set_xy(x + w + margin, y)
         self.set_fill_color(*self.c_lacivert)
         self.rect(x + w + margin, y, w, h, 'F')
-        self.set_xy(x + w + margin, y+5)
-        self.set_text_color(255, 255, 255) # Beyaz yazı
+        self.set_xy(x + w + margin, y+5); self.set_text_color(255, 255, 255)
         self.set_font(self.font_family, 'B', 10)
         self.cell(w, 5, self.fix_text("GIDA ENFLASYONU"), 0, 2, 'C')
         self.set_font(self.font_family, 'B', 16)
         self.cell(w, 10, self.fix_text(f"%{enf_gida:.2f}"), 0, 0, 'C')
 
-        # 3. Kutu: En Çok Artan (GRİ)
         self.set_xy(x + (w + margin)*2, y)
         self.set_fill_color(240, 240, 240)
         self.rect(x + (w + margin)*2, y, w, h, 'F')
-        self.set_xy(x + (w + margin)*2, y+5)
-        self.set_text_color(*self.c_koyu)
+        self.set_xy(x + (w + margin)*2, y+5); self.set_text_color(*self.c_koyu)
         self.set_font(self.font_family, 'B', 10)
         self.cell(w, 5, self.fix_text("EN YÜKSEK ARTIŞ"), 0, 2, 'C')
         self.set_font(self.font_family, 'B', 11)
-        self.cell(w, 10, self.fix_text(str(en_yuksek_urun)[:15]), 0, 0, 'C') # İlk 15 harf
-        
-        self.ln(20) # Aşağı geç
+        self.cell(w, 10, self.fix_text(str(en_yuksek_urun)[:15]), 0, 0, 'C')
+        self.ln(25)
 
     def write_markdown(self, text):
         if not text: return
@@ -265,103 +253,77 @@ class PDFReport(FPDF):
         self.set_x(40)
         self.multi_cell(130, 6, self.fix_text(aciklama), 0, 'C')
 
-    def add_plot_image(self, plot_bytes, title="Grafik"):
+    def add_plot_image(self, plot_bytes, title="Grafik", force_new_page=False):
         if plot_bytes:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
                 tmpfile.write(plot_bytes); path = tmpfile.name
             
-            self.ln(5)
+            if force_new_page or self.get_y() > 200: self.add_page()
+            else: self.ln(5)
+
             self.set_font(self.font_family, 'B', 11)
             self.set_text_color(*self.c_lacivert)
             self.cell(0, 8, self.fix_text(f"» {title}"), 0, 1, 'L')
             
-            if self.get_y() > 200: self.add_page()
-            
             try: self.image(path, x=10, w=190)
             except: pass
             
-            self.ln(5)
+            self.ln(10)
             try: os.unlink(path)
             except: pass
 
-    def create_table(self, df):
-        self.set_font(self.font_family, 'B', 9)
-        self.set_fill_color(*self.c_sari)
-        self.set_text_color(*self.c_koyu)
-        cols = df.columns
-        w = 190 / len(cols) if len(cols) > 0 else 190
-        for col in cols: self.cell(w, 9, self.fix_text(str(col)), 1, 0, 'C', True)
-        self.ln()
-        self.set_font(self.font_family, '', 8)
-        self.set_text_color(0, 0, 0)
-        for i, row in df.iterrows():
-            if i % 2 == 0: self.set_fill_color(248, 248, 248)
-            else: self.set_fill_color(255, 255, 255)
-            for col in cols:
-                val = row[col]
-                txt = f"{val:.2f}" if isinstance(val, (int, float)) else str(val)
-                self.cell(w, 8, self.fix_text(txt), 1, 0, 'C', True)
-            self.ln()
-
 def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, metrics_dict, date_str_ignored):
     pdf = PDFReport()
-    
-    # Tarih Hesapla
     aylar = {1:"Ocak", 2:"Şubat", 3:"Mart", 4:"Nisan", 5:"Mayıs", 6:"Haziran", 
              7:"Temmuz", 8:"Ağustos", 9:"Eylül", 10:"Ekim", 11:"Kasım", 12:"Aralık"}
     simdi = datetime.now()
     tr_tarih = f"{aylar[simdi.month]} {simdi.year}"
     
-    # Kapak
+    # SAYFA 1: KAPAK
     pdf.create_cover(tr_tarih, f"{manset_oran:.2f}")
     
-    # --- SAYFA 2: ANALİZ VE GRAFİKLER ---
+    # SAYFA 2: PİYASA GÖRÜNÜMÜ (KPI + ANA GRAFİK)
     pdf.add_page()
-    pdf.chapter_title("YÖNETİCİ ÖZETİ VE PİYASA ANALİZİ")
-    
-    # 1. KPI KARTLARI (EN TEPEYE)
+    pdf.chapter_title("PİYASA GENEL GÖRÜNÜMÜ")
     if metrics_dict:
-        pdf.create_kpi_summary(
-            metrics_dict.get('genel', 0), 
-            metrics_dict.get('gida', 0), 
-            metrics_dict.get('top_urun', 'Yok')
-        )
+        pdf.create_kpi_summary(metrics_dict.get('genel', 0), metrics_dict.get('gida', 0), metrics_dict.get('top_urun', 'Yok'))
     
-    # 2. TREND GRAFİĞİ (METİNDEN HEMEN ÖNCE)
+    # Ana Trend Grafiği
     if figures:
         keys = list(figures.keys())
         if len(keys) > 0:
             trend_title = keys[0]
-            trend_fig = figures[trend_title]
             try:
-                img = trend_fig.to_image(format="png", width=1600, height=700, scale=2)
+                img = figures[trend_title].to_image(format="png", width=1600, height=700, scale=2)
                 pdf.add_plot_image(img, title=trend_title)
             except: pass
 
-    # 3. YÖNETİCİ ÖZETİ (METİN)
-    pdf.ln(5)
-    pdf.write_markdown(text_content)
+    # SAYFA 3: STRATEJİK ANALİZ (YAZI + HİSTOGRAM + İMZA)
+    pdf.add_page()
+    pdf.chapter_title("STRATEJİK ANALİZ VE AI GÖRÜŞÜ")
     
-    # 4. DAĞILIM GRAFİĞİ (METİNDEN HEMEN SONRA)
+    # AI Metni (Geniş Alan)
+    pdf.write_markdown(text_content)
+    pdf.ln(10)
+    
+    # Detay Grafiği (Histogram)
     if figures and len(keys) > 1:
         hist_title = keys[1]
-        hist_fig = figures[hist_title]
         try:
-            pdf.ln(5)
-            img = hist_fig.to_image(format="png", width=1600, height=800, scale=2)
-            pdf.add_plot_image(img, title=hist_title)
+            img = figures[hist_title].to_image(format="png", width=1600, height=700, scale=2)
+            # Eğer metin çok uzunsa ve sayfa sonuna geldiysek, grafik için yeni sayfa aç
+            force_page = True if pdf.get_y() > 180 else False
+            pdf.add_plot_image(img, title=hist_title, force_new_page=force_page)
         except: pass
 
-    # 5. İMZA
-    pdf.ln(10)
-    pdf.set_y(pdf.get_y() + 10)
+    # İmza (Sayfanın en altına sabitlemeye çalışalım)
+    pdf.ln(15)
+    if pdf.get_y() > 240: pdf.add_page() # İmza için yer yoksa yeni sayfa
     pdf.set_font(pdf.font_family, 'B', 12)
     pdf.set_text_color(*pdf.c_koyu)
     pdf.cell(0, 6, pdf.fix_text("Saygilarimizla,"), 0, 1, 'R')
     pdf.cell(0, 6, pdf.fix_text("VALIDASYON MUDURLUGU"), 0, 1, 'R')
 
-    # NOT: TABLO İSTEMEDİĞİN İÇİN TAMAMEN KALDIRILDI
-    
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
         tmp.close()
@@ -874,18 +836,14 @@ def dashboard_modu():
                     marker=dict(size=8, line=dict(width=2, color='white'))
                 ))
 
-                # Prophet Tahmini Ekle (İSTEĞİN ÜZERİNE GERİ GELDİ)
+                # Prophet Tahmini Ekle
                 if not df_forecast.empty:
-                    # Geleceği yıl sonuna kadar filtrele (YENİ ÖZELLİK)
                     future = df_forecast[(df_forecast['ds'] > df_trend['Tarih'].max()) & (df_forecast['ds'] <= current_year_end)]
-                    
-                    # Tahmin Çizgisi
                     fig_trend.add_trace(go.Scatter(
                         x=future['ds'], y=future['yhat'],
                         mode='lines', name='AI Tahmini',
                         line=dict(color='#3b82f6', width=2, dash='dash')
                     ))
-                    # Güven Aralığı
                     fig_trend.add_trace(go.Scatter(
                         x=future['ds'].tolist() + future['ds'].tolist()[::-1],
                         y=future['yhat_upper'].tolist() + future['yhat_lower'].tolist()[::-1],
@@ -893,11 +851,11 @@ def dashboard_modu():
                         line=dict(color='rgba(0,0,0,0)'), showlegend=False, hoverinfo='skip'
                     ))
 
-                # Y EKSENİ SABİTLENDİ [95, 105] VE X EKSENİ YIL SONUNA UZATILDI
+                # Y EKSENİ [95, 105] VE X EKSENİ YIL SONUNA KADAR
                 fig_trend.update_layout(
                     title="Enflasyon Trendi ve Gelecek Tahmini",
                     yaxis=dict(range=[95, 105]),
-                    xaxis=dict(range=[df_trend['Tarih'].min(), current_year_end]), # Yıl sonuna kadar göster
+                    xaxis=dict(range=[df_trend['Tarih'].min(), current_year_end]),
                     legend=dict(orientation="h", y=1.1)
                 )
                 
@@ -914,7 +872,6 @@ def dashboard_modu():
                 t_analiz, t_istatistik, t_harita, t_liste, t_haber, t_rapor = st.tabs(["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📋 LİSTE", "📰 HABERLER", "📝 RAPOR"])
                 
                 with t_analiz: 
-                    # Ekrana basarken is_pdf=False diyoruz
                     st.plotly_chart(style_chart(go.Figure(fig_trend), is_pdf=False), use_container_width=True)
                 
                 with t_istatistik:
@@ -968,7 +925,6 @@ def dashboard_modu():
 
                             # B. GRAFİKLERİ PDF FORMATINA ÇEVİR (Dergi Modu)
                             # Trend Grafiğini Kopyala ve Beyazlat
-                            # is_pdf=True ile Vakıf Laciverti/Sarısı ve Beyaz Zemin uygulanacak
                             fig_print_trend = go.Figure(fig_trend)
                             style_chart(fig_print_trend, is_pdf=True)
                             fig_print_trend.update_traces(line=dict(color='#002855'), selector=dict(name='Enflasyon')) # Çizgiyi Lacivert yap
