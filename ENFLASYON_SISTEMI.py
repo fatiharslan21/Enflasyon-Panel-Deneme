@@ -36,6 +36,7 @@ st.set_page_config(
 )
 
 # --- CSS MOTORU (SADECE DARK MODE) ---
+# --- CSS MOTORU (SADECE DARK MODE) ---
 def apply_theme():
     colors = {
         "bg": "#0E1117",
@@ -106,28 +107,37 @@ def apply_theme():
             background-color: {colors['sidebar']} !important;
         }}
 
+        /* BUTON STİLLERİ (GÜNCELLENDİ) */
         div.stButton > button, 
         div.stFormSubmitButton > button,
         [data-testid="stDownloadButton"] button {{
-            background-color: #FAFAFA !important;   
-            color: #000000 !important;              
-            border: 2px solid #FAFAFA !important;      
+            background-color: #FFFFFF !important;   /* Arka plan BEYAZ */
+            color: #000000 !important;              /* Yazı SİYAH */
+            border: 2px solid #FFFFFF !important;      
             border-radius: 8px !important;
             font-weight: bold !important;
         }}
-        div.stButton > button * {{ color: #000000 !important; }}
         
+        /* Buton Hover (Üzerine Gelince) */
         div.stButton > button:hover,
         div.stFormSubmitButton > button:hover,
         [data-testid="stDownloadButton"] button:hover {{
-            background-color: #d4d4d4 !important;
-            border-color: #d4d4d4 !important;
+            background-color: #E0E0E0 !important;   /* Hafif gri */
+            border-color: #E0E0E0 !important;
             color: #000000 !important;
         }}
-        div.stButton > button[kind="primary"] {{
-            background-color: #FAFAFA !important;
+
+        /* İÇERİKTEKİ YAZILARI ZORLA SİYAH YAP (SORUNUN ÇÖZÜMÜ) */
+        div.stButton > button *, 
+        div.stFormSubmitButton > button *,
+        [data-testid="stDownloadButton"] button * {{
             color: #000000 !important;
-            border: 2px solid #FAFAFA !important;
+        }}
+
+        div.stButton > button[kind="primary"] {{
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+            border: 2px solid #FFFFFF !important;
         }}
 
         .metric-card {{ background: {colors['card_bg']} !important; border: 1px solid {colors['border_color']} !important; }}
@@ -877,5 +887,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
