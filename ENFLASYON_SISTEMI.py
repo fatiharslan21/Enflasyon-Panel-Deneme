@@ -50,6 +50,24 @@ def apply_theme():
 
     final_css = f"""
     <style>
+        /* STREAMLIT VARSAYILAN HEADER VE TOOLBAR GİZLEME */
+        header[data-testid="stHeader"] {{
+            display: none !important;
+            visibility: hidden !important;
+        }}
+        [data-testid="stToolbar"] {{
+            display: none !important;
+            visibility: hidden !important;
+        }}
+        .stApp > header {{
+            display: none !important;
+        }}
+        /* Üst boşluğu kapatıp içeriği yukarı çekme */
+        .block-container {{
+            padding-top: 1rem !important;
+            padding-bottom: 5rem !important;
+        }}
+        
         @media (min-width: 768px) {{
             section[data-testid="stSidebar"] {{
                 width: 400px !important;
@@ -906,12 +924,10 @@ def dashboard_modu():
                     st.markdown("### 📝 Stratejik Yönetim Raporu")
                     st.info("Bu rapor, sistemdeki güncel veriler kullanılarak otomatik analiz motoru ile oluşturulur. Yapay zeka yorumu içermez, kesin matematiksel veriler ve istatistiksel analiz içerir.")
                     
-                    # ... (t_rapor sekmesinin başı aynı kalacak)
-
                     if st.button("🚀 DETAYLI RAPORU HAZIRLA", type="primary"):
                         with st.spinner("Veriler derleniyor, özel analiz grafikleri çiziliyor ve PDF basılıyor..."):
                             
-                            # A. METNİ OTOMATİK HAZIRLA (STATİK MOTOR - AYNI)
+                            # A. METNİ OTOMATİK HAZIRLA (STATİK MOTOR)
                             en_cok_artan_row = df_analiz.sort_values('Fark', ascending=False).iloc[0]
                             rap_text = generate_detailed_static_report(
                                 df_analiz=df_analiz,
@@ -925,39 +941,32 @@ def dashboard_modu():
                             )
 
                             # B. RAPORA ÖZEL GRAFİKLERİ HAZIRLA (YENİ KISIM)
-                            # Not: Ekrandaki grafikleri (fig_trend, fig_hist) kullanmıyoruz.
-                            # Bunun yerine rapora özel, daha detaylı 2 yeni grafik çiziyoruz.
-
                             # --- ÖZEL GRAFİK 1: SEKTÖREL KATKI ANALİZİ ---
-                            # Her ürünün manşet enflasyona kaç puan katkı yaptığını hesapla
                             toplam_agirlik = df_analiz[agirlik_col].sum()
                             df_analiz['Katki_Puan'] = (df_analiz['Fark'] * df_analiz[agirlik_col] / toplam_agirlik) * 100
-                            
-                            # Sektörlere göre grupla ve toplam katkıyı bul
                             df_sektor_katki = df_analiz.groupby('Grup')['Katki_Puan'].sum().reset_index().sort_values('Katki_Puan', ascending=True)
                             
                             fig_katki = go.Figure(go.Bar(
                                 x=df_sektor_katki['Katki_Puan'],
                                 y=df_sektor_katki['Grup'],
                                 orientation='h',
-                                marker=dict(color='#002855', line=dict(color='#FDB913', width=1)), # Kurumsal Lacivert ve Sarı Çerçeve
+                                marker=dict(color='#002855', line=dict(color='#FDB913', width=1)),
                                 text=df_sektor_katki['Katki_Puan'].apply(lambda x: f"+{x:.2f} puan" if x>0 else f"{x:.2f} puan"),
                                 textposition='auto'
                             ))
                             fig_katki.update_layout(
                                 title="Manşet Enflasyona Sektörel Katkı (Puan)",
                                 xaxis_title="Katkı (Puan)", yaxis_title=None,
-                                margin=dict(l=150) # Uzun sektör isimleri için soldan boşluk
+                                margin=dict(l=150)
                             )
-                            style_chart(fig_katki, is_pdf=True) # PDF stiline çevir
+                            style_chart(fig_katki, is_pdf=True)
 
                             # --- ÖZEL GRAFİK 2: UÇ NOKTALAR (EN ÇOK ARTAN/AZALAN 7 ÜRÜN) ---
                             top_n = 7
                             en_cok_artanlar = df_analiz.sort_values('Fark', ascending=False).head(top_n).copy()
                             en_az_artanlar = df_analiz.sort_values('Fark', ascending=True).head(top_n).copy()
-                            # Hepsini birleştir ve sırala
                             df_uclar = pd.concat([en_az_artanlar, en_cok_artanlar]).sort_values('Fark', ascending=True)
-                            df_uclar['Renk'] = df_uclar['Fark'].apply(lambda x: '#ef4444' if x > 0 else '#10b981') # Kırmızı/Yeşil
+                            df_uclar['Renk'] = df_uclar['Fark'].apply(lambda x: '#ef4444' if x > 0 else '#10b981')
                             
                             fig_uclar = go.Figure(go.Bar(
                                 x=df_uclar['Fark'] * 100,
@@ -970,26 +979,24 @@ def dashboard_modu():
                             fig_uclar.update_layout(
                                 title=f"Uç Noktalar: En Yüksek ve En Düşük {top_n} Değişim",
                                 xaxis_title="Değişim (%)", yaxis_title=None,
-                                xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'), # Sıfır çizgisi
-                                margin=dict(l=200) # Uzun ürün isimleri için boşluk
+                                xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'),
+                                margin=dict(l=200)
                             )
-                            style_chart(fig_uclar, is_pdf=True) # PDF stiline çevir
+                            style_chart(fig_uclar, is_pdf=True)
 
-                            # Grafikleri PDF motoruna gönderilecek sözlüğe ekle
-                            # Sözlük anahtarları rapordaki başlıklar olacak
                             figs = {
                                 "Enflasyonun Sektörel Kaynakları (Katkı Analizi)": fig_katki,
                                 "Fiyat Hareketlerinde Uç Noktalar (Diverjans)": fig_uclar
                             }
                             
-                            # C. KPI VERİLERİ (AYNI)
+                            # C. KPI VERİLERİ
                             metrics = {'genel': enf_genel, 'gida': enf_gida, 'top_urun': en_cok_artan_row[ad_col]}
 
-                            # D. PDF OLUŞTUR (AYNI)
+                            # D. PDF OLUŞTUR
                             pdf_data = create_pdf_report_advanced(
                                 text_content=rap_text,
                                 df_table=df_analiz.sort_values('Fark', ascending=False).head(20),
-                                figures=figs, # Yeni özel grafikleri gönderiyoruz
+                                figures=figs,
                                 manset_oran=enf_genel,
                                 metrics_dict=metrics, 
                                 date_str_ignored="-"
@@ -1008,4 +1015,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
