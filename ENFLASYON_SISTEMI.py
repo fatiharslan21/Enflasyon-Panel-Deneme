@@ -26,6 +26,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 import streamlit.components.v1 as components
 import tempfile
+import os
+import urllib.request
+from fpdf import FPDF
+import tempfile
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
 st.set_page_config(
@@ -164,21 +168,16 @@ import os
 import urllib.request
 
 # --- PROFESYONEL PDF MOTORU (Türkçe Font & Markdown Destekli) ---
+# --- GÜVENLİ PDF MOTORU (Renk Hatası Giderildi) ---
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
-        # Renkleri Tuple olarak tanımlıyoruz
-        self.col_primary = (44, 62, 80)    # Koyu Lacivert
-        self.col_secondary = (231, 76, 60) # Kırmızı
-        self.col_text = (50, 50, 50)       # Gri
-        
-        # Font Ayarları
+        # Font Ayarları: Roboto varsa indir, yoksa Arial kullan
         self.font_family = 'Roboto'
-        self.download_and_register_font('Roboto-Regular.ttf', 'https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf')
-        self.download_and_register_font('Roboto-Bold.ttf', 'https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Bold.ttf', style='B')
+        self.download_font('Roboto-Regular.ttf', 'https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf')
+        self.download_font('Roboto-Bold.ttf', 'https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Bold.ttf', style='B')
         
-    def download_and_register_font(self, filename, url, style=''):
-        # Font yoksa indir, varsa kullan, hata verirse Arial'a dön
+    def download_font(self, filename, url, style=''):
         if not os.path.exists(filename):
             try:
                 urllib.request.urlretrieve(url, filename)
@@ -188,24 +187,17 @@ class PDFReport(FPDF):
         except:
             self.font_family = 'Arial'
 
-    # Yardımcı Fonksiyon: Renk Atama (Hata Önleyici)
-    def set_color_safe(self, color_tuple, is_text=True):
-        r, g, b = color_tuple
-        if is_text:
-            self.set_text_color(r, g, b)
-        else:
-            self.set_fill_color(r, g, b)
-
     def header(self):
         if self.page_no() > 1:
             self.set_font(self.font_family, 'B', 10)
-            self.set_color_safe(self.col_primary) # Düzeltildi
+            # Renkleri MANUEL veriyoruz (Hata ihtimali %0)
+            self.set_text_color(44, 62, 80) 
             self.cell(0, 10, "ENFLASYON MONITORU", 0, 0, 'L')
             
             self.set_font(self.font_family, '', 8)
             self.set_text_color(128, 128, 128)
-            tarih_str = datetime.now().strftime("%d.%m.%Y")
-            self.cell(0, 10, f'Rapor Tarihi: {tarih_str}', 0, 1, 'R')
+            tarih = datetime.now().strftime("%d.%m.%Y")
+            self.cell(0, 10, f'Rapor Tarihi: {tarih}', 0, 1, 'R')
             self.line(10, 20, 200, 20)
             self.ln(5)
 
@@ -218,42 +210,35 @@ class PDFReport(FPDF):
     def chapter_title(self, label):
         self.ln(5)
         self.set_font(self.font_family, 'B', 14)
-        self.set_color_safe(self.col_primary) # Düzeltildi
+        self.set_text_color(44, 62, 80) # Lacivert
         self.cell(0, 10, str(label), 0, 1, 'L')
         self.ln(2)
 
     def write_markdown(self, text):
         if not text: return
-        self.set_color_safe(self.col_text) # Düzeltildi
+        self.set_text_color(50, 50, 50) # Gri
         self.set_font(self.font_family, '', 11)
         
         lines = str(text).split('\n')
         for line in lines:
             if not line.strip():
-                self.ln(5)
-                continue
+                self.ln(5); continue
             
             parts = line.split('**')
             for i, part in enumerate(parts):
                 if i % 2 == 1: 
-                    self.set_font(self.font_family, 'B', 11) # Kalın
+                    self.set_font(self.font_family, 'B', 11)
                 else:
-                    self.set_font(self.font_family, '', 11) # Normal
+                    self.set_font(self.font_family, '', 11)
                 
-                # Türkçe karakterleri replace etmeye gerek yok, 
-                # Roboto fontu (uni=True) bunu halleder.
-                try:
-                    self.write(6, part)
-                except:
-                    # Fontta karakter yoksa encode edip yaz
-                    self.write(6, part.encode('latin-1', 'replace').decode('latin-1'))
-            
+                try: self.write(6, part)
+                except: self.write(6, str(part).encode('latin-1', 'replace').decode('latin-1'))
             self.ln(6)
 
     def create_cover(self, date_str, rate_val):
         self.add_page()
         # Arka Plan
-        self.set_color_safe(self.col_primary, is_text=False) # Düzeltildi
+        self.set_fill_color(44, 62, 80) # Lacivert
         self.rect(0, 0, 210, 80, 'F')
         
         self.set_y(25)
@@ -266,7 +251,7 @@ class PDFReport(FPDF):
         
         # Ana Rakam
         self.set_font(self.font_family, 'B', 65)
-        self.set_color_safe(self.col_secondary) # Düzeltildi
+        self.set_text_color(231, 76, 60) # Kırmızı
         self.cell(0, 30, f"%{rate_val}", 0, 1, 'C')
         
         self.set_font(self.font_family, 'B', 14)
@@ -282,74 +267,66 @@ class PDFReport(FPDF):
         if plot_bytes:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
                 tmpfile.write(plot_bytes)
-                tmpfile_path = tmpfile.name
+                path = tmpfile.name
             
             self.ln(5)
             self.set_font(self.font_family, 'B', 11)
-            self.set_color_safe(self.col_primary) # Düzeltildi
+            self.set_text_color(44, 62, 80)
             self.cell(0, 8, title, 0, 1, 'L')
-            
             try:
-                x_pos = (210 - 180) / 2
-                self.image(tmpfile_path, x=x_pos, w=180)
+                x = (210 - 180) / 2
+                self.image(path, x=x, w=180)
             except: pass
             self.ln(5)
 
     def create_table(self, df):
         self.set_font(self.font_family, 'B', 9)
         self.set_text_color(255, 255, 255)
-        self.set_color_safe(self.col_primary, is_text=False) # Düzeltildi
+        self.set_fill_color(44, 62, 80) # Lacivert
         
         cols = df.columns
-        col_width = 190 / len(cols) if len(cols) > 0 else 190
+        w = 190 / len(cols) if len(cols) > 0 else 190
         
         for col in cols:
-            self.cell(col_width, 9, str(col), 1, 0, 'C', True)
+            self.cell(w, 9, str(col), 1, 0, 'C', True)
         self.ln()
         
         self.set_font(self.font_family, '', 8)
         self.set_text_color(0, 0, 0)
         
         for i, row in df.iterrows():
-            # Zebra Deseni
-            if i % 2 == 0:
-                self.set_fill_color(245, 245, 245)
-            else:
-                self.set_fill_color(255, 255, 255)
+            if i % 2 == 0: self.set_fill_color(245, 245, 245)
+            else: self.set_fill_color(255, 255, 255)
             
             for col in cols:
                 val = row[col]
-                val_str = f"{val:.2f}" if isinstance(val, (int, float)) else str(val)
-                self.cell(col_width, 8, val_str, 1, 0, 'C', True)
+                txt = f"{val:.2f}" if isinstance(val, (int, float)) else str(val)
+                self.cell(w, 8, txt, 1, 0, 'C', True)
             self.ln()
-# --- GELİŞMİŞ PDF FONKSİYONU ---
+
+# --- ÇALIŞTIRICI FONKSİYON ---
 def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, date_str):
     pdf = PDFReport()
-    
-    # 1. KAPAK
     pdf.create_cover(date_str, f"{manset_oran:.2f}")
     
-    # 2. METİN RAPORU (Markdown Destekli)
     pdf.add_page()
     pdf.chapter_title("YONETICI OZETI")
-    pdf.write_markdown(text_content) # Artık chapter_body yerine bunu kullanıyoruz
+    pdf.write_markdown(text_content)
     
-    # 3. GRAFİKLER
     if figures:
         pdf.add_page()
         pdf.chapter_title("PIYASA GRAFIKLERI")
         for title, fig in figures.items():
             try:
-                img_bytes = fig.to_image(format="png", width=1200, height=600, scale=2)
-                pdf.add_plot_image(img_bytes, title=title)
+                img = fig.to_image(format="png", width=1200, height=600, scale=2)
+                pdf.add_plot_image(img, title=title)
             except: pass
 
-    # 4. TABLO
     if not df_table.empty:
         pdf.add_page()
         pdf.chapter_title("DETAYLI FIYAT HAREKETLERI")
-        cols_to_keep = [c for c in df_table.columns if 'Kod' not in c and 'URL' not in c]
-        pdf.create_table(df_table[cols_to_keep].head(25))
+        cols = [c for c in df_table.columns if 'Kod' not in c and 'URL' not in c]
+        pdf.create_table(df_table[cols].head(25))
 
     return pdf.output(dest='S').encode('latin-1', 'ignore')
 
@@ -958,6 +935,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
