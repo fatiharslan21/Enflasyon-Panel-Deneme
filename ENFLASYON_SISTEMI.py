@@ -360,12 +360,8 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, met
     pdf.cell(0, 6, pdf.fix_text("Saygilarimizla,"), 0, 1, 'R')
     pdf.cell(0, 6, pdf.fix_text("VALIDASYON MUDURLUGU"), 0, 1, 'R')
 
-    # 6. TABLO (YENİ SAYFAYA)
-    if not df_table.empty:
-        pdf.add_page()
-        pdf.chapter_title("DETAYLI FİYAT LİSTESİ")
-        cols = [c for c in df_table.columns if 'Kod' not in c and 'URL' not in c]
-        pdf.create_table(df_table[cols].head(35))
+    # NOT: TABLO İSTEMEDİĞİN İÇİN SİLİNDİ
+    # if not df_table.empty: ...
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
@@ -861,18 +857,43 @@ def dashboard_modu():
 
                 # 2. GRAFİKLERİ GLOBAL OLARAK OLUŞTUR (Hata vermemesi için tablardan önce)
                 
+                # --- PROPHET TAHMİNİ (Grafikten ÖNCE) ---
+                with st.spinner("Yapay Zeka Gelecek Tahmini Yapıyor..."):
+                    df_forecast = predict_inflation_prophet(df_trend)
+
                 # --- TREND GRAFİĞİ ---
                 fig_trend = go.Figure()
+                
+                # Gerçekleşen Veri
                 fig_trend.add_trace(go.Scatter(
                     x=df_trend['Tarih'], y=df_trend['TÜFE'], 
                     mode='lines+markers', name='Enflasyon', 
                     line=dict(color='#FDB913', width=4), # Vakıf Sarısı
                     marker=dict(size=8, line=dict(width=2, color='white'))
                 ))
-                # İSTEĞİN ÜZERİNE Y EKSENİ SABİTLENDİ: [95, 105]
+
+                # Prophet Tahmini Ekle (İSTEĞİN ÜZERİNE GERİ GELDİ)
+                if not df_forecast.empty:
+                    future = df_forecast[df_forecast['ds'] > df_trend['Tarih'].max()]
+                    # Tahmin Çizgisi
+                    fig_trend.add_trace(go.Scatter(
+                        x=future['ds'], y=future['yhat'],
+                        mode='lines', name='AI Tahmini',
+                        line=dict(color='#3b82f6', width=2, dash='dash')
+                    ))
+                    # Güven Aralığı
+                    fig_trend.add_trace(go.Scatter(
+                        x=future['ds'].tolist() + future['ds'].tolist()[::-1],
+                        y=future['yhat_upper'].tolist() + future['yhat_lower'].tolist()[::-1],
+                        fill='toself', fillcolor='rgba(59, 130, 246, 0.1)',
+                        line=dict(color='rgba(0,0,0,0)'), showlegend=False, hoverinfo='skip'
+                    ))
+
+                # Y EKSENİ SABİTLENDİ: [95, 105]
                 fig_trend.update_layout(
-                    title="Enflasyon Trendi",
-                    yaxis=dict(range=[95, 105]) 
+                    title="Enflasyon Trendi ve Gelecek Tahmini",
+                    yaxis=dict(range=[95, 105]),
+                    legend=dict(orientation="h", y=1.1)
                 )
                 
                 # --- HİSTOGRAM ---
@@ -945,7 +966,7 @@ def dashboard_modu():
                             # is_pdf=True ile Vakıf Laciverti/Sarısı ve Beyaz Zemin uygulanacak
                             fig_print_trend = go.Figure(fig_trend)
                             style_chart(fig_print_trend, is_pdf=True)
-                            fig_print_trend.update_traces(line=dict(color='#002855')) # Çizgiyi Lacivert yap
+                            fig_print_trend.update_traces(line=dict(color='#002855'), selector=dict(name='Enflasyon')) # Çizgiyi Lacivert yap
 
                             # Histogramı Kopyala ve Beyazlat
                             fig_print_hist = go.Figure(fig_hist)
