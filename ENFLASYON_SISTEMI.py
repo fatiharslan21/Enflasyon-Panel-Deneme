@@ -18,15 +18,9 @@ from prophet import Prophet
 import feedparser
 from fpdf import FPDF
 import shutil
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from webdriver_manager.chrome import ChromeDriverManager
-import streamlit.components.v1 as components
 import os
 import urllib.request
+import streamlit.components.v1 as components
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
 st.set_page_config(
@@ -36,7 +30,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS MOTORU (SADECE DARK MODE) ---
+# --- CSS MOTORU ---
 def apply_theme():
     colors = {
         "bg": "#0E1117",
@@ -117,11 +111,6 @@ def apply_theme():
             border-color: #d4d4d4 !important;
             color: #000000 !important;
         }}
-        div.stButton > button[kind="primary"] {{
-            background-color: #FAFAFA !important;
-            color: #000000 !important;
-            border: 2px solid #FAFAFA !important;
-        }}
 
         .metric-card {{ background: {colors['card_bg']} !important; border: 1px solid {colors['border_color']} !important; }}
         .metric-val, div[data-testid="stMetricValue"] {{ color: {colors['text']} !important; }}
@@ -142,7 +131,7 @@ FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 SAYFA_ADI = "Madde_Sepeti"
 
 
-# --- 3. GELİŞMİŞ PDF RAPOR MOTORU (TÜRKÇE & ESTETİK) ---
+# --- 3. DÜZELTİLMİŞ & GARANTİLİ PDF MOTORU ---
 # Fontları Otomatik İndir
 FONT_URL = "https://github.com/font-valet/dejavu-fonts-ttf/raw/master/ttf/DejaVuSans.ttf"
 FONT_BOLD_URL = "https://github.com/font-valet/dejavu-fonts-ttf/raw/master/ttf/DejaVuSans-Bold.ttf"
@@ -152,7 +141,7 @@ def download_fonts():
         try:
             urllib.request.urlretrieve(FONT_URL, "DejaVuSans.ttf")
         except:
-            pass # İndirme başarısız olursa standart fonta düşer ama Türkçe bozulur
+            pass 
     if not os.path.exists("DejaVuSans-Bold.ttf"):
         try:
             urllib.request.urlretrieve(FONT_BOLD_URL, "DejaVuSans-Bold.ttf")
@@ -164,26 +153,26 @@ download_fonts()
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
-        # Türkçe karakterler için fontları yükle
+        # Türkçe fontları ekle
         try:
             self.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
             self.add_font('DejaVu', 'B', 'DejaVuSans-Bold.ttf', uni=True)
             self.has_font = True
         except:
-            self.has_font = False # Font dosyası inmemişse
+            self.has_font = False
             
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
-        # Üst Bant (Mavi)
-        self.set_fill_color(37, 99, 235)  # Streamlit App Mavisi
+        # Mavi Bant
+        self.set_fill_color(37, 99, 235)
         self.rect(0, 0, 210, 25, 'F')
         
-        # Başlık
+        # Başlık Fontu
         if self.has_font: self.set_font('DejaVu', 'B', 20)
         else: self.set_font('Arial', 'B', 20)
         
-        self.set_text_color(255, 255, 255) # Beyaz
+        self.set_text_color(255, 255, 255)
         self.set_y(8)
         self.cell(0, 10, 'ENFLASYON VE PIYASA RAPORU', 0, 1, 'C')
         
@@ -193,8 +182,6 @@ class PDFReport(FPDF):
         
         self.set_text_color(220, 220, 220)
         self.cell(0, 0, 'Otomatik Piyasa Analiz Sistemi | Validasyon Mudurlugu', 0, 1, 'C')
-        
-        # Boşluk
         self.ln(20)
 
     def footer(self):
@@ -205,29 +192,27 @@ class PDFReport(FPDF):
         self.cell(0, 10, f'Sayfa {self.page_no()}', 0, 0, 'C')
 
     def section_title(self, label):
-        # Bölüm Başlıkları
         if self.has_font: self.set_font('DejaVu', 'B', 14)
         else: self.set_font('Arial', 'B', 14)
         
-        self.set_text_color(37, 99, 235) # Mavi
+        self.set_text_color(37, 99, 235)
         self.cell(0, 10, label, 0, 1, 'L')
-        self.line(10, self.get_y(), 200, self.get_y()) # Altına çizgi
+        self.line(10, self.get_y(), 200, self.get_y())
         self.ln(4)
 
 def create_pdf_report(text_content, filename="Rapor.pdf"):
     pdf = PDFReport()
     pdf.add_page()
     
-    # Metni satır satır işle ve formatla
     lines = text_content.split('\n')
     
     for line in lines:
         line = line.strip()
         if not line:
-            pdf.ln(2) # Boş satır
+            pdf.ln(2)
             continue
             
-        # Başlık Algılama (Yapay zeka genelde **Başlık** veya ## Başlık yapar)
+        # Başlık Algılama
         if line.startswith('**') or line.startswith('##') or (len(line) < 50 and line.isupper()):
             clean_line = line.replace('*', '').replace('#', '').strip()
             pdf.section_title(clean_line)
@@ -238,7 +223,7 @@ def create_pdf_report(text_content, filename="Rapor.pdf"):
             else: pdf.set_font('Arial', '', 10)
             
             pdf.set_text_color(50, 50, 50)
-            pdf.set_x(15) # İçerden başla
+            pdf.set_x(15)
             
             bullet = chr(149) if pdf.has_font else "-"
             pdf.multi_cell(0, 6, bullet + " " + line[1:].strip()) 
@@ -249,17 +234,27 @@ def create_pdf_report(text_content, filename="Rapor.pdf"):
             else: pdf.set_font('Arial', '', 10)
             
             pdf.set_text_color(50, 50, 50)
-            
-            # Basit bold desteği (sadece satır içinde ** varsa)
             clean_text = line.replace('**', '') 
             pdf.multi_cell(0, 6, clean_text)
 
-    # Unicode desteği için latin-1 ignore yerine binary mode tercih edilir ama 
-    # FPDF string döndürür, bu stringi encode ederiz.
-    return pdf.output(dest='S').encode('latin-1', 'ignore')
+    # --- KRİTİK DÜZELTME: Dosyaya yaz ve byte olarak oku ---
+    # String encoding hatasını önlemek için PDF'i geçici bir dosyaya kaydediyoruz.
+    temp_filename = f"temp_pdf_{int(time.time())}.pdf"
+    pdf.output(temp_filename)
+    
+    with open(temp_filename, "rb") as f:
+        pdf_bytes = f.read()
+        
+    # Geçici dosyayı sil
+    try:
+        os.remove(temp_filename)
+    except:
+        pass
+        
+    return pdf_bytes
 
 
-# --- HABER MOTORU (GÜNCELLENDİ: SADECE EKONOMİ) ---
+# --- HABER MOTORU ---
 def get_market_sentiment():
     rss_url = "https://news.google.com/rss/search?q=ekonomi+enflasyon+faiz+borsa+dolar&hl=tr&gl=TR&ceid=TR:tr"
     try:
@@ -276,11 +271,10 @@ def get_market_sentiment():
         
         GÖREVİN:
         1. Başlıklar arasından SADECE ekonomi, finans, kur ve enflasyon ile doğrudan ilgili olanları dikkate al.
-        2. "Piyasa Havası"nı (Market Sentiment) tek kelimeyle tanımla (Örn: Risk İştahı Yüksek, Tedirgin, Bekle-Gör, Negatif).
+        2. "Piyasa Havası"nı (Market Sentiment) tek kelimeyle tanımla.
         3. En kritik 3 ekonomik gelişmeyi maddeler halinde özetle.
-        4. Bu haberlerin kısa vadeli enflasyon veya döviz kuru üzerindeki olası etkisini 1 cümle ile belirt.
         
-        Çıktıyı profesyonel, kısa ve net ver. Magazin veya siyasi polemikleri yoksay.
+        Çıktıyı profesyonel, kısa ve net ver.
         """
         model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(prompt)
@@ -322,7 +316,7 @@ def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
         return False
 
 
-# --- HIZLANDIRILMIŞ (CACHED) VERİ OKUMA ---
+# --- CACHED VERİ OKUMA ---
 @st.cache_data(ttl=60, show_spinner=False)
 def github_excel_oku(dosya_adi, sayfa_adi=None):
     repo = get_github_repo()
@@ -364,7 +358,7 @@ def github_excel_guncelle(df_yeni, dosya_adi):
         return str(e)
 
 
-# --- RESMİ ENFLASYON & PROPHET (CACHED) ---
+# --- RESMİ ENFLASYON & PROPHET ---
 def get_official_inflation():
     api_key = st.secrets.get("evds", {}).get("api_key")
 
@@ -420,7 +414,7 @@ def predict_inflation_prophet(df_trend):
         return pd.DataFrame()
 
 
-# --- SCRAPER (FİYAT ÇEKİCİ) ---
+# --- SCRAPER ---
 def temizle_fiyat(t):
     if not t: return None
     t = str(t).replace('TL', '').replace('₺', '').strip()
@@ -430,9 +424,7 @@ def temizle_fiyat(t):
     except:
         return None
 
-
 def kod_standartlastir(k): return str(k).replace('.0', '').strip().zfill(7)
-
 
 def fiyat_bul_siteye_gore(soup, url):
     fiyat = 0;
@@ -562,7 +554,7 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # --- 2. SIDEBAR (YAN MENÜ) ---
+    # --- SIDEBAR ---
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
         
@@ -624,7 +616,7 @@ def dashboard_modu():
         """
         components.html(all_stocks_html, height=600)
 
-    # --- 3. ANA SAYFA TASARIM VE CSS ---
+    # --- ANA SAYFA ---
     st.markdown(f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
@@ -656,7 +648,7 @@ def dashboard_modu():
     </style>
     """, unsafe_allow_html=True)
 
-    # --- HEADER & LIVE CLOCK ---
+    # --- CLOCK ---
     tr_time_start = datetime.now() + timedelta(hours=3)
     header_html = f"""
     <div class="header-container">
@@ -685,7 +677,7 @@ def dashboard_modu():
         st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
         st.session_state['toast_shown'] = True
 
-    # --- SİSTEMİ GÜNCELLE BUTONU ---
+    # --- GÜNCELLE BUTONU ---
     st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
     if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
         with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
@@ -767,7 +759,7 @@ def dashboard_modu():
                 month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
                 gun_farki = (dt_son - dt_baz).days
 
-                # --- KAYAN YAZI (TICKER) ---
+                # --- TICKER ---
                 if len(gunler) >= 2:
                     dunku_tarih = gunler[-2]
                     bugunku_tarih = gunler[-1]
@@ -838,7 +830,7 @@ def dashboard_modu():
                 st.markdown("<br>", unsafe_allow_html=True)
 
 
-                # --- SEKMELER ---
+                # --- TABS ---
                 t_analiz, t_istatistik, t_harita, t_liste, t_haber, t_rapor = st.tabs(
                     ["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📋 LİSTE", "📰 HABERLER", "📝 RAPOR"])
 
@@ -1026,7 +1018,6 @@ def dashboard_modu():
                         st.markdown("---");
                         st.markdown(st.session_state['report_text'])
                         
-                        # PDF Oluşturma (Yeni Fonksiyon)
                         pdf_bytes = create_pdf_report(st.session_state['report_text'])
                         
                         with col_download: st.download_button(label="📥 PDF Olarak İndir", data=pdf_bytes,
@@ -1040,7 +1031,7 @@ def dashboard_modu():
         '<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">VALIDASYON MUDURLUGU © 2025</div>',
         unsafe_allow_html=True)
 
-# --- 5. ANA GİRİŞ SİSTEMİ ---
+# --- ANA GİRİŞ ---
 def main():
     dashboard_modu()
 
