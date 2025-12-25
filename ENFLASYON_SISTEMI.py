@@ -1009,7 +1009,7 @@ def dashboard_modu():
                                    - **Gelecek Projeksiyonu:** Tahmin modeline (Prophet) dayalı beklentiler ve stratejik öneriler.
                                 3. ÜSLUP: "Fiyatlar arttı" deme, "Fiyatlama davranışlarında bozulma gözlemlendi" de. Analitik ve çözüm odaklı ol.
                                 
-                                İmza: Validasyon Müdürlüğü Strateji Ekibi
+                                İmza: Validasyon Müdürlüğü
                                 """
                                 model_rep = genai.GenerativeModel('gemini-2.5-flash')
                                 st.session_state['report_text'] = model_rep.generate_content(prompt_report).text
@@ -1037,3 +1037,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
