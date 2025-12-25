@@ -858,11 +858,14 @@ def dashboard_modu():
                 with t_rapor:
                     st.markdown("### 📝 Profesyonel Yönetici Raporu")
                     col_gen, col_download = st.columns(2)
-                    if 'report_text' not in st.session_state: st.session_state['report_text'] = ""
+                    
+                    if 'report_text' not in st.session_state: 
+                        st.session_state['report_text'] = ""
                     
                     with col_gen:
+                        # Buton: Rapor Metnini Oluştur
                         if st.button("✍️ Detaylı Rapor Oluştur", type="primary"):
-                            with st.spinner("Stratejik rapor yazılıyor ve görseller işleniyor..."):
+                            with st.spinner("Yapay zeka piyasayı yorumluyor..."):
                                 sepet_dagilimi = df_analiz.groupby('Grup')['Fark'].mean().sort_values(ascending=False)
                                 kategori_metni = ""
                                 for kat, oran in sepet_dagilimi.items(): 
@@ -870,6 +873,7 @@ def dashboard_modu():
                                     kategori_metni += f"- {kat}: %{oran * 100:.2f} ({durum})\n"
                                 
                                 report_summary = f"Tarih: {datetime.now().strftime('%d-%m-%Y')}\nGenel Enflasyon: %{enf_genel:.2f}\nGıda: %{enf_gida:.2f}\nEn Çok Artan: {top[ad_col]} (%{top['Fark'] * 100:.2f})"
+                                
                                 prompt_report = f"""
                                 Sen bir Başekonomistsin. Aşağıdaki verilerle profesyonel bir 'Piyasa Görünüm Raporu' yaz.
                                 VERİLER: {report_summary}
@@ -878,32 +882,78 @@ def dashboard_modu():
                                 """
                                 try:
                                     model_rep = genai.GenerativeModel('gemini-2.5-flash')
-                                    st.session_state['report_text'] = model_rep.generate_content(prompt_report).text
-                                except:
-                                    st.session_state['report_text'] = "AI servisine erişilemedi, ancak veriler tabloda mevcuttur."
-                                st.success("Rapor içeriği oluşturuldu!")
+                                    generated = model_rep.generate_content(prompt_report).text
+                                    st.session_state['report_text'] = generated
+                                    st.success("✅ Rapor metni başarıyla hazırlandı!")
+                                except Exception as e:
+                                    st.error(f"AI Hatası: {str(e)}")
+                                    st.session_state['report_text'] = "AI servisine erişilemedi. Lütfen daha sonra tekrar deneyin."
 
+                    # Rapor metni varsa PDF işlemleri başlar
                     if st.session_state['report_text']:
                         st.markdown("---")
+                        st.info("📄 Rapor Önizlemesi:")
                         st.markdown(st.session_state['report_text'])
+                        st.markdown("---")
                         
-                        # GRAFİKLERİ PDF İÇİN HAZIRLA (Tekrar oluşturuyoruz garanti olması için)
-                        figures_dict = {}
-                        fig_pdf_trend = px.line(df_trend, x='Tarih', y='TÜFE', title='Enflasyon Trendi')
-                        figures_dict["Enflasyon Trendi"] = fig_pdf_trend
-                        fig_pdf_hist = px.histogram(df_analiz, x="Fark", nbins=20, title="Fiyat Dagilimi")
-                        figures_dict["Fiyat Degisim Dagilimi"] = fig_pdf_hist
+                        # İndirme Bölümü
+                        with col_download:
+                            st.write("🖨️ **PDF Hazırlanıyor...**")
+                            
+                            try:
+                                # 1. Grafikleri Hazırla
+                                figures_dict = {}
+                                try:
+                                    # Trend Grafiği
+                                    fig_pdf_trend = px.line(df_trend, x='Tarih', y='TÜFE', title='Enflasyon Trendi')
+                                    figures_dict["Enflasyon Trendi"] = fig_pdf_trend
+                                    
+                                    # Histogram
+                                    fig_pdf_hist = px.histogram(df_analiz, x="Fark", nbins=20, title="Fiyat Dagilimi")
+                                    figures_dict["Fiyat Degisim Dagilimi"] = fig_pdf_hist
+                                except Exception as e_fig:
+                                    st.warning(f"Grafikler oluşturulurken hata: {e_fig} (Rapora grafik eklenmeyecek)")
 
-                        pdf_bytes = create_pdf_report_advanced(
-                            text_content=st.session_state['report_text'],
-                            df_table=df_analiz[['Grup', ad_col, 'Fark', son]].sort_values('Fark', ascending=False).head(20),
-                            figures=figures_dict,
-                            manset_oran=enf_genel,
-                            date_str=f"{datetime.now().strftime('%B %Y')}"
-                        )
-                        
-                        with col_download: 
-                            st.download_button(label="📥 PDF Bülteni İndir (v2.0)", data=pdf_bytes, file_name=f"WebTUFE_Bulten_{bugun}.pdf", mime="application/pdf")
+                                # 2. PDF Oluştur (Hata Yakalamalı)
+                                pdf_bytes = create_pdf_report_advanced(
+                                    text_content=st.session_state['report_text'],
+                                    df_table=df_analiz[['Grup', ad_col, 'Fark', son]].sort_values('Fark', ascending=False).head(20),
+                                    figures=figures_dict,
+                                    manset_oran=enf_genel,
+                                    date_str=f"{datetime.now().strftime('%B %Y')}"
+                                )
+                                
+                                # 3. İndirme Butonunu Göster
+                                st.download_button(
+                                    label="📥 PDF Bülteni İndir (Tam Sürüm)", 
+                                    data=pdf_bytes, 
+                                    file_name=f"WebTUFE_Bulten_{bugun}.pdf", 
+                                    mime="application/pdf",
+                                    key="dl_btn_main"
+                                )
+                                
+                            except Exception as e_pdf:
+                                st.error(f"PDF Oluşturma Hatası: {e_pdf}")
+                                st.warning("Grafik motorunda sorun olabilir. Metin bazlı yedek rapor oluşturuluyor...")
+                                
+                                # YEDEK PDF (Sadece Metin)
+                                try:
+                                    pdf_simple = PDFReport()
+                                    pdf_simple.create_cover(f"{datetime.now().strftime('%B %Y')}", f"{enf_genel:.2f}")
+                                    pdf_simple.add_page()
+                                    pdf_simple.chapter_title("RAPOR METNI (GRAFIKSIZ)")
+                                    pdf_simple.chapter_body(st.session_state['report_text'])
+                                    simple_bytes = pdf_simple.output(dest='S').encode('latin-1', 'ignore')
+                                    
+                                    st.download_button(
+                                        label="⚠️ Yedek PDF İndir (Grafiksiz)", 
+                                        data=simple_bytes, 
+                                        file_name=f"WebTUFE_Yedek_{bugun}.pdf", 
+                                        mime="application/pdf",
+                                        key="dl_btn_backup"
+                                    )
+                                except Exception as e_simple:
+                                    st.error(f"Yedek rapor da oluşturulamadı: {e_simple}")
 
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
@@ -915,3 +965,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
