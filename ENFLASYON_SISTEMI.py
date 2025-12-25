@@ -160,136 +160,177 @@ SAYFA_ADI = "Madde_Sepeti"
 
 
 # --- PDF RAPOR MOTORU (YENİLENMİŞ - TÜRKÇE VE GÖRSEL DESTEKLİ) ---
-# --- PDF RAPOR MOTORU (MARKASIZ - TEMİZ) ---
+import os
+import urllib.request
+
+# --- PROFESYONEL PDF MOTORU (Türkçe Font & Markdown Destekli) ---
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
-        self.primary_color = (160, 0, 0) # Kırmızı Ton
-        self.secondary_color = (0, 50, 120) # Lacivert Ton
-        # İSİM DEĞİŞİKLİĞİ BURADA YAPILDI:
-        self.logo_text = "ENFLASYON MONITORU" 
-    
-    def clean_text(self, text):
-        """Türkçe karakter düzeltici"""
-        if text is None: return ""
-        text = str(text)
-        replacements = {
-            'İ': 'I', 'ı': 'i', 'Ğ': 'G', 'ğ': 'g', 'Ü': 'U', 'ü': 'u', 
-            'Ş': 'S', 'ş': 's', 'Ö': 'O', 'ö': 'o', 'Ç': 'C', 'ç': 'c',
-            'â': 'a', 'î': 'i', 'û': 'u', '₺': 'TL', '€': 'EUR', '$': 'USD',
-            '…': '...', '’': "'", '‘': "'", '“': '"', '”': '"'
-        }
-        for tr, en in replacements.items():
-            text = text.replace(tr, en)
+        self.primary_color = (44, 62, 80)    # Koyu Lacivert (Kurumsal)
+        self.secondary_color = (231, 76, 60) # Vurgu Kırmızısı
+        self.text_color = (50, 50, 50)       # Koyu Gri (Okunabilirlik için)
+        
+        # 1. Türkçe Destekli Fontu Otomatik İndir ve Yükle
+        self.font_family = 'Roboto'
+        self.download_and_register_font('Roboto-Regular.ttf', 'https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf')
+        self.download_and_register_font('Roboto-Bold.ttf', 'https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Bold.ttf', style='B')
+        
+    def download_and_register_font(self, filename, url, style=''):
+        if not os.path.exists(filename):
+            try:
+                urllib.request.urlretrieve(url, filename)
+            except:
+                pass # İndirme başarısızsa varsayılana döner
+        
         try:
-            return text.encode('latin-1', 'replace').decode('latin-1')
+            self.add_font(self.font_family, style, filename, uni=True)
         except:
-            return text
+            # Font yüklenemezse Arial'a geri dön (Yedek plan)
+            self.font_family = 'Arial'
 
     def header(self):
         if self.page_no() > 1:
-            self.set_font('Arial', 'B', 10)
+            self.set_font(self.font_family, 'B', 10)
             self.set_text_color(*self.primary_color)
-            # LOGO KISMI
-            self.cell(0, 10, self.clean_text(self.logo_text), 0, 0, 'L')
+            self.cell(0, 10, "ENFLASYON MONITORU", 0, 0, 'L')
             
-            self.set_text_color(100, 100, 100)
-            self.set_font('Arial', 'I', 8)
-            tarih_str = datetime.now().strftime("%B %Y")
-            self.cell(0, 10, self.clean_text(f'Bulten: {tarih_str}'), 0, 1, 'R')
+            self.set_font(self.font_family, '', 8)
+            self.set_text_color(128, 128, 128)
+            tarih_str = datetime.now().strftime("%d.%m.%Y")
+            self.cell(0, 10, f'Rapor Tarihi: {tarih_str}', 0, 1, 'R')
             self.line(10, 20, 200, 20)
-            self.ln(10)
+            self.ln(5)
 
     def footer(self):
         self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
-        self.set_text_color(128, 128, 128)
-        # ALT BİLGİ KISMI
-        self.cell(0, 10, self.clean_text(f'Piyasa Analiz Raporu - Sayfa {self.page_no()}'), 0, 0, 'C')
+        self.set_font(self.font_family, '', 8)
+        self.set_text_color(150, 150, 150)
+        self.cell(0, 10, f'Sayfa {self.page_no()}', 0, 0, 'C')
 
     def chapter_title(self, label):
-        self.set_font('Arial', 'B', 14)
-        self.set_text_color(*self.secondary_color)
-        self.cell(0, 10, self.clean_text(label), 0, 1, 'L')
+        self.ln(5)
+        self.set_font(self.font_family, 'B', 14)
+        self.set_text_color(*self.primary_color)
+        self.cell(0, 10, str(label), 0, 1, 'L')
         self.ln(2)
 
-    def chapter_body(self, body):
-        self.set_font('Arial', '', 10)
-        self.set_text_color(0, 0, 0)
-        self.multi_cell(0, 6, self.clean_text(body))
-        self.ln()
+    def write_markdown(self, text):
+        """
+        Metin içindeki **kalın** işaretlerini algılar ve stili değiştirir.
+        Örnek: "Bu bir **önemli** kelimedir." -> PDF'te "önemli" kelimesi bold olur.
+        """
+        if not text: return
+        
+        self.set_text_color(*self.text_color)
+        self.set_font(self.font_family, '', 11)
+        
+        # Satır satır işle
+        lines = str(text).split('\n')
+        for line in lines:
+            if not line.strip():
+                self.ln(5)
+                continue
+            
+            # Markdown parçalarını (**) ayır
+            parts = line.split('**')
+            
+            for i, part in enumerate(parts):
+                if i % 2 == 1: 
+                    # Çift indeksler (1, 3, 5...) ** işaretleri arasındadır -> KALIN YAZ
+                    self.set_font(self.font_family, 'B', 11)
+                    self.write(6, part)
+                else:
+                    # Tek indeksler normal yazıdır -> NORMAL YAZ
+                    self.set_font(self.font_family, '', 11)
+                    self.write(6, part)
+            
+            self.ln(6) # Satır sonu
 
     def create_cover(self, date_str, rate_val):
         self.add_page()
+        # Arka Plan
         self.set_fill_color(*self.primary_color)
-        self.rect(0, 0, 210, 40, 'F')
-        self.set_y(10)
-        self.set_font('Arial', 'B', 26)
-        self.set_text_color(255, 255, 255)
-        # KAPAK BAŞLIĞI
-        self.cell(0, 15, self.clean_text("PIYASA ENFLASYON RAPORU"), 0, 1, 'C')
+        self.rect(0, 0, 210, 80, 'F')
         
-        self.set_font('Arial', '', 14)
-        self.cell(0, 10, self.clean_text(date_str), 0, 1, 'C')
+        self.set_y(25)
+        self.set_font(self.font_family, 'B', 28)
+        self.set_text_color(255, 255, 255)
+        self.cell(0, 15, "PIYASA & ENFLASYON", 0, 1, 'C')
+        self.cell(0, 15, "STRATEJI RAPORU", 0, 1, 'C')
         
         self.ln(40)
         
-        self.set_font('Arial', 'B', 60)
-        self.set_text_color(*self.primary_color)
-        self.cell(0, 25, self.clean_text(f"%{rate_val}"), 0, 1, 'C')
+        # Ana Rakam (Kırmızı Vurgulu)
+        self.set_font(self.font_family, 'B', 65)
+        self.set_text_color(*self.secondary_color)
+        self.cell(0, 30, f"%{rate_val}", 0, 1, 'C')
         
-        self.set_font('Arial', 'B', 14)
-        self.set_text_color(50, 50, 50)
-        self.cell(0, 10, self.clean_text("AYLIK GENEL ARTIS ORANI"), 0, 1, 'C')
+        self.set_font(self.font_family, 'B', 14)
+        self.set_text_color(80, 80, 80)
+        self.cell(0, 10, "AYLIK ENFLASYON GÖSTERGESİ", 0, 1, 'C')
         
         self.ln(20)
-        self.set_font('Arial', '', 10)
-        # AÇIKLAMA METNİ (Burada da o isim yazıyordu, sildim)
-        aciklama = "Bu rapor, yapay zeka destekli piyasa analiz sistemi tarafindan otomatik olarak olusturulmus olup, guncel fiyat degisimlerini ve ekonomik trendleri icermektedir."
-        self.multi_cell(0, 6, self.clean_text(aciklama))
+        self.set_font(self.font_family, '', 12)
+        aciklama = f"Bu rapor, {date_str} dönemi için yapay zeka destekli piyasa analiz sistemi tarafından oluşturulmuştur."
+        self.multi_cell(0, 6, aciklama, 0, 'C')
 
     def add_plot_image(self, plot_bytes, title="Grafik"):
         if plot_bytes:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
                 tmpfile.write(plot_bytes)
                 tmpfile_path = tmpfile.name
+            
             self.ln(5)
-            self.set_font('Arial', 'B', 10)
-            self.set_text_color(*self.secondary_color)
-            self.cell(0, 8, self.clean_text(title), 0, 1, 'L')
+            self.set_font(self.font_family, 'B', 11)
+            self.set_text_color(*self.primary_color)
+            self.cell(0, 8, title, 0, 1, 'L')
+            
             try:
-                self.image(tmpfile_path, w=190)
+                # Resmi ortala
+                x_pos = (210 - 180) / 2
+                self.image(tmpfile_path, x=x_pos, w=180)
             except:
                 pass
             self.ln(5)
 
     def create_table(self, df):
-        self.set_font('Arial', 'B', 9)
+        self.set_font(self.font_family, 'B', 9)
         self.set_text_color(255, 255, 255)
-        self.set_fill_color(*self.secondary_color)
+        self.set_fill_color(*self.primary_color)
+        
         cols = df.columns
         col_width = 190 / len(cols) if len(cols) > 0 else 190
+        
         for col in cols:
-            self.cell(col_width, 8, self.clean_text(str(col)), 1, 0, 'C', True)
+            self.cell(col_width, 9, str(col), 1, 0, 'C', True)
         self.ln()
-        self.set_font('Arial', '', 8)
+        
+        self.set_font(self.font_family, '', 8)
         self.set_text_color(0, 0, 0)
-        for _, row in df.iterrows():
+        
+        for i, row in df.iterrows():
+            # Satır renklendirme (Zebra deseni)
+            bg_color = 245 if i % 2 == 0 else 255
+            self.set_fill_color(bg_color, bg_color, bg_color)
+            
             for col in cols:
                 val = row[col]
                 val_str = f"{val:.2f}" if isinstance(val, (int, float)) else str(val)
-                self.cell(col_width, 7, self.clean_text(val_str), 1, 0, 'C')
+                self.cell(col_width, 8, val_str, 1, 0, 'C', True)
             self.ln()
+
+# --- GELİŞMİŞ PDF FONKSİYONU ---
 def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, date_str):
     pdf = PDFReport()
     
-    # 1. KAPAK SAYFASI
+    # 1. KAPAK
     pdf.create_cover(date_str, f"{manset_oran:.2f}")
     
-    # 2. YÖNETİCİ ÖZETİ
+    # 2. METİN RAPORU (Markdown Destekli)
     pdf.add_page()
-    pdf.chapter_title("YONETICI OZETI VE PIYASA ANALIZI")
-    pdf.chapter_body(text_content)
+    pdf.chapter_title("YONETICI OZETI")
+    pdf.write_markdown(text_content) # Artık chapter_body yerine bunu kullanıyoruz
     
     # 3. GRAFİKLER
     if figures:
@@ -297,19 +338,16 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, dat
         pdf.chapter_title("PIYASA GRAFIKLERI")
         for title, fig in figures.items():
             try:
-                # Grafiği resme çevir (Kaleido gerekli)
                 img_bytes = fig.to_image(format="png", width=1200, height=600, scale=2)
                 pdf.add_plot_image(img_bytes, title=title)
-            except Exception as e:
-                pdf.chapter_body(f"{title} grafigi olusturulurken hata: {str(e)}")
+            except: pass
 
-    # 4. TABLOLAR
+    # 4. TABLO
     if not df_table.empty:
         pdf.add_page()
         pdf.chapter_title("DETAYLI FIYAT HAREKETLERI")
-        # Gereksiz sütunları çıkararak tabloyu oluştur
         cols_to_keep = [c for c in df_table.columns if 'Kod' not in c and 'URL' not in c]
-        pdf.create_table(df_table[cols_to_keep].head(30))
+        pdf.create_table(df_table[cols_to_keep].head(25))
 
     return pdf.output(dest='S').encode('latin-1', 'ignore')
 
@@ -918,6 +956,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
