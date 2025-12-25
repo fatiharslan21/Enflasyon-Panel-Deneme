@@ -773,12 +773,44 @@ def dashboard_modu():
                         items.append(
                             f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
 
+                # ... (Kodun üst kısımları, Ticker/Kayan yazı bitişi) ...
+                
                 if not items: items.append("Piyasada son 24 saatte önemli bir fiyat değişimi olmadı.")
 
                 st.markdown(
                     f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>',
                     unsafe_allow_html=True)
 
+                # --- KPI KARTLARI İÇİN VERİ HAZIRLIĞI ---
+                
+                # 1. EVDS'den Resmi Veriyi Çek (Kartlar basılmadan önce hazırlanmalı)
+                df_resmi, msg = get_official_inflation()
+                
+                # Varsayılan değerler
+                resmi_aylik_enf = 0.0
+                resmi_tarih_str = "-"
+                resmi_alt_bilgi = "Veri Bekleniyor"
+
+                # Veri varsa işle (Index üzerinden aylık değişim hesabı)
+                if df_resmi is not None and not df_resmi.empty and len(df_resmi) > 1:
+                    try:
+                        df_resmi = df_resmi.sort_values('Tarih')
+                        son_veri = df_resmi.iloc[-1]
+                        onceki_veri = df_resmi.iloc[-2]
+                        
+                        # (Yeni Endeks / Eski Endeks - 1) * 100 formülü
+                        resmi_aylik_enf = ((son_veri['Resmi_TUFE'] / onceki_veri['Resmi_TUFE']) - 1) * 100
+                        
+                        aylar = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
+                                 7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
+                        resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
+                        resmi_alt_bilgi = "TCMB/TÜİK Kaynaklı"
+                    except Exception as e:
+                        resmi_alt_bilgi = "Hesaplama Hatası"
+                else:
+                    resmi_alt_bilgi = f"Bağlantı Sorunu: {msg}"
+
+                # --- KARTLARI OLUŞTURMA FONKSİYONU ---
                 def kpi_card(title, val, sub, sub_color, color_class, is_long_text=False):
                     val_class = "metric-val long-text" if is_long_text else "metric-val"
                     st.markdown(f"""
@@ -789,6 +821,7 @@ def dashboard_modu():
                         </div>
                     """, unsafe_allow_html=True)
 
+                # --- KARTLARI EKRAÑA BAS ---
                 c1, c2, c3, c4 = st.columns(4)
                 with c1:
                     kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"{gun_farki} Günlük Değişim", "#ef4444",
@@ -799,10 +832,14 @@ def dashboard_modu():
                     kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6",
                              "card-purple")
                 with c4:
-                    kpi_card("En Yüksek Risk (24s)", f"{daily_risk_name[:15]}", f"%{daily_risk_rate * 100:.1f} Artış",
-                             "#f59e0b",
-                             "card-orange", is_long_text=True)
+                    # BURASI DEĞİŞTİ: Artık En Yüksek Risk yerine Resmi TÜİK verisi var
+                    kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str} Dönemi", 
+                             "#f59e0b", "card-orange")
+                
                 st.markdown("<br>", unsafe_allow_html=True)
+
+                # --- SEKMELER ---
+                # ... (Kodun devamı aynı kalacak) ...
 
                 # --- SEKMELER ---
                 t_analiz, t_istatistik, t_harita, t_liste, t_haber, t_rapor = st.tabs(
@@ -1062,6 +1099,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
