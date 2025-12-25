@@ -851,58 +851,11 @@ def dashboard_modu():
                     # --- SENİN VERİNİN HAZIRLANMASI ---
                     trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (
                             df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[
-                                                                   agirlik_col].sum() * 100} for g in gunler]
+                                                      agirlik_col].sum() * 100} for g in gunler]
                     df_trend = pd.DataFrame(trend_data)
                     df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
 
-                    # --- RESMİ VERİ ÇEKME (SADECE KUTU İÇİN) ---
-                    df_resmi, msg = get_official_inflation()
-
-                    # Varsayılan Manuel Veri (B Planı)
-                    resmi_aylik_enf = 2.24
-                    resmi_tarih_str = "Kasım 2024"
-                    kaynak_notu = "⚠️ TCMB API bağlantısı kurulamadı, son bilinen veri gösteriliyor."
-                    api_basarili = False
-
-                    # Eğer API'den veri geldiyse üzerine yaz
-                    if df_resmi is not None and not df_resmi.empty and len(df_resmi) > 1:
-                        try:
-                            df_resmi = df_resmi.sort_values('Tarih')
-                            son_veri = df_resmi.iloc[-1]
-                            onceki_veri = df_resmi.iloc[-2]
-                            resmi_aylik_enf = ((son_veri['Resmi_TUFE'] / onceki_veri['Resmi_TUFE']) - 1) * 100
-
-                            aylar = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran',
-                                     7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
-                            resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
-                            kaynak_notu = "Veriler TCMB veri tabanından çekilmiştir."
-                            api_basarili = True
-                        except:
-                            pass
-
-                    # Kutu Rengi Ayarı
-                    border_color = "#f59e0b" if api_basarili else "#94a3b8"
-                    bg_color = "#1A1C24" # Dark uyumlu
-                    text_color = "#f59e0b" if api_basarili else "#94a3b8"
-
-                    # --- BİLGİ KUTUSU ---
-                    st.markdown(f"""
-                    <div style="background-color: {bg_color}; border: 1px solid {border_color}; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-                        <div>
-                            <div style="color: {text_color}; font-weight: bold; font-size: 14px;">🏛️ RESMİ TÜİK VERİSİ ({resmi_tarih_str})</div>
-                            <div style="color: {text_color}; opacity:0.8; font-size: 11px;">{kaynak_notu}</div>
-                        </div>
-                        <div style="text-align: right;">
-                            <div style="color: {text_color}; font-size: 24px; font-weight: 800;">%{resmi_aylik_enf:.2f}</div>
-                            <div style="color: {text_color}; font-size: 10px; font-weight: 600;">AYLIK DEĞİŞİM</div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    if not api_basarili:
-                        st.caption(f"Teknik Detay: {msg}")
-
-                    # --- GRAFİK (RESMİ VERİ ÇIKARILDI) ---
+                    # --- GRAFİK ---
                     with st.spinner("Gelecek tahmini yapıyor..."):
                         df_forecast = predict_inflation_prophet(df_trend)
 
@@ -1099,6 +1052,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
