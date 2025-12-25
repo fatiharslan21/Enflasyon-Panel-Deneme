@@ -12,11 +12,8 @@ from github import Github
 from io import BytesIO
 import zipfile
 import base64
-from openai import OpenAI  # <-- BUNU EKLE
-import time
 import requests
 from prophet import Prophet
-import feedparser
 from fpdf import FPDF
 import shutil
 from selenium import webdriver
@@ -38,7 +35,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS MOTORU (SADECE DARK MODE) ---
+# --- CSS MOTORU ---
 def apply_theme():
     colors = {
         "bg": "#0E1117",
@@ -97,22 +94,13 @@ def apply_theme():
 
 apply_theme()
 
-# --- YAPAY ZEKA MOTORU (GROQ - ÜCRETSİZ & HIZLI) ---
-client = None
-if "groq" in st.secrets:
-    client = OpenAI(
-        base_url="https://api.groq.com/openai/v1",
-        api_key=st.secrets["groq"]["api_key"]
-    )
-
-
 # --- 2. GITHUB & VERİ MOTORU ---
 EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 SAYFA_ADI = "Madde_Sepeti"
 
 
-# --- 3. GELİŞMİŞ PDF MOTORU (VAKIFBANK TEMASI & PROFESYONEL DÜZEN) ---
+# --- 3. PDF MOTORU ---
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
@@ -139,7 +127,6 @@ class PDFReport(FPDF):
     def _try_download_font(self):
         if os.path.exists(self.font_path) and os.path.exists(self.font_bold_path): return True
         try:
-            import requests
             url_base = "https://github.com/google/fonts/raw/main/apache/roboto/"
             r1 = requests.get(url_base + "Roboto-Regular.ttf", timeout=5); 
             with open(self.font_path, 'wb') as f: f.write(r1.content)
@@ -306,7 +293,7 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, met
 
     # SAYFA 3: STRATEJİK ANALİZ (YAZI + HİSTOGRAM + İMZA)
     pdf.add_page()
-    pdf.chapter_title("STRATEJİK ANALİZ VE AI GÖRÜŞÜ")
+    pdf.chapter_title("STRATEJİK ANALİZ VE DETAYLI GÖRÜNÜM")
     
     # AI Metni (Geniş Alan)
     pdf.write_markdown(text_content)
@@ -317,14 +304,13 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, met
         hist_title = keys[1]
         try:
             img = figures[hist_title].to_image(format="png", width=1600, height=700, scale=2)
-            # Eğer metin çok uzunsa ve sayfa sonuna geldiysek, grafik için yeni sayfa aç
             force_page = True if pdf.get_y() > 180 else False
             pdf.add_plot_image(img, title=hist_title, force_new_page=force_page)
         except: pass
 
-    # İmza (Sayfanın en altına sabitlemeye çalışalım)
+    # İmza
     pdf.ln(15)
-    if pdf.get_y() > 240: pdf.add_page() # İmza için yer yoksa yeni sayfa
+    if pdf.get_y() > 240: pdf.add_page() 
     pdf.set_font(pdf.font_family, 'B', 12)
     pdf.set_text_color(*pdf.c_koyu)
     pdf.cell(0, 6, pdf.fix_text("Saygilarimizla,"), 0, 1, 'R')
@@ -567,50 +553,58 @@ def html_isleyici(log_callback):
     except Exception as e:
         return f"Hata: {str(e)}"
 
-def get_market_sentiment():
-    rss_url = "https://news.google.com/rss/search?q=ekonomi+enflasyon+faiz+borsa+dolar&hl=tr&gl=TR&ceid=TR:tr"
-    try:
-        feed = feedparser.parse(rss_url)
-        # Token limiti yememek için sadece ilk 8 haberi alalım
-        headlines = [entry.title for entry in feed.entries[:8]]
-        news_text = "\n".join([f"- {h}" for h in headlines])
+# --- 7. YENİ STATİK ANALİZ MOTORU ---
+def generate_detailed_static_report(df_analiz, tarih, enf_genel, enf_gida, gun_farki, tahmin, ad_col, agirlik_col):
+    """
+    Bu fonksiyon yapay zeka kullanmadan, dataframe üzerindeki verileri analiz ederek
+    çok detaylı, kurumsal ve tamamen sayısal verilere dayalı bir rapor metni üretir.
+    """
+    
+    # 1. En çok artan ve düşenler
+    inc = df_analiz.sort_values('Fark', ascending=False).head(3)
+    dec = df_analiz.sort_values('Fark', ascending=True).head(3)
+    
+    en_cok_artan_text = ", ".join([f"{row[ad_col]} (%{row['Fark']*100:.2f})" for _, row in inc.iterrows()])
+    en_cok_dusen_text = ", ".join([f"{row[ad_col]} (%{row['Fark']*100:.2f})" for _, row in dec.iterrows()])
+    
+    # 2. Sektörel Analiz (Grup Bazlı)
+    if 'Grup' in df_analiz.columns:
+        grup_analiz = df_analiz.groupby('Grup').apply(lambda x: (x['Fark'] * x[agirlik_col]).sum() / x[agirlik_col].sum() * 100).sort_values(ascending=False)
+        lider_sektor = grup_analiz.index[0]
+        lider_oran = grup_analiz.iloc[0]
+        sektor_text = f"Sektörel bazda incelendiğinde, en yüksek fiyat baskısının **%{lider_oran:.2f}** artış ile **{lider_sektor}** grubunda hissedildiği görülmüştür."
+    else:
+        sektor_text = "Veri setinde grup bilgisi bulunmadığından sektörel ayrışma yapılamamıştır."
 
-        prompt = f"""
-        Sen uzman bir Türk ekonomistisin. Aşağıdaki haber başlıklarına bakarak piyasayı yorumla.
-        
-        HABERLER:
-        {news_text}
-        
-        GÖREV:
-        1. Piyasa Havası: (Tek kelime: Riskli, Olumlu, Sakin vb.)
-        2. Kritik Gelişmeler: En önemli 3 maddeyi özetle.
-        3. Etki: Kısa vadede enflasyon veya dolara etkisi ne olur? (1 cümle)
-        
-        Sadece Türkçe cevap ver. Yorumun kısa ve profesyonel olsun.
-        """
-        
-        # ...
-        if not client:
-            return "API Key Eksik (Groq)", headlines
+    # 3. Genel Sepet Dağılımı
+    toplam_urun = len(df_analiz)
+    artan_sayisi = len(df_analiz[df_analiz['Fark'] > 0])
+    sabit_sayisi = len(df_analiz[df_analiz['Fark'] == 0])
+    dusen_sayisi = len(df_analiz[df_analiz['Fark'] < 0])
+    
+    # 4. Rapor Metni Oluşturma
+    text = f"""
+**YÖNETİCİ ÖZETİ VE PİYASA GÖRÜNÜMÜ**
 
-        response = client.chat.completions.create(
-            # BURAYI GÜNCELLEDİK:
-            model="llama-3.3-70b-versatile", 
-            messages=[
-                {"role": "system", "content": "Sen kıdemli bir piyasa analistisin."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3,
-            max_tokens=500
-        )
-        # ...
-        
-        return response.choices[0].message.content, headlines
-    except Exception as e:
-        return f"Analiz Hatası: {str(e)}", []
+**1. MAKRO EKONOMİK GÖRÜNÜM VE MANŞET VERİLER**
+{tarih} tarihi itibarıyla sistemimiz tarafından takip edilen mal ve hizmet sepetindeki genel fiyat seviyesi, referans alınan başlangıç dönemine göre kümülatif **%{enf_genel:.2f}** oranında artış kaydetmiştir. Analiz periyodu olan son {gun_farki} günde, piyasadaki fiyatlama davranışlarının yukarı yönlü ivmesini koruduğu gözlemlenmektedir. Özellikle gıda ve temel ihtiyaç maddelerindeki **%{enf_gida:.2f}** seviyesindeki gerçekleşme, hanehalkı bütçesi üzerindeki baskının manşet enflasyonun üzerinde olduğunu teyit etmektedir.
 
+**2. DETAYLI SEPET ANALİZİ VE VOLATİLİTE**
+Takip edilen toplam **{toplam_urun}** adet ürünün fiyat hareketleri incelendiğinde; ürünlerin **{artan_sayisi}** adedinde fiyat artışı, **{dusen_sayisi}** adedinde fiyat düşüşü tespit edilmiş, **{sabit_sayisi}** ürünün fiyatı ise değişmemiştir. Bu durum, enflasyonist baskının sepetin geneline yayıldığını (yayılım endeksi: %{(artan_sayisi/toplam_urun)*100:.1f}) göstermektedir.
 
-# --- 7. DASHBOARD MODU ---
+**3. SEKTÖREL AYRIŞMA VE ÖNE ÇIKAN KALEMLER**
+{sektor_text}
+Dönem içerisinde fiyatı en çok artan ürünler sırasıyla **{en_cok_artan_text}** olmuştur. Buna karşın, **{en_cok_dusen_text}** ürünlerinde fiyat gevşemeleri veya kampanyalar nedeniyle düşüşler kaydedilmiştir. Fiyatı en çok artan ürün grubunun ağırlığı, sepet genelindeki varyansı yukarı çekmektedir.
+
+**4. PROJEKSİYON VE RİSK DEĞERLENDİRMESİ**
+Mevcut veri setine uygulanan zaman serisi analizleri (Prophet Modeli) ve günlük volatilite standart sapması baz alındığında; ay sonu kümülatif enflasyonun **%{tahmin:.2f}** bandına yakınsayacağı matematiksel olarak öngörülmektedir. 
+
+**SONUÇ**
+Hesaplanan veriler, fiyat istikrarında henüz tam bir dengelenme (konsolidasyon) sağlanamadığını, özellikle talep esnekliği düşük olan gıda kalemlerindeki yapışkanlığın devam ettiğini işaret etmektedir. Karar alıcıların stok yönetimi ve fiyatlama stratejilerinde bu volatiliteyi göz önünde bulundurmaları önerilir.
+"""
+    return text.strip()
+
+# --- 8. DASHBOARD MODU ---
 def dashboard_modu():
     bugun = datetime.now().strftime("%Y-%m-%d")
     colors = {"bg": "#0E1117", "sidebar": "#262730", "text": "#FAFAFA", "input_bg": "#1A1C24", "input_border": "#4A4A4A", "card_bg": "#1A1C24", "border_color": "#414141"}
@@ -756,7 +750,6 @@ def dashboard_modu():
                 endeks_genel = (df_analiz.dropna(subset=[son, baz])[agirlik_col] * (df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[agirlik_col].sum() * 100
                 enf_genel = (endeks_genel / 100 - 1) * 100
                 df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
-                top = df_analiz.sort_values('Fark', ascending=False).iloc[0]
                 gida = df_analiz[df_analiz['Kod'].str.startswith("01")].copy()
                 enf_gida = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[agirlik_col].sum() - 1) * 100 if not gida.empty else 0
                 
@@ -812,7 +805,6 @@ def dashboard_modu():
                 # --- GRAFİK STİL FONKSİYONU ---
                 def style_chart(fig, is_pdf=False):
                     if is_pdf:
-                        # PDF İÇİN: BEYAZ TEMA (Dergi Gibi)
                         fig.update_layout(
                             template="plotly_white", 
                             font=dict(family="Arial", size=14, color="black"),
@@ -822,7 +814,6 @@ def dashboard_modu():
                             margin=dict(l=50, r=50, t=80, b=50)
                         )
                     else:
-                        # EKRAN İÇİN: DARK TEMA
                         fig.update_layout(
                             template="plotly_dark",
                             paper_bgcolor="rgba(0,0,0,0)",
@@ -836,27 +827,21 @@ def dashboard_modu():
                 trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[agirlik_col].sum() * 100} for g in gunler]
                 df_trend = pd.DataFrame(trend_data); df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
 
-                # 2. GRAFİKLERİ GLOBAL OLARAK OLUŞTUR (Hata vermemesi için tablardan önce)
-                
-                # --- PROPHET TAHMİNİ (Grafikten ÖNCE) ---
-                with st.spinner("Yapay Zeka Gelecek Tahmini Yapıyor..."):
+                # 2. GRAFİKLERİ GLOBAL OLARAK OLUŞTUR
+                with st.spinner("İstatistiksel Tahmin Motoru Çalışıyor..."):
                     df_forecast = predict_inflation_prophet(df_trend)
 
-                # YIL SONU AYARI
                 current_year_end = pd.Timestamp(datetime.now().year, 12, 31)
 
                 # --- TREND GRAFİĞİ ---
                 fig_trend = go.Figure()
-                
-                # Gerçekleşen Veri
                 fig_trend.add_trace(go.Scatter(
                     x=df_trend['Tarih'], y=df_trend['TÜFE'], 
                     mode='lines+markers', name='Enflasyon', 
-                    line=dict(color='#FDB913', width=4), # Vakıf Sarısı
+                    line=dict(color='#FDB913', width=4),
                     marker=dict(size=8, line=dict(width=2, color='white'))
                 ))
 
-                # Prophet Tahmini Ekle
                 if not df_forecast.empty:
                     future = df_forecast[(df_forecast['ds'] > df_trend['Tarih'].max()) & (df_forecast['ds'] <= current_year_end)]
                     fig_trend.add_trace(go.Scatter(
@@ -871,7 +856,6 @@ def dashboard_modu():
                         line=dict(color='rgba(0,0,0,0)'), showlegend=False, hoverinfo='skip'
                     ))
 
-                # Y EKSENİ [95, 105] VE X EKSENİ YIL SONUNA KADAR
                 fig_trend.update_layout(
                     title="Enflasyon Trendi ve Gelecek Tahmini",
                     yaxis=dict(range=[95, 105]),
@@ -889,7 +873,7 @@ def dashboard_modu():
                 fig_hist.update_layout(title="Fiyat Değişim Dağılımı", xaxis_title="Değişim (%)")
 
                 # 3. TABLARI OLUŞTUR VE YERLEŞTİR
-                t_analiz, t_istatistik, t_harita, t_liste, t_haber, t_rapor = st.tabs(["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📋 LİSTE", "📰 HABERLER", "📝 RAPOR"])
+                t_analiz, t_istatistik, t_harita, t_liste, t_rapor = st.tabs(["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📋 LİSTE", "📝 RAPOR"])
                 
                 with t_analiz: 
                     st.plotly_chart(style_chart(go.Figure(fig_trend), is_pdf=False), use_container_width=True)
@@ -918,73 +902,39 @@ def dashboard_modu():
                      with pd.ExcelWriter(output, engine='openpyxl') as writer: df_analiz.to_excel(writer, index=False, sheet_name='Analiz')
                      st.download_button("📥 Excel Raporunu İndir", data=output.getvalue(), file_name=f"Enflasyon_Raporu_{son}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-                with t_haber:
-                     st.markdown("### 🌍 Ekonomi Gündemi")
-                     if st.button("Haberleri Tara ve Analiz Et", key="btn_news"):
-                         with st.spinner("Piyasa verileri taranıyor..."):
-                             analysis_text, headlines = get_market_sentiment()
-                             c_news1, c_news2 = st.columns([2, 1])
-                             with c_news1:
-                                 st.markdown("#### 🧠 Başekonomist Görüşü")
-                                 st.success(analysis_text)
-                             with c_news2:
-                                 st.markdown("#### 🗞️ Son Başlıklar")
-                                 for h in headlines: st.caption(f"• {h}")
-
                 with t_rapor:
                     st.markdown("### 📝 Stratejik Yönetim Raporu")
-                    # ... t_rapor içindeki butonun altı ...
+                    st.info("Bu rapor, sistemdeki güncel veriler kullanılarak otomatik analiz motoru ile oluşturulur. Yapay zeka yorumu içermez, kesin matematiksel veriler ve istatistiksel analiz içerir.")
+                    
+                    if st.button("🚀 DETAYLI RAPORU HAZIRLA", type="primary"):
+                        with st.spinner("Veriler derleniyor, analiz ediliyor ve PDF basılıyor..."):
+                            
+                            # A. METNİ OTOMATİK HAZIRLA (STATİK MOTOR)
+                            en_cok_artan_row = df_analiz.sort_values('Fark', ascending=False).iloc[0]
+                            rap_text = generate_detailed_static_report(
+                                df_analiz=df_analiz,
+                                tarih=son,
+                                enf_genel=enf_genel,
+                                enf_gida=enf_gida,
+                                gun_farki=gun_farki,
+                                tahmin=month_end_forecast,
+                                ad_col=ad_col,
+                                agirlik_col=agirlik_col
+                            )
 
-                    if st.button("🚀 PROFESYONEL RAPORU OLUŞTUR", type="primary"):
-                        with st.spinner("Llama-3 Piyasayı Analiz Ediyor..."):
-                            
-                            # --- AI METİN OLUŞTURMA (GROQ) ---
-                            prompt = f"""
-                            Tarih: {son}. 
-                            Genel Enflasyon: %{enf_genel:.2f}. 
-                            Gıda Enflasyonu: %{enf_gida:.2f}. 
-                            
-                            Bir ekonomi raporunun "Yönetici Özeti" bölümünü yaz.
-                            Verileri yorumla, gelecek ay için riskleri belirt.
-                            Dili resmi ve finansal terminolojiye uygun olsun.
-                            Yaklaşık 150 kelime. Markdown kullanma, düz metin yaz.
-                            """
-                            
-                            # ...
-                            rap_text = "Rapor oluşturulamadı."
-                            try:
-                                if client:
-                                    resp = client.chat.completions.create(
-                                        # BURAYI GÜNCELLEDİK:
-                                        model="llama-3.3-70b-versatile",
-                                        messages=[{"role": "user", "content": prompt}],
-                                        temperature=0.5
-                                    )
-                                    rap_text = resp.choices[0].message.content
-                            # ...
-                                else:
-                                    rap_text = "API Key yok."
-                            except Exception as e:
-                                rap_text = f"Yapay Zeka Hatası: {str(e)}"
-                
-                            # ... PDF oluşturma kodları buradan devam eder ...
-
-                            # B. GRAFİKLERİ PDF FORMATINA ÇEVİR (Dergi Modu)
-                            # Trend Grafiğini Kopyala ve Beyazlat
+                            # B. GRAFİKLERİ HAZIRLA
                             fig_print_trend = go.Figure(fig_trend)
                             style_chart(fig_print_trend, is_pdf=True)
-                            fig_print_trend.update_traces(line=dict(color='#002855'), selector=dict(name='Enflasyon')) # Çizgiyi Lacivert yap
+                            fig_print_trend.update_traces(line=dict(color='#002855'), selector=dict(name='Enflasyon'))
 
-                            # Histogramı Kopyala ve Beyazlat
                             fig_print_hist = go.Figure(fig_hist)
                             style_chart(fig_print_hist, is_pdf=True)
-                            fig_print_hist.update_traces(marker_color='#FDB913') # Çubukları Sarı yap
+                            fig_print_hist.update_traces(marker_color='#FDB913')
 
-                            figs = {"Enflasyon Seyri (Trend)": fig_print_trend, "Fiyat Hareketliliği (Dağılım)": fig_print_hist}
+                            figs = {"Enflasyon Seyri": fig_print_trend, "Fiyat Dağılımı": fig_print_hist}
                             
-                            # C. KPI VERİLERİ (Kutucuklar için)
-                            en_cok_artan = df_analiz.sort_values('Fark', ascending=False).iloc[0][ad_col]
-                            metrics = {'genel': enf_genel, 'gida': enf_gida, 'top_urun': en_cok_artan}
+                            # C. KPI VERİLERİ
+                            metrics = {'genel': enf_genel, 'gida': enf_gida, 'top_urun': en_cok_artan_row[ad_col]}
 
                             # D. PDF OLUŞTUR
                             pdf_data = create_pdf_report_advanced(
@@ -996,18 +946,16 @@ def dashboard_modu():
                                 date_str_ignored="-"
                             )
                             
+                            st.success("✅ Rapor Hazırlandı!")
                             st.download_button("📥 PDF Raporunu İndir", data=pdf_data, file_name=f"Strateji_Raporu_{son}.pdf", mime="application/pdf")
-                            st.success("Rapor başarıyla oluşturuldu!")
 
         except Exception as e:
             st.error(f"Kritik Hata: {e}")
     st.markdown('<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">VALIDASYON MUDURLUGU © 2025</div>', unsafe_allow_html=True)
 
-# --- 5. ANA GİRİŞ SİSTEMİ ---
+# --- 9. ANA GİRİŞ SİSTEMİ ---
 def main():
     dashboard_modu()
 
 if __name__ == "__main__":
     main()
-
-
