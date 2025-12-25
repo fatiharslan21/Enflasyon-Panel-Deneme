@@ -360,9 +360,8 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, met
     pdf.cell(0, 6, pdf.fix_text("Saygilarimizla,"), 0, 1, 'R')
     pdf.cell(0, 6, pdf.fix_text("VALIDASYON MUDURLUGU"), 0, 1, 'R')
 
-    # NOT: TABLO İSTEMEDİĞİN İÇİN SİLİNDİ
-    # if not df_table.empty: ...
-
+    # NOT: TABLO İSTEMEDİĞİN İÇİN TAMAMEN KALDIRILDI
+    
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
         tmp.close()
@@ -861,6 +860,9 @@ def dashboard_modu():
                 with st.spinner("Yapay Zeka Gelecek Tahmini Yapıyor..."):
                     df_forecast = predict_inflation_prophet(df_trend)
 
+                # YIL SONU AYARI
+                current_year_end = pd.Timestamp(datetime.now().year, 12, 31)
+
                 # --- TREND GRAFİĞİ ---
                 fig_trend = go.Figure()
                 
@@ -874,7 +876,9 @@ def dashboard_modu():
 
                 # Prophet Tahmini Ekle (İSTEĞİN ÜZERİNE GERİ GELDİ)
                 if not df_forecast.empty:
-                    future = df_forecast[df_forecast['ds'] > df_trend['Tarih'].max()]
+                    # Geleceği yıl sonuna kadar filtrele (YENİ ÖZELLİK)
+                    future = df_forecast[(df_forecast['ds'] > df_trend['Tarih'].max()) & (df_forecast['ds'] <= current_year_end)]
+                    
                     # Tahmin Çizgisi
                     fig_trend.add_trace(go.Scatter(
                         x=future['ds'], y=future['yhat'],
@@ -889,10 +893,11 @@ def dashboard_modu():
                         line=dict(color='rgba(0,0,0,0)'), showlegend=False, hoverinfo='skip'
                     ))
 
-                # Y EKSENİ SABİTLENDİ: [95, 105]
+                # Y EKSENİ SABİTLENDİ [95, 105] VE X EKSENİ YIL SONUNA UZATILDI
                 fig_trend.update_layout(
                     title="Enflasyon Trendi ve Gelecek Tahmini",
                     yaxis=dict(range=[95, 105]),
+                    xaxis=dict(range=[df_trend['Tarih'].min(), current_year_end]), # Yıl sonuna kadar göster
                     legend=dict(orientation="h", y=1.1)
                 )
                 
