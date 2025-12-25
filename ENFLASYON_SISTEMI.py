@@ -237,21 +237,14 @@ def create_pdf_report(text_content, filename="Rapor.pdf"):
             clean_text = line.replace('**', '') 
             pdf.multi_cell(0, 6, clean_text)
 
-    # --- KRİTİK DÜZELTME: Dosyaya yaz ve byte olarak oku ---
-    # String encoding hatasını önlemek için PDF'i geçici bir dosyaya kaydediyoruz.
-    temp_filename = f"temp_pdf_{int(time.time())}.pdf"
-    pdf.output(temp_filename)
-    
-    with open(temp_filename, "rb") as f:
-        pdf_bytes = f.read()
-        
-    # Geçici dosyayı sil
-    try:
-        os.remove(temp_filename)
-    except:
-        pass
-        
-    return pdf_bytes
+    # --- KESİN ÇÖZÜM BURADA ---
+    # PDF'i string olarak DEĞİL, binary olarak döndürüyoruz.
+    # Bu sayede 'latin-1' encoding hatası asla oluşmaz.
+    return bytes(pdf.output(dest='S').encode('latin-1')) 
+    # Not: FPDF'in internal çalışma mantığı gereği output önce string döner.
+    # Biz bunu 'latin-1' ile encode edip bytes'a çeviriyoruz ki Streamlit
+    # download button bunu dosya olarak algılasın.
+    # Fontlar (DejaVu) içeri gömüldüğü için Türkçe karakterler bozulmaz.
 
 
 # --- HABER MOTORU ---
@@ -1018,6 +1011,7 @@ def dashboard_modu():
                         st.markdown("---");
                         st.markdown(st.session_state['report_text'])
                         
+                        # HATA DÜZELTME: PDF BYTE OLARAK ALINIYOR
                         pdf_bytes = create_pdf_report(st.session_state['report_text'])
                         
                         with col_download: st.download_button(label="📥 PDF Olarak İndir", data=pdf_bytes,
@@ -1037,4 +1031,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
