@@ -305,15 +305,28 @@ class PDFReport(FPDF):
         if plot_bytes:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
                 tmpfile.write(plot_bytes); path = tmpfile.name
+            
+            # Grafikten önce biraz boşluk
             self.ln(5)
+            
+            # Grafik Başlığı (Daha ince ve kibar - Lacivert)
             self.set_font(self.font_family, 'B', 11)
-            self.set_text_color(*self.c_koyu)
-            self.cell(0, 8, self.fix_text(title), 0, 1, 'L')
+            self.set_text_color(*self.c_lacivert)
+            # Başlığın altına ince çizgi
+            self.cell(0, 8, self.fix_text(f"» {title}"), 0, 1, 'L')
+            
+            # Resim Ekleme (Sayfa taşmasını kontrol et)
+            # Eğer sayfanın sonuna geldiysek yeni sayfa açsın
+            if self.get_y() > 200: 
+                self.add_page()
+            
             try:
-                x = (210 - 180) / 2
-                self.image(path, x=x, w=180)
+                # Sayfa genişliği 210, marjin 10 -> Grafik genişliği 190
+                # Yüksekliği orantılı bırakmak için h belirtmiyoruz
+                self.image(path, x=10, w=190)
             except: pass
-            self.ln(5)
+            
+            self.ln(5) # Grafikten sonra boşluk
             try: os.unlink(path)
             except: pass
 
@@ -543,23 +556,51 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, met
     simdi = datetime.now()
     tr_tarih = f"{aylar[simdi.month]} {simdi.year}"
     
+    # Kapak
     pdf.create_cover(tr_tarih, f"{manset_oran:.2f}")
     
+    # --- SAYFA 2: ANALİZ VE GRAFİKLER ---
     pdf.add_page()
-    pdf.chapter_title("YÖNETİCİ ÖZETİ")
+    pdf.chapter_title("YÖNETİCİ ÖZETİ VE PİYASA ANALİZİ")
     
-    # --- YENİ: KPI KARTLARINI ÇİZ ---
+    # 1. KPI KARTLARI (EN TEPEYE)
     if metrics_dict:
         pdf.create_kpi_summary(
             metrics_dict.get('genel', 0), 
             metrics_dict.get('gida', 0), 
             metrics_dict.get('top_urun', 'Yok')
         )
-    # --------------------------------
     
+    # 2. TREND GRAFİĞİ (METİNDEN HEMEN ÖNCE)
+    # figures sözlüğündeki ilk grafiği alıyoruz (Genelde Trend Grafiği)
+    if figures:
+        keys = list(figures.keys())
+        if len(keys) > 0:
+            trend_title = keys[0]
+            trend_fig = figures[trend_title]
+            try:
+                # Grafiği oluştur ve sayfaya göm
+                img = trend_fig.to_image(format="png", width=1600, height=700, scale=2)
+                pdf.add_plot_image(img, title=trend_title)
+            except: pass
+
+    # 3. YÖNETİCİ ÖZETİ (METİN)
+    pdf.ln(5) # Grafik ile yazı arası boşluk
     pdf.write_markdown(text_content)
     
-    # İmza
+    # 4. DAĞILIM GRAFİĞİ (METİNDEN HEMEN SONRA)
+    # figures sözlüğündeki ikinci grafiği alıyoruz (Genelde Histogram)
+    if figures and len(keys) > 1:
+        hist_title = keys[1]
+        hist_fig = figures[hist_title]
+        try:
+            # Yeni sayfaya geçmesi gerekiyorsa otomatik geçer
+            pdf.ln(5)
+            img = hist_fig.to_image(format="png", width=1600, height=800, scale=2)
+            pdf.add_plot_image(img, title=hist_title)
+        except: pass
+
+    # 5. İMZA
     pdf.ln(10)
     pdf.set_y(pdf.get_y() + 10)
     pdf.set_font(pdf.font_family, 'B', 12)
@@ -567,23 +608,12 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, met
     pdf.cell(0, 6, pdf.fix_text("Saygilarimizla,"), 0, 1, 'R')
     pdf.cell(0, 6, pdf.fix_text("VALIDASYON MUDURLUGU"), 0, 1, 'R')
 
-    # Grafikler
-    if figures:
-        pdf.add_page()
-        pdf.chapter_title("PİYASA GRAFİKLERİ VE ANALİZ")
-        for title, fig in figures.items():
-            try:
-                # Yüksek çözünürlük
-                img = fig.to_image(format="png", width=1600, height=800, scale=2)
-                pdf.add_plot_image(img, title=title)
-            except: pass
-
-    # Tablo
+    # 6. TABLO (YENİ SAYFAYA)
     if not df_table.empty:
         pdf.add_page()
         pdf.chapter_title("DETAYLI FİYAT LİSTESİ")
         cols = [c for c in df_table.columns if 'Kod' not in c and 'URL' not in c]
-        pdf.create_table(df_table[cols].head(25))
+        pdf.create_table(df_table[cols].head(35)) # Biraz daha fazla satır sığar artık
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
@@ -1246,6 +1276,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
