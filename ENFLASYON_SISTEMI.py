@@ -589,11 +589,13 @@ def get_market_sentiment():
         Sadece Türkçe cevap ver. Yorumun kısa ve profesyonel olsun.
         """
         
+        # ...
         if not client:
             return "API Key Eksik (Groq)", headlines
 
         response = client.chat.completions.create(
-            model="llama3-8b-8192",  # Ücretsiz ve Hızlı Model
+            # BURAYI GÜNCELLEDİK:
+            model="llama-3.3-70b-versatile", 
             messages=[
                 {"role": "system", "content": "Sen kıdemli bir piyasa analistisin."},
                 {"role": "user", "content": prompt}
@@ -601,6 +603,7 @@ def get_market_sentiment():
             temperature=0.3,
             max_tokens=500
         )
+        # ...
         
         return response.choices[0].message.content, headlines
     except Exception as e:
@@ -947,15 +950,18 @@ def dashboard_modu():
                             Yaklaşık 150 kelime. Markdown kullanma, düz metin yaz.
                             """
                             
+                            # ...
                             rap_text = "Rapor oluşturulamadı."
                             try:
                                 if client:
                                     resp = client.chat.completions.create(
-                                        model="llama3-8b-8192",
+                                        # BURAYI GÜNCELLEDİK:
+                                        model="llama-3.3-70b-versatile",
                                         messages=[{"role": "user", "content": prompt}],
                                         temperature=0.5
                                     )
                                     rap_text = resp.choices[0].message.content
+                            # ...
                                 else:
                                     rap_text = "API Key yok."
                             except Exception as e:
@@ -1003,4 +1009,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
