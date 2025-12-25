@@ -19,3 +19,4 @@ duckduckgo-search
 selenium
 webdriver-manager
 kaleido
+openai
