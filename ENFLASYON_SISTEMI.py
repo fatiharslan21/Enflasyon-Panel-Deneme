@@ -658,20 +658,43 @@ def dashboard_modu():
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
     # SIDEBAR
+    # SIDEBAR
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
         tv_theme = "dark"
-        symbols = [{"s": "FX:USDTRY", "d": "Dolar / TL"}, {"s": "FX:EURTRY", "d": "Euro / TL"}, {"s": "FX_IDC:XAUTRYG", "d": "Gram Altın"}, {"s": "TVC:UKOIL", "d": "Brent Petrol"}, {"s": "BINANCE:BTCUSDT", "d": "Bitcoin ($)"}]
+        
+        # GÜNCELLENMİŞ SEMBOL LİSTESİ (FX_IDC Eklendi)
+        symbols = [
+            {"s": "FX_IDC:USDTRY", "d": "Dolar / TL"},    # FX yerine FX_IDC
+            {"s": "FX_IDC:EURTRY", "d": "Euro / TL"},     # FX yerine FX_IDC
+            {"s": "FX_IDC:XAUTRYG", "d": "Gram Altın"},   # FX_IDC Sentetik Gram Altın
+            {"s": "TVC:UKOIL", "d": "Brent Petrol"},      # TVC Genelde iyidir
+            {"s": "BINANCE:BTCUSDT", "d": "Bitcoin ($)"}  # Kripto zaten sorunsuz
+        ]
+        
         widgets_html = ""
         for sym in symbols:
             widgets_html += f"""
             <div class="tradingview-widget-container" style="margin-bottom: 10px;">
               <div class="tradingview-widget-container__widget"></div>
               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
-              {{ "symbol": "{sym['s']}", "width": "100%", "height": 110, "locale": "tr", "dateRange": "12M", "colorTheme": "{tv_theme}", "isTransparent": true, "autosize": true, "largeChartUrl": "", "chartOnly": false, "noTimeScale": true }}
+              {{
+                  "symbol": "{sym['s']}",
+                  "width": "100%",
+                  "height": 110,
+                  "locale": "tr",
+                  "dateRange": "1D",  
+                  "colorTheme": "{tv_theme}",
+                  "isTransparent": true,
+                  "autosize": true,
+                  "largeChartUrl": "",
+                  "chartOnly": false,
+                  "noTimeScale": false
+              }}
               </script>
             </div>
             """
+        # dateRange: "1D" yaptık ki günlük canlı hareketi daha net göstersin (İstersen 12M yapabilirsin)
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=len(symbols)*120)
         st.markdown("---")
         st.markdown("### 🇹🇷 BIST TÜM PİYASA")
@@ -1042,4 +1065,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
