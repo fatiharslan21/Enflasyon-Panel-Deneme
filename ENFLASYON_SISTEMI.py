@@ -276,7 +276,7 @@ class PDFReport(FPDF):
         self.set_font(self.font_family, 'B', 28)
         self.set_text_color(*self.c_koyu)
         self.cell(0, 15, self.fix_text("PİYASA & ENFLASYON"), 0, 1, 'C')
-        self.cell(0, 15, self.fix_text("STRATEJİ RAPORU"), 0, 1, 'C')
+        self.cell(0, 15, self.fix_text("RAPORU"), 0, 1, 'C')
         self.ln(25)
         self.set_font(self.font_family, 'B', 70)
         self.set_text_color(*self.c_koyu)
@@ -287,7 +287,7 @@ class PDFReport(FPDF):
         self.ln(30)
         self.set_font(self.font_family, '', 12)
         self.set_text_color(*self.c_koyu)
-        aciklama = f"Bu rapor, {date_str} dönemi için yapay zeka destekli piyasa analiz sistemi tarafından oluşturulmuştur."
+        aciklama = f"Bu rapor, {date_str} dönemi için piyasa analiz sistemi tarafından oluşturulmuştur."
         self.set_x(40)
         self.multi_cell(130, 6, self.fix_text(aciklama), 0, 'C')
 
@@ -1036,7 +1036,7 @@ def dashboard_modu():
 
                             figs = {
                                 "Enflasyonun Sektörel Kaynakları (Katkı Analizi)": fig_katki,
-                                "Fiyat Hareketlerinde Uç Noktalar (Diverjans)": fig_uclar
+                                "Fiyat Hareketlerinde Uç Noktalar": fig_uclar
                             }
                             
                             # C. KPI VERİLERİ
@@ -1065,6 +1065,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
