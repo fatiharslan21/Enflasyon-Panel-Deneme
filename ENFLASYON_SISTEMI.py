@@ -813,8 +813,31 @@ def dashboard_modu():
                 
                 gunler = [c for c in pivot.columns if c != 'Kod']
                 if len(gunler) < 1: st.warning("Yeterli tarih verisi yok."); return
-                baz, son = gunler[0], gunler[-1]
+                # --- TARİH SEÇİMİ GÜNCELLEMESİ (DÖNEMSEL/AYLIK MOD) ---
+                gunler = sorted(gunler) # Tarihleri garantiye alıp sıralayalım
+                son = gunler[-1]
                 
+                # Varsayılan baz (listenin en başı)
+                baz = gunler[0]
+                
+                # "Aralık Dönemi" istendiği için son tarihten bir önceki ayın verisini BAZ alıyoruz.
+                # Bu algoritma otomatik olarak son verinin olduğu ayın başına (veya önceki ayın sonuna) kilitlenir.
+                dt_son = datetime.strptime(son, '%Y-%m-%d')
+                
+                for g in reversed(gunler[:-1]):
+                    dt_g = datetime.strptime(g, '%Y-%m-%d')
+                    # Eğer döngüdeki tarih, son tarih ile aynı ayda değilse, referans noktamızı bulduk demektir.
+                    if dt_g.month != dt_son.month or dt_g.year != dt_son.year:
+                        baz = g
+                        break
+                
+                # Eğer sadece tek bir ayın verisi varsa (örneğin sadece Aralık verileri girilmişse)
+                # O zaman ayın ilk gününü baz alır.
+                if baz == gunler[0] and len(gunler) > 1:
+                     # Aynı ay içindeyse en başa (ayın 1'ine) döner
+                     baz = gunler[0]
+
+                # --------------------------------------------------------                
                 endeks_genel = (df_analiz.dropna(subset=[son, baz])[agirlik_col] * (df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[agirlik_col].sum() * 100
                 enf_genel = (endeks_genel / 100 - 1) * 100
                 df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
@@ -1065,6 +1088,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
