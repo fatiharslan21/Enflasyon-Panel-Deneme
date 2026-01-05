@@ -813,29 +813,22 @@ def dashboard_modu():
                 
                 gunler = [c for c in pivot.columns if c != 'Kod']
                 if len(gunler) < 1: st.warning("Yeterli tarih verisi yok."); return
-                # --- TARİH SEÇİMİ GÜNCELLEMESİ (DÖNEMSEL/AYLIK MOD) ---
-                gunler = sorted(gunler) # Tarihleri garantiye alıp sıralayalım
+                
+                # --- TARİH VE BAZ SEÇİMİ GÜNCELLEMESİ (ARALIK SONU VE OCAK HEDEFİ) ---
+                gunler = sorted(gunler) 
                 son = gunler[-1]
-                
-                # Varsayılan baz (listenin en başı)
-                baz = gunler[0]
-                
-                # "Aralık Dönemi" istendiği için son tarihten bir önceki ayın verisini BAZ alıyoruz.
-                # Bu algoritma otomatik olarak son verinin olduğu ayın başına (veya önceki ayın sonuna) kilitlenir.
                 dt_son = datetime.strptime(son, '%Y-%m-%d')
                 
-                for g in reversed(gunler[:-1]):
-                    dt_g = datetime.strptime(g, '%Y-%m-%d')
-                    # Eğer döngüdeki tarih, son tarih ile aynı ayda değilse, referans noktamızı bulduk demektir.
-                    if dt_g.month != dt_son.month or dt_g.year != dt_son.year:
-                        baz = g
-                        break
+                # 1. BAZ TARİH AYARI: Aralık ayının en son verisini bul
+                # Veri setindeki tarihlerin aylarını kontrol et
+                aralik_gunleri = [g for g in gunler if datetime.strptime(g, '%Y-%m-%d').month == 12]
                 
-                # Eğer sadece tek bir ayın verisi varsa (örneğin sadece Aralık verileri girilmişse)
-                # O zaman ayın ilk gününü baz alır.
-                if baz == gunler[0] and len(gunler) > 1:
-                     # Aynı ay içindeyse en başa (ayın 1'ine) döner
-                     baz = gunler[0]
+                if aralik_gunleri:
+                    # Aralık verisi varsa, aralığın son gününü baz al (örn: 31.12.2024)
+                    baz = aralik_gunleri[-1]
+                else:
+                    # Aralık verisi yoksa (örn: veri ocakta başladıysa), listenin en başını al
+                    baz = gunler[0]
 
                 # --------------------------------------------------------                
                 endeks_genel = (df_analiz.dropna(subset=[son, baz])[agirlik_col] * (df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[agirlik_col].sum() * 100
@@ -844,7 +837,7 @@ def dashboard_modu():
                 gida = df_analiz[df_analiz['Kod'].str.startswith("01")].copy()
                 enf_gida = ((gida[son] / gida[baz] * gida[agirlik_col]).sum() / gida[agirlik_col].sum() - 1) * 100 if not gida.empty else 0
                 
-                dt_son = datetime.strptime(son, '%Y-%m-%d'); dt_baz = datetime.strptime(baz, '%Y-%m-%d')
+                dt_baz = datetime.strptime(baz, '%Y-%m-%d')
                 days_left = calendar.monthrange(dt_son.year, dt_son.month)[1] - dt_son.day
                 month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
                 gun_farki = (dt_son - dt_baz).days
@@ -887,7 +880,7 @@ def dashboard_modu():
                     """, unsafe_allow_html=True)
                 
                 c1, c2, c3, c4 = st.columns(4)
-                with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"{gun_farki} Günlük Değişim", "#ef4444", "card-blue")
+                with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#ef4444", "card-blue")
                 with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
                 with c3: kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6", "card-purple")
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str} Dönemi", "#f59e0b", "card-orange")
@@ -922,7 +915,9 @@ def dashboard_modu():
                 with st.spinner("İstatistiksel Tahmin Motoru Çalışıyor..."):
                     df_forecast = predict_inflation_prophet(df_trend)
 
-                current_year_end = pd.Timestamp(datetime.now().year, 12, 31)
+                # 2. GRAFİK ZAMAN AYARI (OCAK SONUNA KADAR)
+                # Son verinin olduğu yılın 31 Ocak tarihini belirle
+                target_jan_end = pd.Timestamp(dt_son.year, 1, 31)
 
                 # --- TREND GRAFİĞİ ---
                 fig_trend = go.Figure()
@@ -934,7 +929,9 @@ def dashboard_modu():
                 ))
 
                 if not df_forecast.empty:
-                    future = df_forecast[(df_forecast['ds'] > df_trend['Tarih'].max()) & (df_forecast['ds'] <= current_year_end)]
+                    # Forecast'i Ocak sonuna kadar (31'i dahil) filtrele
+                    future = df_forecast[(df_forecast['ds'] > df_trend['Tarih'].max()) & (df_forecast['ds'] <= target_jan_end)]
+                    
                     fig_trend.add_trace(go.Scatter(
                         x=future['ds'], y=future['yhat'],
                         mode='lines', name='AI Tahmini',
@@ -948,9 +945,9 @@ def dashboard_modu():
                     ))
 
                 fig_trend.update_layout(
-                    title="Enflasyon Trendi ve Gelecek Tahmini",
+                    title="Enflasyon Trendi ve Ay Sonu Tahmini",
                     yaxis=dict(range=[95, 105]),
-                    xaxis=dict(range=[df_trend['Tarih'].min(), current_year_end]),
+                    xaxis=dict(range=[df_trend['Tarih'].min(), target_jan_end]), # X ekseni Ocak sonuna kadar
                     legend=dict(orientation="h", y=1.1)
                 )
                 
@@ -1088,6 +1085,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
