@@ -610,110 +610,99 @@ def dashboard_modu():
         components.html(all_stocks_html, height=600)
 
     # ---------------------------------------------------------
-    # 1. HEADER VE CANLI SAAT (Fixlendi)
+    # 1. HEADER VE CANLI SAAT (iframe - CİHAZ SAATİ MODU)
     # ---------------------------------------------------------
-    st.markdown("""
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap');
-        
-        .header-wrapper {
-            position: relative;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 24px;
-            padding: 25px 40px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            overflow: hidden;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-        }
-        
-        /* Arka plan efekti */
-        .header-wrapper::before {
-            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%);
-            animation: rotate 20s linear infinite; z-index: 0; pointer-events: none;
-        }
-        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        
-        .header-content { position: relative; z-index: 1; }
-        
-        .app-title {
-            font-family: 'Outfit', sans-serif; font-size: 34px; font-weight: 900;
-            background: linear-gradient(to right, #ffffff, #3b82f6); -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent; text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
-        }
-        
-        .app-subtitle { font-family: 'Outfit', sans-serif; font-size: 13px; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; margin-top: 5px; }
-        
-        .live-badge {
-            display: inline-flex; align-items: center; background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 4px 10px;
-            border-radius: 20px; font-size: 11px; font-weight: 700; margin-left: 10px; vertical-align: middle;
-        }
-        .live-dot {
-            width: 6px; height: 6px; background: #10b981; border-radius: 50%;
-            margin-right: 6px; box-shadow: 0 0 8px #10b981; animation: pulse-dot 2s infinite;
-        }
-        @keyframes pulse-dot { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        
-        .clock-container { text-align: right; z-index: 1; }
-        .location-tag { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;}
-        
-        #live_clock_js {
-            font-family: 'Outfit', monospace; font-size: 28px; font-weight: 700; color: #fff;
-            text-shadow: 0 0 20px rgba(255,255,255,0.3); line-height: 1;
-        }
-        
-        /* KPI BOX STYLES */
-        .metric-box {
-            background: rgba(30, 41, 59, 0.4);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 20px;
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        .metric-box:hover { transform: translateY(-5px); background: rgba(30, 41, 59, 0.7); border-color: rgba(255,255,255,0.1); }
-        .metric-box::after {
-            content: ''; position: absolute; top:0; left:0; width: 100%; height: 4px;
-            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
-        }
-        .m-val { font-size: 32px; font-weight: 800; color: #fff; font-family: 'Outfit', sans-serif; margin: 10px 0; }
-        .m-label { font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; }
-        .m-sub { font-size: 12px; display: flex; align-items: center; gap: 5px; }
-
-    </style>
+    # components.html kullanıldığı için Streamlit'ten izole çalışır.
+    # Bu sayede saat saniyesi saniyesine akar ve asla donmaz.
     
-    <div class="header-wrapper">
-        <div class="header-content">
-            <div class="app-title">Enflasyon Monitörü <span class="live-badge"><div class="live-dot"></div>CANLI SİSTEM</span></div>
-            <div class="app-subtitle">Yapay Zeka Destekli Piyasa Analiz Paneli</div>
+    header_html_code = """
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap');
+            
+            body {
+                margin: 0; padding: 0; background: transparent; font-family: 'Outfit', sans-serif; overflow: hidden;
+            }
+            
+            .header-wrapper {
+                position: relative;
+                background: rgba(15, 23, 42, 0.6);
+                backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 20px;
+                padding: 15px 30px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            }
+            
+            /* Animasyonlu Arka Plan */
+            .header-wrapper::before {
+                content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+                background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%);
+                animation: rotate 20s linear infinite; z-index: -1;
+            }
+            @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            
+            .app-title {
+                font-size: 28px; font-weight: 900; color: white;
+                background: linear-gradient(to right, #ffffff, #3b82f6); -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent; text-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+            }
+            
+            .app-subtitle { font-size: 12px; color: #94a3b8; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+            
+            .live-badge {
+                display: inline-flex; align-items: center; background: rgba(16, 185, 129, 0.15);
+                border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 3px 8px;
+                border-radius: 12px; font-size: 10px; font-weight: 800; margin-left: 10px; vertical-align: middle;
+            }
+            .live-dot {
+                width: 6px; height: 6px; background: #10b981; border-radius: 50%;
+                margin-right: 6px; box-shadow: 0 0 8px #10b981; animation: pulse 2s infinite;
+            }
+            @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+            
+            .clock-container { text-align: right; }
+            .location-tag { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+            
+            #live_clock {
+                font-family: 'Outfit', monospace; font-size: 26px; font-weight: 700; color: #fff;
+                text-shadow: 0 0 15px rgba(255,255,255,0.4); line-height: 1;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header-wrapper">
+            <div>
+                <div class="app-title">Enflasyon Monitörü <span class="live-badge"><div class="live-dot"></div>CANLI</span></div>
+                <div class="app-subtitle">Yapay Zeka Destekli Piyasa Analiz Paneli</div>
+            </div>
+            <div class="clock-container">
+                <div class="location-tag">CİHAZ ZAMANI</div>
+                <div id="live_clock">--:--:--</div>
+            </div>
         </div>
-        <div class="clock-container">
-            <div class="location-tag">İSTANBUL / HQ</div>
-            <div id="live_clock_js">--:--:--</div>
-        </div>
-    </div>
 
-    <script>
-        (function() {
+        <script>
             function updateClock() {
-                var el = document.getElementById('live_clock_js');
-                if (el) {
-                    var now = new Date();
-                    el.innerHTML = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                }
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('live_clock').innerText = timeString;
             }
             setInterval(updateClock, 1000);
             updateClock();
-        })();
-    </script>
-    """, unsafe_allow_html=True)
+        </script>
+    </body>
+    </html>
+    """
+    
+    # iframe yüksekliği ayarlandı
+    components.html(header_html_code, height=120)
 
     if 'toast_shown' not in st.session_state:
         st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
