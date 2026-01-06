@@ -709,7 +709,7 @@ def dashboard_modu():
                 <div class="app-subtitle">Yapay Zeka Destekli Piyasa Analiz Paneli</div>
             </div>
             <div class="clock-container">
-                <div class="location-tag">CİHAZ ZAMANI</div>
+                <div class="location-tag">SAAT</div>
                 <div id="live_clock">--:--:--</div>
             </div>
         </div>
@@ -876,7 +876,7 @@ def dashboard_modu():
                 c1, c2, c3, c4 = st.columns(4)
                 with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#ef4444", "#3b82f6")
                 with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "#10b981")
-                with c3: kpi_card("Simülasyon (AI)", f"%{month_end_forecast:.2f}", f"Yıl Sonu Tahmini", "#8b5cf6", "#8b5cf6")
+                with c3: kpi_card("Simülasyon Tahmini", f"%{month_end_forecast:.2f}", f"Yıl Sonu Tahmini", "#8b5cf6", "#8b5cf6")
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#f59e0b", "#f59e0b")
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -972,3 +972,4 @@ def dashboard_modu():
 
 if __name__ == "__main__":
     dashboard_modu()
+
