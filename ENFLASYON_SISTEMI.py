@@ -894,10 +894,17 @@ def dashboard_modu():
                 inc = df_analiz.sort_values('Gunluk_Degisim', ascending=False).head(5)
                 dec = df_analiz.sort_values('Gunluk_Degisim', ascending=True).head(5)
                 items = []
+                # ---------------------------------------------------------
+                # GÜNCELLENDİ: DAHA PARLAK VE KALIN (NEON) RENKLER
+                # ---------------------------------------------------------
                 for _, r in inc.iterrows():
-                    if r['Gunluk_Degisim'] > 0: items.append(f"<span style='color:#f87171'>▲ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
+                    if r['Gunluk_Degisim'] > 0: 
+                        # Neon Kırmızı + Kalın
+                        items.append(f"<span style='color:#ff4d4d !important; font-weight:900;'>▲ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
                 for _, r in dec.iterrows():
-                    if r['Gunluk_Degisim'] < 0: items.append(f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
+                    if r['Gunluk_Degisim'] < 0: 
+                        # Neon Yeşil + Kalın
+                        items.append(f"<span style='color:#33ff00 !important; font-weight:900;'>▼ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
                 if not items: items.append("Piyasada son 24 saatte önemli bir fiyat değişimi olmadı.")
                 
                 # ---------------------------------------------------------
