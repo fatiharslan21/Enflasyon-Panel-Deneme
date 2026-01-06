@@ -610,10 +610,36 @@ def dashboard_modu():
         components.html(all_stocks_html, height=600)
 
     # ---------------------------------------------------------
-    # 1. HEADER VE CANLI SAAT (iframe - CİHAZ SAATİ MODU)
+    # CSS: KPI BOXES (ANA SAYFA İÇİN STİL)
+    # ---------------------------------------------------------
+    # Bu stiller st.markdown ile ana sayfaya enjekte edilir.
+    # Böylece KPI kartları (div'ler) bu stilleri görüp süslenir.
+    st.markdown("""
+    <style>
+        .metric-box {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .metric-box:hover { transform: translateY(-5px); background: rgba(30, 41, 59, 0.7); border-color: rgba(255,255,255,0.1); }
+        .metric-box::after {
+            content: ''; position: absolute; top:0; left:0; width: 100%; height: 4px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+        }
+        .m-val { font-size: 32px; font-weight: 800; color: #fff; font-family: 'Outfit', sans-serif; margin: 10px 0; }
+        .m-label { font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; }
+        .m-sub { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ---------------------------------------------------------
+    # HEADER VE CANLI SAAT (iframe - CİHAZ SAATİ MODU)
     # ---------------------------------------------------------
     # components.html kullanıldığı için Streamlit'ten izole çalışır.
-    # Bu sayede saat saniyesi saniyesine akar ve asla donmaz.
     
     header_html_code = """
     <!DOCTYPE html>
