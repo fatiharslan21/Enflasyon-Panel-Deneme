@@ -651,6 +651,7 @@ Hesaplanan veriler, fiyat istikrarında henüz tam bir dengelenme (konsolidasyon
 
 # --- 8. DASHBOARD MODU ---
 # --- 8. DASHBOARD MODU ---
+# --- 8. DASHBOARD MODU ---
 def dashboard_modu():
     bugun = datetime.now().strftime("%Y-%m-%d")
     colors = {"bg": "#0E1117", "sidebar": "#262730", "text": "#FAFAFA", "input_bg": "#1A1C24", "input_border": "#4A4A4A", "card_bg": "#1A1C24", "border_color": "#414141"}
@@ -957,7 +958,7 @@ def dashboard_modu():
                 fig_trend.update_layout(
                     title="Enflasyon Trendi ve Ay Sonu Tahmini",
                     yaxis=dict(range=[95, 105]),
-                    xaxis=dict(range=[df_trend['Tarih'].min(), target_jan_end]), # X ekseni Ocak sonuna kadar sabitlendi
+                    xaxis=dict(range=[dt_baz, target_jan_end]), # BAŞLANGIÇ: Aralık Sonu, BİTİŞ: Ocak Sonu
                     legend=dict(orientation="h", y=1.1)
                 )
                 
@@ -1095,6 +1096,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
