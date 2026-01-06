@@ -35,17 +35,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS MOTORU (PREMIUM TASARIM - GÜNCELLENDİ) ---
+# --- CSS MOTORU (PREMIUM TASARIM - GÜNCELLENDİ V2) ---
 def apply_theme():
     # Modern FinTech Renk Paleti
     colors = {
-        "bg_gradient": "linear-gradient(135deg, #0f172a 0%, #020617 100%)",
-        "glass_bg": "rgba(30, 41, 59, 0.4)",
-        "glass_border": "rgba(255, 255, 255, 0.08)",
         "text_primary": "#F8FAFC",
         "text_secondary": "#94A3B8",
         "accent_blue": "#3B82F6",
-        "neon_glow": "0 0 10px rgba(59, 130, 246, 0.5)"
     }
     st.session_state.plotly_template = "plotly_dark"
 
@@ -54,25 +50,34 @@ def apply_theme():
         /* FONT IMPORT - Outfit */
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
 
-        /* 1. GENEL SAYFA YAPISI */
-        html, body, [class*="css"] {{
+        /* 1. CANLI ARKA PLAN (Aurora Effect) */
+        body {{
+            background: linear-gradient(-45deg, #020617, #0f172a, #1e1b4b, #020617);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
             font-family: 'Outfit', sans-serif !important;
         }}
         
+        @keyframes gradientBG {{
+            0% {{ background-position: 0% 50%; }}
+            50% {{ background-position: 100% 50%; }}
+            100% {{ background-position: 0% 50%; }}
+        }}
+
         .stApp {{
-            background: {colors['bg_gradient']};
-            background-attachment: fixed;
+            background: transparent !important;
         }}
         
         /* 2. GİZLEME */
         header[data-testid="stHeader"], [data-testid="stToolbar"] {{ display: none !important; }}
         .block-container {{ padding-top: 1rem !important; padding-bottom: 5rem !important; }}
 
-        /* 3. SIDEBAR - Glassmorphism */
+        /* 3. SIDEBAR - Gelişmiş Glassmorphism */
         section[data-testid="stSidebar"] {{
-            background-color: rgba(15, 23, 42, 0.85) !important;
-            backdrop-filter: blur(12px);
-            border-right: 1px solid {colors['glass_border']};
+            background-color: rgba(15, 23, 42, 0.6) !important;
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 10px 0 30px rgba(0,0,0,0.3);
         }}
         
         /* 4. METİNLER */
@@ -80,65 +85,75 @@ def apply_theme():
         
         /* 5. GİRİŞ KUTULARI */
         .stTextInput input, .stNumberInput input {{
-            background-color: rgba(255, 255, 255, 0.05) !important;
+            background-color: rgba(255, 255, 255, 0.03) !important;
             color: white !important;
-            border: 1px solid {colors['glass_border']} !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
             border-radius: 8px !important;
             font-family: 'Outfit', sans-serif !important;
+            transition: all 0.3s ease;
+        }}
+        .stTextInput input:focus, .stNumberInput input:focus {{
+            border-color: {colors['accent_blue']} !important;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
         }}
         
-        /* 6. TABLO VE DATAFRAME (GÜNCELLENDİ) */
+        /* 6. TABLO VE DATAFRAME (Neon Header) */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
-            background-color: transparent !important;
-            border: 1px solid {colors['glass_border']} !important;
+            background-color: rgba(15, 23, 42, 0.3) !important;
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
             border-radius: 12px;
+            backdrop-filter: blur(10px);
         }}
         [data-testid="stDataFrame"] th {{
             background-color: rgba(30, 41, 59, 0.8) !important;
-            color: {colors['accent_blue']} !important;
+            color: #60A5FA !important;
             font-weight: 700 !important;
-            border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 2px solid rgba(59, 130, 246, 0.5) !important;
             font-family: 'Outfit', sans-serif !important;
         }}
 
-        /* 7. BUTONLAR */
+        /* 7. BUTONLAR (Glow Effect) */
         div.stButton > button, [data-testid="stDownloadButton"] button {{
-            background: linear-gradient(90deg, #1e293b 0%, #334155 100%) !important;
+            background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%) !important;
             color: white !important;
-            border: 1px solid {colors['glass_border']} !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
             border-radius: 10px !important;
             transition: all 0.3s ease !important;
             font-family: 'Outfit', sans-serif !important;
             font-weight: 600 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }}
         div.stButton > button:hover {{
             background: linear-gradient(90deg, {colors['accent_blue']} 0%, #2563EB 100%) !important;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 0 20px rgba(37, 99, 235, 0.6);
+            border-color: transparent !important;
         }}
         
-        /* 8. TAB YAPISI */
+        /* 8. TAB YAPISI (Modern Pill Design) */
         .stTabs [data-baseweb="tab-list"] {{
-            gap: 8px; background-color: rgba(255,255,255,0.03); padding: 8px; border-radius: 16px;
+            gap: 10px; background-color: rgba(0,0,0,0.2); padding: 10px; border-radius: 50px;
+            border: 1px solid rgba(255,255,255,0.05);
+            display: inline-flex;
         }}
         .stTabs [data-baseweb="tab"] {{
-            height: 45px; border-radius: 10px; background-color: transparent; color: {colors['text_secondary']}; border: none;
+            height: 40px; border-radius: 30px; background-color: transparent; 
+            color: {colors['text_secondary']}; border: none; padding: 0 20px;
             font-family: 'Outfit', sans-serif !important;
         }}
         .stTabs [data-baseweb="tab"][aria-selected="true"] {{
             background-color: {colors['accent_blue']} !important; color: white !important;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
         }}
         
-        /* Scrollbar (GÜNCELLENDİ) */
-        ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
-        ::-webkit-scrollbar-track {{ background: transparent; }}
-        ::-webkit-scrollbar-thumb {{ 
-            background: rgba(59, 130, 246, 0.3); 
-            border-radius: 3px; 
-        }}
-        ::-webkit-scrollbar-thumb:hover {{ 
-            background: rgba(59, 130, 246, 0.8); 
-        }}
+        /* Scrollbar */
+        ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+        ::-webkit-scrollbar-track {{ background: #0f172a; }}
+        ::-webkit-scrollbar-thumb {{ background: #334155; border-radius: 4px; }}
+        ::-webkit-scrollbar-thumb:hover {{ background: #3b82f6; }}
     </style>
     """
     st.markdown(final_css, unsafe_allow_html=True)
@@ -200,8 +215,7 @@ class PDFReport(FPDF):
             self.cell(0, 10, self.fix_text("ENFLASYON MONİTÖRÜ"), 0, 0, 'L')
             self.set_font(self.font_family, '', 8)
             self.set_text_color(*self.c_gri)
-            tarih = datetime.now().strftime("%d.%m.%Y")
-            self.cell(0, 10, self.fix_text(f'Rapor Tarihi: {tarih}'), 0, 1, 'R')
+            self.cell(0, 10, self.fix_text(f'Rapor Tarihi: {datetime.now().strftime("%d.%m.%Y")}'), 0, 1, 'R')
             self.set_draw_color(*self.c_sari)
             self.set_line_width(0.8)
             self.line(10, 20, 200, 20)
@@ -634,37 +648,65 @@ def dashboard_modu():
         components.html(all_stocks_html, height=600)
 
     # ---------------------------------------------------------
-    # CSS: KPI BOXES (GÜNCELLENDİ: HOVER & GLOW)
+    # CSS: KPI BOXES (YENİLENEN SHIMMER EFEKTİ)
     # ---------------------------------------------------------
     st.markdown("""
     <style>
         .metric-box {
             background: rgba(30, 41, 59, 0.4);
             border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 20px;
-            padding: 20px;
+            border-radius: 16px;
+            padding: 24px 20px;
             position: relative;
             overflow: hidden;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
+        
+        /* Parıltı Efekti (Shimmer) */
+        .metric-box::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: 0.5s;
+        }
+        
+        .metric-box:hover::before {
+            left: 100%;
+        }
+
         .metric-box:hover { 
-            transform: translateY(-5px) scale(1.02); 
-            background: rgba(30, 41, 59, 0.9); 
-            border-color: rgba(59, 130, 246, 0.5);
-            box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.3);
+            transform: translateY(-8px); 
+            background: rgba(30, 41, 59, 0.8); 
+            border-color: var(--accent-color);
+            box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.5);
         }
+        
         .metric-box::after {
             content: ''; position: absolute; top:0; left:0; width: 100%; height: 4px;
             background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
         }
-        .m-val { font-size: 32px; font-weight: 800; color: #fff; font-family: 'Outfit', sans-serif; margin: 10px 0; }
+
+        .m-val { 
+            font-size: 36px; 
+            font-weight: 800; 
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-family: 'Outfit', sans-serif; 
+            margin: 5px 0; 
+            letter-spacing: -1px;
+        }
         .m-label { font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; font-family: 'Outfit', sans-serif; }
         .m-sub { font-size: 12px; display: flex; align-items: center; gap: 5px; font-family: 'Outfit', sans-serif; }
     </style>
     """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # HEADER VE CANLI SAAT (iframe - Outfit Font)
+    # HEADER VE CANLI SAAT
     # ---------------------------------------------------------
     header_html_code = """
     <!DOCTYPE html>
@@ -903,7 +945,7 @@ def dashboard_modu():
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#f59e0b", "#f59e0b")
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # GRAFİK STİLİ (GÜNCELLENDİ: CLEAN & NEON)
+                # GRAFİK STİLİ (YENİLENMİŞ - NEON)
                 def style_chart(fig, is_pdf=False):
                     if is_pdf:
                         fig.update_layout(template="plotly_white", font=dict(family="Arial", size=14, color="black"), plot_bgcolor="white", paper_bgcolor="white", title_font=dict(size=20, color="#002855", family="Arial Black"), margin=dict(l=50, r=50, t=80, b=50))
@@ -916,18 +958,35 @@ def dashboard_modu():
                             title_font=dict(size=18, color="white", family="Outfit, sans-serif"),
                             hovermode="x unified",
                             margin=dict(l=20, r=20, t=60, b=20),
-                            xaxis=dict(showgrid=False, zeroline=False, showline=False), # Temiz görünüm
-                            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.03)", zeroline=False) # Çok silik grid
+                            xaxis=dict(showgrid=False, zeroline=False, showline=False),
+                            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.02)", zeroline=False) # Çok silik grid
                         )
-                        # Çizgi grafikler için "glow" efekti simülasyonu (temiz hatlar)
+                        # Çizgi grafikler için "glow" efekti simülasyonu
                         fig.update_traces(marker=dict(line=dict(width=0)))
                     return fig
 
                 fig_trend = go.Figure()
-                fig_trend.add_trace(go.Scatter(x=df_trend['Tarih'], y=df_trend['TÜFE'], mode='lines+markers', name='Enflasyon', line=dict(color='#FDB913', width=4), marker=dict(size=8, line=dict(width=2, color='white'))))
+                fig_trend.add_trace(go.Scatter(
+                    x=df_trend['Tarih'], 
+                    y=df_trend['TÜFE'], 
+                    mode='lines+markers', 
+                    name='Enflasyon', 
+                    line=dict(color='#FDB913', width=3),
+                    marker=dict(size=6, color='#FDB913', line=dict(width=2, color='white')),
+                    fill='tozeroy', 
+                    fillcolor='rgba(253, 185, 19, 0.1)' # NEON DOLGU
+                ))
                 if not df_forecast.empty:
                     future = df_forecast[(df_forecast['ds'] > df_trend['Tarih'].max()) & (df_forecast['ds'] <= target_jan_end)]
-                    fig_trend.add_trace(go.Scatter(x=future['ds'], y=future['yhat'], mode='lines', name='AI Tahmini', line=dict(color='#3b82f6', width=2, dash='dash')))
+                    fig_trend.add_trace(go.Scatter(
+                        x=future['ds'], 
+                        y=future['yhat'], 
+                        mode='lines', 
+                        name='AI Tahmini', 
+                        line=dict(color='#3b82f6', width=2, dash='dash'),
+                        fill='tozeroy', 
+                        fillcolor='rgba(59, 130, 246, 0.05)' # NEON TAHMİN
+                    ))
                     fig_trend.add_trace(go.Scatter(x=future['ds'].tolist() + future['ds'].tolist()[::-1], y=future['yhat_upper'].tolist() + future['yhat_lower'].tolist()[::-1], fill='toself', fillcolor='rgba(59, 130, 246, 0.1)', line=dict(color='rgba(0,0,0,0)'), showlegend=False, hoverinfo='skip'))
                 fig_trend.update_layout(title="Enflasyon Trendi ve Ay Sonu Tahmini", yaxis=dict(range=[95, 105]), xaxis=dict(range=[dt_baz, target_jan_end]), legend=dict(orientation="h", y=1.1))
                 
@@ -997,4 +1056,3 @@ def dashboard_modu():
 
 if __name__ == "__main__":
     dashboard_modu()
-
