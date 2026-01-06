@@ -768,114 +768,90 @@ def dashboard_modu():
     # ... dashboard_modu içinde ...
 
     # CSS Header (Yeni Versiyon)
-    st.markdown(f"""
+    # ---------------------------------------------------------
+    # 1. HEADER VE CANLI SAAT (Fixlendi)
+    # ---------------------------------------------------------
+    st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap');
         
-        .header-wrapper {{
+        .header-wrapper {
             position: relative;
             background: rgba(15, 23, 42, 0.6);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 24px;
             padding: 25px 40px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             overflow: hidden;
             box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-        }}
+        }
         
-        /* Arka plandaki parlama efekti */
-        .header-wrapper::before {{
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
+        /* Arka plan efekti */
+        .header-wrapper::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
             background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%);
-            animation: rotate 20s linear infinite;
-            z-index: 0;
-            pointer-events: none;
-        }}
-        @keyframes rotate {{ from {{ transform: rotate(0deg); }} to {{ transform: rotate(360deg); }} }}
+            animation: rotate 20s linear infinite; z-index: 0; pointer-events: none;
+        }
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
-        .header-content {{ position: relative; z-index: 1; }}
+        .header-content { position: relative; z-index: 1; }
         
-        .app-title {{
-            font-family: 'Outfit', sans-serif;
-            font-size: 38px;
-            font-weight: 900;
-            letter-spacing: -1.5px;
-            background: linear-gradient(to right, #ffffff, #3b82f6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
-        }}
+        .app-title {
+            font-family: 'Outfit', sans-serif; font-size: 34px; font-weight: 900;
+            background: linear-gradient(to right, #ffffff, #3b82f6); -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent; text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+        }
         
-        .app-subtitle {{
-            font-family: 'Outfit', sans-serif;
-            font-size: 14px;
-            color: #94a3b8;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-top: -5px;
-            font-weight: 500;
-        }}
+        .app-subtitle { font-family: 'Outfit', sans-serif; font-size: 13px; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase; margin-top: 5px; }
         
-        .live-badge {{
-            display: inline-flex;
-            align-items: center;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            color: #10b981;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 700;
-            margin-left: 15px;
-            vertical-align: middle;
-        }}
-        .live-dot {{
-            width: 8px; height: 8px; background: #10b981; border-radius: 50%;
-            margin-right: 8px; box-shadow: 0 0 10px #10b981;
-            animation: pulse-dot 2s infinite;
-        }}
-        @keyframes pulse-dot {{ 0% {{ opacity: 1; }} 50% {{ opacity: 0.5; }} 100% {{ opacity: 1; }} }}
+        .live-badge {
+            display: inline-flex; align-items: center; background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; padding: 4px 10px;
+            border-radius: 20px; font-size: 11px; font-weight: 700; margin-left: 10px; vertical-align: middle;
+        }
+        .live-dot {
+            width: 6px; height: 6px; background: #10b981; border-radius: 50%;
+            margin-right: 6px; box-shadow: 0 0 8px #10b981; animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         
-        .clock-container {{ text-align: right; z-index: 1; }}
-        #live_clock_js {{
-            font-family: 'Outfit', monospace;
-            font-size: 24px;
-            font-weight: 700;
-            color: #fff;
-            text-shadow: 0 0 20px rgba(255,255,255,0.3);
-        }}
-        .location-tag {{ font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }}
-
-        /* KPI Kart Düzeni */
-        .metric-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }}
-        .metric-box {{
-            background: rgba(30, 41, 59, 0.4);
-            border: 1px solid rgba(255,255,255,0.05);
-            border-radius: 20px;
-            padding: 20px;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }}
-        .metric-box:hover {{ transform: translateY(-5px); background: rgba(30, 41, 59, 0.7); border-color: rgba(255,255,255,0.1); }}
-        .metric-box::after {{
-            content: ''; position: absolute; top:0; left:0; width: 100%; height: 4px;
-            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
-        }}
-        .m-val {{ font-size: 32px; font-weight: 800; color: #fff; font-family: 'Outfit', sans-serif; margin: 10px 0; }}
-        .m-label {{ font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; }}
-        .m-sub {{ font-size: 12px; display: flex; align-items: center; gap: 5px; }}
-
+        .clock-container { text-align: right; z-index: 1; }
+        .location-tag { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;}
+        
+        #live_clock_js {
+            font-family: 'Outfit', monospace; font-size: 28px; font-weight: 700; color: #fff;
+            text-shadow: 0 0 20px rgba(255,255,255,0.3); line-height: 1;
+        }
     </style>
+    
+    <div class="header-wrapper">
+        <div class="header-content">
+            <div class="app-title">Enflasyon Monitörü <span class="live-badge"><div class="live-dot"></div>CANLI SİSTEM</span></div>
+            <div class="app-subtitle">Yapay Zeka Destekli Piyasa Analiz Paneli</div>
+        </div>
+        <div class="clock-container">
+            <div class="location-tag">İSTANBUL / HQ</div>
+            <div id="live_clock_js">--:--:--</div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            function updateClock() {
+                var el = document.getElementById('live_clock_js');
+                if (el) {
+                    var now = new Date();
+                    el.innerHTML = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                }
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
+        })();
+    </script>
     """, unsafe_allow_html=True)
 
     header_html = f"""
@@ -1021,7 +997,48 @@ def dashboard_modu():
                 for _, r in dec.iterrows():
                     if r['Gunluk_Degisim'] < 0: items.append(f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
                 if not items: items.append("Piyasada son 24 saatte önemli bir fiyat değişimi olmadı.")
-                st.markdown(f'<div class="ticker-wrap"><div class="ticker"><div class="ticker-item">{" &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)}</div></div></div>', unsafe_allow_html=True)
+                # ---------------------------------------------------------
+                # 2. TICKER (Kayan Yazı - Fixlendi)
+                # items listesi oluşturulduktan hemen sonra burayı yapıştır:
+                # ---------------------------------------------------------
+                ticker_html_content = " &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)
+                
+                st.markdown(f"""
+                <style>
+                    .ticker-wrap {{
+                        width: 100%;
+                        overflow: hidden;
+                        background: rgba(255, 255, 255, 0.03);
+                        border: 1px solid rgba(255, 255, 255, 0.05);
+                        border-radius: 12px;
+                        padding: 12px 0;
+                        margin-bottom: 25px;
+                        white-space: nowrap;
+                        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                        position: relative;
+                    }}
+                    
+                    .ticker-move {{
+                        display: inline-block;
+                        padding-left: 100%;
+                        animation: marquee 60s linear infinite;
+                        color: #e2e8f0;
+                        font-family: 'Outfit', monospace;
+                        font-size: 14px;
+                    }}
+                    
+                    @keyframes marquee {{
+                        0% {{ transform: translate(0, 0); }}
+                        100% {{ transform: translate(-100%, 0); }}
+                    }}
+                </style>
+                
+                <div class="ticker-wrap">
+                    <div class="ticker-move">
+                        {ticker_html_content}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
                 # KPI
                 df_resmi, msg = get_official_inflation()
@@ -1252,6 +1269,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
