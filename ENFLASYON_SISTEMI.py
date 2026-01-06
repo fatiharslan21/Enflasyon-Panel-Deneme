@@ -35,7 +35,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS MOTORU (PREMIUM TASARIM) ---
+# --- CSS MOTORU (PREMIUM TASARIM - GÜNCELLENDİ) ---
 def apply_theme():
     # Modern FinTech Renk Paleti
     colors = {
@@ -51,7 +51,14 @@ def apply_theme():
 
     final_css = f"""
     <style>
+        /* FONT IMPORT - Outfit */
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+
         /* 1. GENEL SAYFA YAPISI */
+        html, body, [class*="css"] {{
+            font-family: 'Outfit', sans-serif !important;
+        }}
+        
         .stApp {{
             background: {colors['bg_gradient']};
             background-attachment: fixed;
@@ -69,7 +76,7 @@ def apply_theme():
         }}
         
         /* 4. METİNLER */
-        h1, h2, h3, h4, h5, h6, p, label, .stMarkdown {{ color: {colors['text_primary']} !important; font-family: 'Inter', sans-serif; }}
+        h1, h2, h3, h4, h5, h6, p, label, .stMarkdown {{ color: {colors['text_primary']} !important; }}
         
         /* 5. GİRİŞ KUTULARI */
         .stTextInput input, .stNumberInput input {{
@@ -77,13 +84,21 @@ def apply_theme():
             color: white !important;
             border: 1px solid {colors['glass_border']} !important;
             border-radius: 8px !important;
+            font-family: 'Outfit', sans-serif !important;
         }}
         
-        /* 6. TABLO VE DATAFRAME */
+        /* 6. TABLO VE DATAFRAME (GÜNCELLENDİ) */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
             background-color: transparent !important;
             border: 1px solid {colors['glass_border']} !important;
             border-radius: 12px;
+        }}
+        [data-testid="stDataFrame"] th {{
+            background-color: rgba(30, 41, 59, 0.8) !important;
+            color: {colors['accent_blue']} !important;
+            font-weight: 700 !important;
+            border-bottom: 1px solid rgba(59, 130, 246, 0.3) !important;
+            font-family: 'Outfit', sans-serif !important;
         }}
 
         /* 7. BUTONLAR */
@@ -93,6 +108,8 @@ def apply_theme():
             border: 1px solid {colors['glass_border']} !important;
             border-radius: 10px !important;
             transition: all 0.3s ease !important;
+            font-family: 'Outfit', sans-serif !important;
+            font-weight: 600 !important;
         }}
         div.stButton > button:hover {{
             background: linear-gradient(90deg, {colors['accent_blue']} 0%, #2563EB 100%) !important;
@@ -106,15 +123,22 @@ def apply_theme():
         }}
         .stTabs [data-baseweb="tab"] {{
             height: 45px; border-radius: 10px; background-color: transparent; color: {colors['text_secondary']}; border: none;
+            font-family: 'Outfit', sans-serif !important;
         }}
         .stTabs [data-baseweb="tab"][aria-selected="true"] {{
             background-color: {colors['accent_blue']} !important; color: white !important;
         }}
         
-        /* Scrollbar */
-        ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
-        ::-webkit-scrollbar-track {{ background: #0f172a; }}
-        ::-webkit-scrollbar-thumb {{ background: #334155; border-radius: 4px; }}
+        /* Scrollbar (GÜNCELLENDİ) */
+        ::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+        ::-webkit-scrollbar-track {{ background: transparent; }}
+        ::-webkit-scrollbar-thumb {{ 
+            background: rgba(59, 130, 246, 0.3); 
+            border-radius: 3px; 
+        }}
+        ::-webkit-scrollbar-thumb:hover {{ 
+            background: rgba(59, 130, 246, 0.8); 
+        }}
     </style>
     """
     st.markdown(final_css, unsafe_allow_html=True)
@@ -610,10 +634,8 @@ def dashboard_modu():
         components.html(all_stocks_html, height=600)
 
     # ---------------------------------------------------------
-    # CSS: KPI BOXES (ANA SAYFA İÇİN STİL)
+    # CSS: KPI BOXES (GÜNCELLENDİ: HOVER & GLOW)
     # ---------------------------------------------------------
-    # Bu stiller st.markdown ile ana sayfaya enjekte edilir.
-    # Böylece KPI kartları (div'ler) bu stilleri görüp süslenir.
     st.markdown("""
     <style>
         .metric-box {
@@ -623,24 +645,27 @@ def dashboard_modu():
             padding: 20px;
             position: relative;
             overflow: hidden;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .metric-box:hover { transform: translateY(-5px); background: rgba(30, 41, 59, 0.7); border-color: rgba(255,255,255,0.1); }
+        .metric-box:hover { 
+            transform: translateY(-5px) scale(1.02); 
+            background: rgba(30, 41, 59, 0.9); 
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.3);
+        }
         .metric-box::after {
             content: ''; position: absolute; top:0; left:0; width: 100%; height: 4px;
             background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
         }
         .m-val { font-size: 32px; font-weight: 800; color: #fff; font-family: 'Outfit', sans-serif; margin: 10px 0; }
-        .m-label { font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; }
-        .m-sub { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+        .m-label { font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; font-family: 'Outfit', sans-serif; }
+        .m-sub { font-size: 12px; display: flex; align-items: center; gap: 5px; font-family: 'Outfit', sans-serif; }
     </style>
     """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # HEADER VE CANLI SAAT (iframe - CİHAZ SAATİ MODU)
+    # HEADER VE CANLI SAAT (iframe - Outfit Font)
     # ---------------------------------------------------------
-    # components.html kullanıldığı için Streamlit'ten izole çalışır.
-    
     header_html_code = """
     <!DOCTYPE html>
     <html lang="tr">
@@ -726,8 +751,6 @@ def dashboard_modu():
     </body>
     </html>
     """
-    
-    # iframe yüksekliği ayarlandı
     components.html(header_html_code, height=120)
 
     if 'toast_shown' not in st.session_state:
@@ -826,7 +849,7 @@ def dashboard_modu():
                 if not items: items.append("Piyasada son 24 saatte önemli bir fiyat değişimi olmadı.")
                 
                 # ---------------------------------------------------------
-                # 2. TICKER (Kayan Yazı - Fixlendi)
+                # 2. TICKER (Kayan Yazı)
                 # ---------------------------------------------------------
                 ticker_html_content = " &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)
                 st.markdown(f"""
@@ -860,9 +883,9 @@ def dashboard_modu():
                         resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
                     except: pass
 
-                # KPI Card Fonksiyonu (Yeni Tasarıma Uygun)
+                # KPI Card Fonksiyonu
                 def kpi_card(title, val, sub, sub_color, accent_color, is_long_text=False):
-                     st.markdown(f"""
+                      st.markdown(f"""
                         <div class="metric-box" style="--accent-color: {accent_color}">
                             <div class="m-label">{title}</div>
                             <div class="m-val" style="{'font-size: 24px;' if is_long_text else ''}">{val}</div>
@@ -880,7 +903,7 @@ def dashboard_modu():
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#f59e0b", "#f59e0b")
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # GRAFİK STİLİ (Transparent)
+                # GRAFİK STİLİ (GÜNCELLENDİ: CLEAN & NEON)
                 def style_chart(fig, is_pdf=False):
                     if is_pdf:
                         fig.update_layout(template="plotly_white", font=dict(family="Arial", size=14, color="black"), plot_bgcolor="white", paper_bgcolor="white", title_font=dict(size=20, color="#002855", family="Arial Black"), margin=dict(l=50, r=50, t=80, b=50))
@@ -893,9 +916,11 @@ def dashboard_modu():
                             title_font=dict(size=18, color="white", family="Outfit, sans-serif"),
                             hovermode="x unified",
                             margin=dict(l=20, r=20, t=60, b=20),
-                            xaxis=dict(showgrid=False, zeroline=False), 
-                            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", zeroline=False)
+                            xaxis=dict(showgrid=False, zeroline=False, showline=False), # Temiz görünüm
+                            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.03)", zeroline=False) # Çok silik grid
                         )
+                        # Çizgi grafikler için "glow" efekti simülasyonu (temiz hatlar)
+                        fig.update_traces(marker=dict(line=dict(width=0)))
                     return fig
 
                 fig_trend = go.Figure()
@@ -972,4 +997,3 @@ def dashboard_modu():
 
 if __name__ == "__main__":
     dashboard_modu()
-
