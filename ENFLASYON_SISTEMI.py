@@ -612,9 +612,6 @@ def dashboard_modu():
     # ---------------------------------------------------------
     # 1. HEADER VE CANLI SAAT (Fixlendi)
     # ---------------------------------------------------------
-    # ---------------------------------------------------------
-    # 1. HEADER VE CANLI SAAT (KESİN ÇÖZÜM)
-    # ---------------------------------------------------------
     st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap');
@@ -670,6 +667,26 @@ def dashboard_modu():
             font-family: 'Outfit', monospace; font-size: 28px; font-weight: 700; color: #fff;
             text-shadow: 0 0 20px rgba(255,255,255,0.3); line-height: 1;
         }
+        
+        /* KPI BOX STYLES */
+        .metric-box {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .metric-box:hover { transform: translateY(-5px); background: rgba(30, 41, 59, 0.7); border-color: rgba(255,255,255,0.1); }
+        .metric-box::after {
+            content: ''; position: absolute; top:0; left:0; width: 100%; height: 4px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+        }
+        .m-val { font-size: 32px; font-weight: 800; color: #fff; font-family: 'Outfit', sans-serif; margin: 10px 0; }
+        .m-label { font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; }
+        .m-sub { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+
     </style>
     
     <div class="header-wrapper">
@@ -685,24 +702,15 @@ def dashboard_modu():
 
     <script>
         (function() {
-            // Elementi bulana kadar 100 milisaniyede bir kontrol et
-            var checkExist = setInterval(function() {
-               var clockElement = document.getElementById('live_clock_js');
-               
-               // Eğer element oluştuysa
-               if (clockElement) {
-                  clearInterval(checkExist); // Aramayı bırak
-                  
-                  function updateClock() {
-                      var now = new Date();
-                      var timeString = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                      clockElement.innerHTML = timeString;
-                  }
-                  
-                  setInterval(updateClock, 1000); // Saati başlat
-                  updateClock(); // İlk görüntüyü hemen ver
-               }
-            }, 100);
+            function updateClock() {
+                var el = document.getElementById('live_clock_js');
+                if (el) {
+                    var now = new Date();
+                    el.innerHTML = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                }
+            }
+            setInterval(updateClock, 1000);
+            updateClock();
         })();
     </script>
     """, unsafe_allow_html=True)
@@ -949,4 +957,3 @@ def dashboard_modu():
 
 if __name__ == "__main__":
     dashboard_modu()
-
