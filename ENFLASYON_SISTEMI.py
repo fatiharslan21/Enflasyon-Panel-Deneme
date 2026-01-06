@@ -35,132 +35,86 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS MOTORU ---
+# --- CSS MOTORU (PREMIUM TASARIM) ---
 def apply_theme():
-    # Modern FinTech Renk Paleti (Vakıf Sarı/Lacivert uyumlu ama Neon Esintili)
+    # Modern FinTech Renk Paleti
     colors = {
-        "bg_gradient": "linear-gradient(135deg, #0f172a 0%, #020617 100%)", # Derin uzay mavisi
-        "glass_bg": "rgba(30, 41, 59, 0.4)", # Buzlu cam rengi
+        "bg_gradient": "linear-gradient(135deg, #0f172a 0%, #020617 100%)",
+        "glass_bg": "rgba(30, 41, 59, 0.4)",
         "glass_border": "rgba(255, 255, 255, 0.08)",
         "text_primary": "#F8FAFC",
         "text_secondary": "#94A3B8",
         "accent_blue": "#3B82F6",
-        "accent_gold": "#FDB913", # Kurumsal Sarı
         "neon_glow": "0 0 10px rgba(59, 130, 246, 0.5)"
     }
     st.session_state.plotly_template = "plotly_dark"
 
     final_css = f"""
     <style>
-        /* 1. GENEL SAYFA YAPISI VE ARKA PLAN */
+        /* 1. GENEL SAYFA YAPISI */
         .stApp {{
             background: {colors['bg_gradient']};
             background-attachment: fixed;
         }}
         
-        /* 2. GİZLEME (HEADER & TOOLBAR) */
+        /* 2. GİZLEME */
         header[data-testid="stHeader"], [data-testid="stToolbar"] {{ display: none !important; }}
         .block-container {{ padding-top: 1rem !important; padding-bottom: 5rem !important; }}
 
-        /* 3. SIDEBAR (Sol Menü) - Glassmorphism */
+        /* 3. SIDEBAR - Glassmorphism */
         section[data-testid="stSidebar"] {{
             background-color: rgba(15, 23, 42, 0.85) !important;
             backdrop-filter: blur(12px);
             border-right: 1px solid {colors['glass_border']};
         }}
         
-        /* 4. METİNLER VE FONTLAR */
+        /* 4. METİNLER */
         h1, h2, h3, h4, h5, h6, p, label, .stMarkdown {{ color: {colors['text_primary']} !important; font-family: 'Inter', sans-serif; }}
         
-        /* 5. GİRİŞ KUTULARI (INPUTS) */
+        /* 5. GİRİŞ KUTULARI */
         .stTextInput input, .stNumberInput input {{
             background-color: rgba(255, 255, 255, 0.05) !important;
             color: white !important;
             border: 1px solid {colors['glass_border']} !important;
             border-radius: 8px !important;
-            transition: all 0.3s ease;
         }}
-        .stTextInput input:focus {{ border-color: {colors['accent_blue']} !important; box-shadow: {colors['neon_glow']}; }}
-
+        
         /* 6. TABLO VE DATAFRAME */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
             background-color: transparent !important;
             border: 1px solid {colors['glass_border']} !important;
             border-radius: 12px;
-            overflow: hidden;
         }}
 
-        /* 7. BUTONLAR (Modern & Hover Efektli) */
+        /* 7. BUTONLAR */
         div.stButton > button, [data-testid="stDownloadButton"] button {{
             background: linear-gradient(90deg, #1e293b 0%, #334155 100%) !important;
             color: white !important;
             border: 1px solid {colors['glass_border']} !important;
             border-radius: 10px !important;
-            font-weight: 600 !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transition: all 0.3s ease !important;
         }}
         div.stButton > button:hover {{
             background: linear-gradient(90deg, {colors['accent_blue']} 0%, #2563EB 100%) !important;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-            border-color: transparent !important;
         }}
         
-        /* 8. TAB YAPISI (Pill Shape) */
+        /* 8. TAB YAPISI */
         .stTabs [data-baseweb="tab-list"] {{
-            gap: 8px;
-            background-color: rgba(255,255,255,0.03);
-            padding: 8px;
-            border-radius: 16px;
+            gap: 8px; background-color: rgba(255,255,255,0.03); padding: 8px; border-radius: 16px;
         }}
         .stTabs [data-baseweb="tab"] {{
-            height: 45px;
-            border-radius: 10px;
-            background-color: transparent;
-            color: {colors['text_secondary']};
-            border: none;
-            font-weight: 600;
+            height: 45px; border-radius: 10px; background-color: transparent; color: {colors['text_secondary']}; border: none;
         }}
         .stTabs [data-baseweb="tab"][aria-selected="true"] {{
-            background-color: {colors['accent_blue']} !important;
-            color: white !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            background-color: {colors['accent_blue']} !important; color: white !important;
         }}
-
-        /* 9. ÖZEL CSS CLASS'LAR (Uygulama İçi Kullanım İçin) */
         
-        /* Kartlar için Buzlu Cam Efekti */
-        .glass-card {{
-            background: {colors['glass_bg']};
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid {colors['glass_border']};
-            border-radius: 20px;
-            padding: 24px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            transition: transform 0.3s ease, border-color 0.3s ease;
-            margin-bottom: 20px;
-        }}
-        .glass-card:hover {{
-            transform: translateY(-5px);
-            border-color: {colors['accent_blue']};
-            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
-        }}
-
-        /* Scrollbar Özelleştirme */
+        /* Scrollbar */
         ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
         ::-webkit-scrollbar-track {{ background: #0f172a; }}
         ::-webkit-scrollbar-thumb {{ background: #334155; border-radius: 4px; }}
-        ::-webkit-scrollbar-thumb:hover {{ background: {colors['accent_blue']}; }}
-        
-        /* Giriş Animasyonu */
-        @keyframes fadeIn {{
-            from {{ opacity: 0; transform: translateY(20px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
-        .element-container, .stMarkdown, .stPlotlyChart {{
-            animation: fadeIn 0.8s ease-out forwards;
-        }}
     </style>
     """
     st.markdown(final_css, unsafe_allow_html=True)
@@ -172,29 +126,20 @@ EXCEL_DOSYASI = "TUFE_Konfigurasyon.xlsx"
 FIYAT_DOSYASI = "Fiyat_Veritabani.xlsx"
 SAYFA_ADI = "Madde_Sepeti"
 
-
 # --- 3. PDF MOTORU ---
-# --- 3. GELİŞMİŞ PDF MOTORU (TÜRKÇE KARAKTER DESTEKLİ) ---
 class PDFReport(FPDF):
     def __init__(self):
         super().__init__()
-        self.font_family = 'Arial' # Varsayılan
+        self.font_family = 'Arial' 
         self.tr_active = False
-        
-        # VAKIFBANK & KURUMSAL RENKLER
-        self.c_sari = (253, 185, 19)   # Vakıf Sarısı
-        self.c_lacivert = (0, 40, 85)  # Kurumsal Lacivert
-        self.c_koyu = (30, 30, 30)     # Antrasit
-        self.c_gri = (100, 100, 100)   # Gri
-        
-        # Font Yükleme (Türkçe için Kritik Adım)
+        self.c_sari = (253, 185, 19)
+        self.c_lacivert = (0, 40, 85)
+        self.c_koyu = (30, 30, 30)
+        self.c_gri = (100, 100, 100)
         self.font_path = 'Roboto-Regular.ttf'
         self.font_bold_path = 'Roboto-Bold.ttf'
-        
-        # Fontları yüklemeyi dene, başarısız olursa standart fonta dön
         if self._ensure_fonts_exist():
             try:
-                # uni=True parametresi UTF-8 (Türkçe) desteğini açar
                 self.add_font('Roboto', '', self.font_path, uni=True)
                 self.add_font('Roboto', 'B', self.font_bold_path, uni=True)
                 self.font_family = 'Roboto'
@@ -204,43 +149,24 @@ class PDFReport(FPDF):
                 self.tr_active = False
 
     def _ensure_fonts_exist(self):
-        # Dosyalar zaten varsa tekrar indirme
-        if os.path.exists(self.font_path) and os.path.exists(self.font_bold_path):
-            return True
-            
-        # Fontları indir (GitHub Raw linkleri)
+        if os.path.exists(self.font_path) and os.path.exists(self.font_bold_path): return True
         try:
             headers = {'User-Agent': 'Mozilla/5.0'}
             url_reg = "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Regular.ttf"
             url_bold = "https://github.com/google/fonts/raw/main/apache/roboto/Roboto-Bold.ttf"
-            
-            r1 = requests.get(url_reg, headers=headers, timeout=10)
+            r1 = requests.get(url_reg, headers=headers, timeout=10); 
             with open(self.font_path, 'wb') as f: f.write(r1.content)
-            
             r2 = requests.get(url_bold, headers=headers, timeout=10)
             with open(self.font_bold_path, 'wb') as f: f.write(r2.content)
             return True
-        except:
-            return False
+        except: return False
 
     def fix_text(self, text):
         if text is None: return ""
         text = str(text)
-        
-        # Eğer Türkçe font başarıyla yüklendiyse (tr_active=True), 
-        # metne ASLA dokunma, olduğu gibi döndür.
-        if self.tr_active:
-            return text
-            
-        # Eğer font yüklenemediyse (Fallback), mecburen karakterleri değiştir
-        # (PDF patlamasın diye yapılan son çare değişikliği)
-        tr_map = {
-            'Ğ': 'G', 'ğ': 'g', 'Ş': 'S', 'ş': 's', 'İ': 'I', 'ı': 'i', 
-            'Ö': 'O', 'ö': 'o', 'Ü': 'U', 'ü': 'u', 'Ç': 'C', 'ç': 'c'
-        }
-        for k, v in tr_map.items(): 
-            text = text.replace(k, v)
-        
+        if self.tr_active: return text
+        tr_map = {'Ğ': 'G', 'ğ': 'g', 'Ş': 'S', 'ş': 's', 'İ': 'I', 'ı': 'i', 'Ö': 'O', 'ö': 'o', 'Ü': 'U', 'ü': 'u', 'Ç': 'C', 'ç': 'c'}
+        for k, v in tr_map.items(): text = text.replace(k, v)
         return text.encode('latin-1', 'replace').decode('latin-1')
 
     def header(self):
@@ -277,7 +203,6 @@ class PDFReport(FPDF):
         self.ln(5)
         self.set_font(self.font_family, 'B', 10)
         w = 60; h = 25; margin = 5
-        
         x = self.get_x(); y = self.get_y()
         self.set_fill_color(*self.c_sari)
         self.rect(x, y, w, h, 'F')
@@ -350,17 +275,13 @@ class PDFReport(FPDF):
         if plot_bytes:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
                 tmpfile.write(plot_bytes); path = tmpfile.name
-            
             if force_new_page or self.get_y() > 200: self.add_page()
             else: self.ln(5)
-
             self.set_font(self.font_family, 'B', 11)
             self.set_text_color(*self.c_lacivert)
             self.cell(0, 8, self.fix_text(f"» {title}"), 0, 1, 'L')
-            
             try: self.image(path, x=10, w=190)
             except: pass
-            
             self.ln(10)
             try: os.unlink(path)
             except: pass
@@ -371,17 +292,11 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, met
              7:"Temmuz", 8:"Ağustos", 9:"Eylül", 10:"Ekim", 11:"Kasım", 12:"Aralık"}
     simdi = datetime.now()
     tr_tarih = f"{aylar[simdi.month]} {simdi.year}"
-    
-    # SAYFA 1: KAPAK
     pdf.create_cover(tr_tarih, f"{manset_oran:.2f}")
-    
-    # SAYFA 2: PİYASA GÖRÜNÜMÜ (KPI + ANA GRAFİK)
     pdf.add_page()
     pdf.chapter_title("PİYASA GENEL GÖRÜNÜMÜ")
     if metrics_dict:
         pdf.create_kpi_summary(metrics_dict.get('genel', 0), metrics_dict.get('gida', 0), metrics_dict.get('top_urun', 'Yok'))
-    
-    # Ana Trend Grafiği
     if figures:
         keys = list(figures.keys())
         if len(keys) > 0:
@@ -390,16 +305,10 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, met
                 img = figures[trend_title].to_image(format="png", width=1600, height=700, scale=2)
                 pdf.add_plot_image(img, title=trend_title)
             except: pass
-
-    # SAYFA 3: STRATEJİK ANALİZ (YAZI + HİSTOGRAM + İMZA)
     pdf.add_page()
     pdf.chapter_title("STRATEJİK ANALİZ VE DETAYLI GÖRÜNÜM")
-    
-    # AI Metni (Geniş Alan)
     pdf.write_markdown(text_content)
     pdf.ln(10)
-    
-    # Detay Grafiği (Histogram)
     if figures and len(keys) > 1:
         hist_title = keys[1]
         try:
@@ -407,30 +316,25 @@ def create_pdf_report_advanced(text_content, df_table, figures, manset_oran, met
             force_page = True if pdf.get_y() > 180 else False
             pdf.add_plot_image(img, title=hist_title, force_new_page=force_page)
         except: pass
-
-    # İmza
     pdf.ln(15)
     if pdf.get_y() > 240: pdf.add_page() 
     pdf.set_font(pdf.font_family, 'B', 12)
     pdf.set_text_color(*pdf.c_koyu)
     pdf.cell(0, 6, pdf.fix_text("Saygilarimizla,"), 0, 1, 'R')
     pdf.cell(0, 6, pdf.fix_text("VALIDASYON MUDURLUGU"), 0, 1, 'R')
-
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         pdf.output(tmp.name)
         tmp.close()
         with open(tmp.name, "rb") as f: pdf_bytes = f.read()
         try: os.unlink(tmp.name)
         except: pass
-            
     return pdf_bytes
 
 # --- 4. GITHUB İŞLEMLERİ ---
 def get_github_repo():
     try:
         return Github(st.secrets["github"]["token"]).get_repo(st.secrets["github"]["repo_name"])
-    except:
-        return None
+    except: return None
 
 def github_json_oku(dosya_adi):
     repo = get_github_repo()
@@ -438,8 +342,7 @@ def github_json_oku(dosya_adi):
     try:
         c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
         return json.loads(c.decoded_content.decode("utf-8"))
-    except:
-        return {}
+    except: return {}
 
 def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
     repo = get_github_repo()
@@ -452,8 +355,7 @@ def github_json_yaz(dosya_adi, data, mesaj="Update JSON"):
         except:
             repo.create_file(dosya_adi, mesaj, content, branch=st.secrets["github"]["branch"])
         return True
-    except:
-        return False
+    except: return False
 
 @st.cache_data(ttl=60, show_spinner=False)
 def github_excel_oku(dosya_adi, sayfa_adi=None):
@@ -461,13 +363,10 @@ def github_excel_oku(dosya_adi, sayfa_adi=None):
     if not repo: return pd.DataFrame()
     try:
         c = repo.get_contents(dosya_adi, ref=st.secrets["github"]["branch"])
-        if sayfa_adi:
-            df = pd.read_excel(BytesIO(c.decoded_content), sheet_name=sayfa_adi, dtype=str)
-        else:
-            df = pd.read_excel(BytesIO(c.decoded_content), dtype=str)
+        if sayfa_adi: df = pd.read_excel(BytesIO(c.decoded_content), sheet_name=sayfa_adi, dtype=str)
+        else: df = pd.read_excel(BytesIO(c.decoded_content), dtype=str)
         return df
-    except:
-        return pd.DataFrame()
+    except: return pd.DataFrame()
 
 def github_excel_guncelle(df_yeni, dosya_adi):
     repo = get_github_repo()
@@ -479,32 +378,23 @@ def github_excel_guncelle(df_yeni, dosya_adi):
             yeni_tarih = str(df_yeni['Tarih'].iloc[0])
             old = old[~((old['Tarih'].astype(str) == yeni_tarih) & (old['Kod'].isin(df_yeni['Kod'])))]
             final = pd.concat([old, df_yeni], ignore_index=True)
-        except:
-            c = None;
-            final = df_yeni
+        except: c = None; final = df_yeni
         out = BytesIO()
-        with pd.ExcelWriter(out, engine='openpyxl') as w:
-            final.to_excel(w, index=False, sheet_name='Fiyat_Log')
+        with pd.ExcelWriter(out, engine='openpyxl') as w: final.to_excel(w, index=False, sheet_name='Fiyat_Log')
         msg = f"Data Update"
-        if c:
-            repo.update_file(c.path, msg, out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
-        else:
-            repo.create_file(dosya_adi, msg, out.getvalue(), branch=st.secrets["github"]["branch"])
+        if c: repo.update_file(c.path, msg, out.getvalue(), c.sha, branch=st.secrets["github"]["branch"])
+        else: repo.create_file(dosya_adi, msg, out.getvalue(), branch=st.secrets["github"]["branch"])
         return "OK"
-    except Exception as e:
-        return str(e)
-
+    except Exception as e: return str(e)
 
 # --- 5. RESMİ ENFLASYON & PROPHET ---
 def get_official_inflation():
     api_key = st.secrets.get("evds", {}).get("api_key")
     if not api_key: return None, "API Key Yok"
-
     start_date = (datetime.now() - timedelta(days=365)).strftime("%d-%m-%Y")
     end_date = datetime.now().strftime("%d-%m-%Y")
     url = f"https://evds2.tcmb.gov.tr/service/evds/series=TP.FG.J0&startDate={start_date}&endDate={end_date}&type=json"
     headers = {'User-Agent': 'Mozilla/5.0', 'key': api_key, 'Accept': 'application/json'}
-
     try:
         url_with_key = f"{url}&key={api_key}"
         res = requests.get(url_with_key, headers=headers, timeout=10, verify=False)
@@ -517,12 +407,9 @@ def get_official_inflation():
                 df_evds['Tarih'] = pd.to_datetime(df_evds['Tarih'] + "-01", format="%Y-%m-%d")
                 df_evds['Resmi_TUFE'] = pd.to_numeric(df_evds['Resmi_TUFE'], errors='coerce')
                 return df_evds, "OK"
-            else:
-                return None, "Boş Veri"
-        else:
-            return None, f"HTTP {res.status_code}"
-    except Exception as e:
-        return None, str(e)
+            else: return None, "Boş Veri"
+        else: return None, f"HTTP {res.status_code}"
+    except Exception as e: return None, str(e)
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def predict_inflation_prophet(df_trend):
@@ -537,16 +424,13 @@ def predict_inflation_prophet(df_trend):
         st.error(f"Prophet Hatası: {str(e)}")
         return pd.DataFrame()
 
-
 # --- 6. SCRAPER ---
 def temizle_fiyat(t):
     if not t: return None
     t = str(t).replace('TL', '').replace('₺', '').strip()
     t = t.replace('.', '').replace(',', '.') if ',' in t and '.' in t else t.replace(',', '.')
-    try:
-        return float(re.sub(r'[^\d.]', '', t))
-    except:
-        return None
+    try: return float(re.sub(r'[^\d.]', '', t))
+    except: return None
 
 def kod_standartlastir(k): return str(k).replace('.0', '').strip().zfill(7)
 
@@ -602,7 +486,6 @@ def html_isleyici(log_callback):
         url_map = {str(row[url_col]).strip(): row for _, row in df_conf.iterrows() if pd.notna(row[url_col])}
         veriler = []; islenen_kodlar = set()
         bugun = datetime.now().strftime("%Y-%m-%d"); simdi = datetime.now().strftime("%H:%M")
-
         log_callback("✍️ Manuel fiyatlar kontrol ediliyor...")
         manuel_col = next((c for c in df_conf.columns if 'manuel' in c.lower()), None)
         ms = 0
@@ -616,7 +499,6 @@ def html_isleyici(log_callback):
                             islenen_kodlar.add(row['Kod']); ms += 1
                     except: pass
         if ms > 0: log_callback(f"✅ {ms} manuel fiyat alındı.")
-
         log_callback("📦 ZIP dosyaları taranıyor...")
         contents = repo.get_contents("", ref=st.secrets["github"]["branch"])
         zip_files = [c for c in contents if c.name.endswith(".zip") and c.name.startswith("Bolum")]
@@ -642,47 +524,29 @@ def html_isleyici(log_callback):
                                 if fiyat > 0:
                                     veriler.append({"Tarih": bugun, "Zaman": simdi, "Kod": target['Kod'], "Madde_Adi": target[ad_col], "Fiyat": fiyat, "Kaynak": kaynak, "URL": target[url_col]})
                                     islenen_kodlar.add(target['Kod']); hs += 1
-            except Exception as e:
-                log_callback(f"⚠️ Hata ({zip_file.name}): {str(e)}")
-
+            except Exception as e: log_callback(f"⚠️ Hata ({zip_file.name}): {str(e)}")
         if veriler:
             log_callback(f"💾 {len(veriler)} veri kaydediliyor...")
             return github_excel_guncelle(pd.DataFrame(veriler), FIYAT_DOSYASI)
-        else:
-            return "Veri bulunamadı."
-    except Exception as e:
-        return f"Hata: {str(e)}"
+        else: return "Veri bulunamadı."
+    except Exception as e: return f"Hata: {str(e)}"
 
 # --- 7. YENİ STATİK ANALİZ MOTORU ---
 def generate_detailed_static_report(df_analiz, tarih, enf_genel, enf_gida, gun_farki, tahmin, ad_col, agirlik_col):
-    """
-    Bu fonksiyon yapay zeka kullanmadan, dataframe üzerindeki verileri analiz ederek
-    çok detaylı, kurumsal ve tamamen sayısal verilere dayalı bir rapor metni üretir.
-    """
-    
-    # 1. En çok artan ve düşenler
     inc = df_analiz.sort_values('Fark', ascending=False).head(3)
     dec = df_analiz.sort_values('Fark', ascending=True).head(3)
-    
     en_cok_artan_text = ", ".join([f"{row[ad_col]} (%{row['Fark']*100:.2f})" for _, row in inc.iterrows()])
     en_cok_dusen_text = ", ".join([f"{row[ad_col]} (%{row['Fark']*100:.2f})" for _, row in dec.iterrows()])
-    
-    # 2. Sektörel Analiz (Grup Bazlı)
     if 'Grup' in df_analiz.columns:
         grup_analiz = df_analiz.groupby('Grup').apply(lambda x: (x['Fark'] * x[agirlik_col]).sum() / x[agirlik_col].sum() * 100).sort_values(ascending=False)
         lider_sektor = grup_analiz.index[0]
         lider_oran = grup_analiz.iloc[0]
         sektor_text = f"Sektörel bazda incelendiğinde, en yüksek fiyat baskısının **%{lider_oran:.2f}** artış ile **{lider_sektor}** grubunda hissedildiği görülmüştür."
-    else:
-        sektor_text = "Veri setinde grup bilgisi bulunmadığından sektörel ayrışma yapılamamıştır."
-
-    # 3. Genel Sepet Dağılımı
+    else: sektor_text = "Veri setinde grup bilgisi bulunmadığından sektörel ayrışma yapılamamıştır."
     toplam_urun = len(df_analiz)
     artan_sayisi = len(df_analiz[df_analiz['Fark'] > 0])
     sabit_sayisi = len(df_analiz[df_analiz['Fark'] == 0])
     dusen_sayisi = len(df_analiz[df_analiz['Fark'] < 0])
-    
-    # 4. Rapor Metni Oluşturma
     text = f"""
 **YÖNETİCİ ÖZETİ VE PİYASA GÖRÜNÜMÜ**
 
@@ -705,11 +569,8 @@ Hesaplanan veriler, fiyat istikrarında henüz tam bir dengelenme (konsolidasyon
     return text.strip()
 
 # --- 8. DASHBOARD MODU ---
-# --- 8. DASHBOARD MODU ---
-# --- 8. DASHBOARD MODU ---
 def dashboard_modu():
     bugun = datetime.now().strftime("%Y-%m-%d")
-    colors = {"bg": "#0E1117", "sidebar": "#262730", "text": "#FAFAFA", "input_bg": "#1A1C24", "input_border": "#4A4A4A", "card_bg": "#1A1C24", "border_color": "#414141"}
 
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
@@ -718,39 +579,23 @@ def dashboard_modu():
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
         tv_theme = "dark"
-        
-        # GÜNCELLENMİŞ SEMBOL LİSTESİ (FX_IDC Eklendi)
         symbols = [
-            {"s": "FX_IDC:USDTRY", "d": "Dolar / TL"},    # FX yerine FX_IDC
-            {"s": "FX_IDC:EURTRY", "d": "Euro / TL"},     # FX yerine FX_IDC
-            {"s": "FX_IDC:XAUTRYG", "d": "Gram Altın"},   # FX_IDC Sentetik Gram Altın
-            {"s": "TVC:UKOIL", "d": "Brent Petrol"},      # TVC Genelde iyidir
-            {"s": "BINANCE:BTCUSDT", "d": "Bitcoin ($)"}  # Kripto zaten sorunsuz
+            {"s": "FX_IDC:USDTRY", "d": "Dolar / TL"}, 
+            {"s": "FX_IDC:EURTRY", "d": "Euro / TL"}, 
+            {"s": "FX_IDC:XAUTRYG", "d": "Gram Altın"}, 
+            {"s": "TVC:UKOIL", "d": "Brent Petrol"}, 
+            {"s": "BINANCE:BTCUSDT", "d": "Bitcoin ($)"} 
         ]
-        
         widgets_html = ""
         for sym in symbols:
             widgets_html += f"""
             <div class="tradingview-widget-container" style="margin-bottom: 10px;">
               <div class="tradingview-widget-container__widget"></div>
               <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
-              {{
-                  "symbol": "{sym['s']}",
-                  "width": "100%",
-                  "height": 110,
-                  "locale": "tr",
-                  "dateRange": "1D",  
-                  "colorTheme": "{tv_theme}",
-                  "isTransparent": true,
-                  "autosize": true,
-                  "largeChartUrl": "",
-                  "chartOnly": false,
-                  "noTimeScale": true
-              }}
+              {{ "symbol": "{sym['s']}", "width": "100%", "height": 110, "locale": "tr", "dateRange": "1D", "colorTheme": "{tv_theme}", "isTransparent": true, "autosize": true, "noTimeScale": true }}
               </script>
             </div>
             """
-        # dateRange: "1D" yaptık ki günlük canlı hareketi daha net göstersin (İstersen 12M yapabilirsin)
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=len(symbols)*120)
         st.markdown("---")
         st.markdown("### 🇹🇷 BIST TÜM PİYASA")
@@ -764,10 +609,6 @@ def dashboard_modu():
         """
         components.html(all_stocks_html, height=600)
 
-    # CSS Header
-    # ... dashboard_modu içinde ...
-
-    # CSS Header (Yeni Versiyon)
     # ---------------------------------------------------------
     # 1. HEADER VE CANLI SAAT (Fixlendi)
     # ---------------------------------------------------------
@@ -826,6 +667,26 @@ def dashboard_modu():
             font-family: 'Outfit', monospace; font-size: 28px; font-weight: 700; color: #fff;
             text-shadow: 0 0 20px rgba(255,255,255,0.3); line-height: 1;
         }
+        
+        /* KPI BOX STYLES */
+        .metric-box {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .metric-box:hover { transform: translateY(-5px); background: rgba(30, 41, 59, 0.7); border-color: rgba(255,255,255,0.1); }
+        .metric-box::after {
+            content: ''; position: absolute; top:0; left:0; width: 100%; height: 4px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+        }
+        .m-val { font-size: 32px; font-weight: 800; color: #fff; font-family: 'Outfit', sans-serif; margin: 10px 0; }
+        .m-label { font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; }
+        .m-sub { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+
     </style>
     
     <div class="header-wrapper">
@@ -854,37 +715,10 @@ def dashboard_modu():
     </script>
     """, unsafe_allow_html=True)
 
-    header_html = f"""
-    <div class="header-wrapper">
-        <div class="header-content">
-            <div class="app-title">Enflasyon Monitörü <span class="live-badge"><div class="live-dot"></div>CANLI SİSTEM</span></div>
-            <div class="app-subtitle">Yapay Zeka Destekli Piyasa Analiz Paneli</div>
-        </div>
-        <div class="clock-container">
-            <div class="location-tag">İSTANBUL / HQ</div>
-            <div id="live_clock_js">--:--:--</div>
-        </div>
-    </div>
-    <script>
-    function startClock() {{
-        var clockElement = document.getElementById('live_clock_js');
-        function update() {{
-            var now = new Date();
-            var options = {{ hour: '2-digit', minute: '2-digit', second: '2-digit' }};
-            if (clockElement) {{ clockElement.innerHTML = now.toLocaleTimeString('tr-TR', options); }}
-        }}
-        setInterval(update, 1000); update(); 
-    }}
-    startClock();
-    </script>
-    """
-    st.markdown(header_html, unsafe_allow_html=True)
-
     if 'toast_shown' not in st.session_state:
         st.toast('Sistem Başarıyla Yüklendi! 🚀', icon='✅')
         st.session_state['toast_shown'] = True
 
-    st.markdown('<div class="update-btn-container">', unsafe_allow_html=True)
     if st.button("🚀 SİSTEMİ GÜNCELLE VE ANALİZ ET", type="primary", use_container_width=True):
         with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
             st.write("📡 GitHub bağlantısı kuruluyor...")
@@ -905,7 +739,6 @@ def dashboard_modu():
             st.warning("⚠️ Yeni fiyat verisi bulunamadı.")
         else:
             st.error(res)
-    st.markdown('</div><br>', unsafe_allow_html=True)
 
     if not df_f.empty and not df_s.empty:
         try:
@@ -935,19 +768,13 @@ def dashboard_modu():
                 gunler = [c for c in pivot.columns if c != 'Kod']
                 if len(gunler) < 1: st.warning("Yeterli tarih verisi yok."); return
                 
-                # --- TARİH VE BAZ SEÇİMİ GÜNCELLEMESİ (ARALIK SONU VE OCAK HEDEFİ) ---
                 gunler = sorted(gunler) 
                 son = gunler[-1]
                 dt_son = datetime.strptime(son, '%Y-%m-%d')
-                
-                # 1. BAZ TARİH AYARI
                 aralik_gunleri = [g for g in gunler if datetime.strptime(g, '%Y-%m-%d').month == 12]
-                if aralik_gunleri:
-                    baz = aralik_gunleri[-1]
-                else:
-                    baz = gunler[0]
+                if aralik_gunleri: baz = aralik_gunleri[-1]
+                else: baz = gunler[0]
 
-                # --------------------------------------------------------                
                 endeks_genel = (df_analiz.dropna(subset=[son, baz])[agirlik_col] * (df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[agirlik_col].sum() * 100
                 enf_genel = (endeks_genel / 100 - 1) * 100
                 df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
@@ -958,36 +785,21 @@ def dashboard_modu():
                 days_left = calendar.monthrange(dt_son.year, dt_son.month)[1] - dt_son.day
                 gun_farki = (dt_son - dt_baz).days
 
-                # 1. VERİLERİ HAZIRLA
                 trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[agirlik_col].sum() * 100} for g in gunler]
                 df_trend = pd.DataFrame(trend_data); df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
 
-                # 2. PROPHET TAHMİN MOTORU (KPI ÖNCESİ ÇALIŞMALI)
                 with st.spinner("İstatistiksel Tahmin Motoru Çalışıyor..."):
                     df_forecast = predict_inflation_prophet(df_trend)
 
-                # 3. GRAFİK ZAMAN VE KPI AYARI (OCAK SONUNA KADAR)
-                # Ocağın son gününü hedefle (Örn: 2025-01-31)
                 target_jan_end = pd.Timestamp(dt_son.year, 1, 31)
-
-                # --- YENİ KPI HESAPLAMA (PROPHET BAZLI) ---
                 month_end_forecast = 0.0
                 if not df_forecast.empty:
-                    # Forecast verisi içinde hedef tarih var mı bak
-                    # (Prophet endeksi 100 bazlı tahmin eder, oranı bulmak için 100 çıkarıyoruz)
                     forecast_row = df_forecast[df_forecast['ds'] == target_jan_end]
-                    if not forecast_row.empty:
-                        month_end_forecast = forecast_row.iloc[0]['yhat'] - 100
-                    else:
-                        # Tam tarih yoksa en son prophet tahminini al
-                        month_end_forecast = df_forecast.iloc[-1]['yhat'] - 100
-                else:
-                    # Prophet çalışmazsa lineer fallback
-                    month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
+                    if not forecast_row.empty: month_end_forecast = forecast_row.iloc[0]['yhat'] - 100
+                    else: month_end_forecast = df_forecast.iloc[-1]['yhat'] - 100
+                else: month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
 
-                # Ticker
-                if len(gunler) >= 2:
-                    df_analiz['Gunluk_Degisim'] = (df_analiz[gunler[-1]] / df_analiz[gunler[-2]]) - 1
+                if len(gunler) >= 2: df_analiz['Gunluk_Degisim'] = (df_analiz[gunler[-1]] / df_analiz[gunler[-2]]) - 1
                 else: df_analiz['Gunluk_Degisim'] = 0
                 inc = df_analiz.sort_values('Gunluk_Degisim', ascending=False).head(5)
                 dec = df_analiz.sort_values('Gunluk_Degisim', ascending=True).head(5)
@@ -997,65 +809,43 @@ def dashboard_modu():
                 for _, r in dec.iterrows():
                     if r['Gunluk_Degisim'] < 0: items.append(f"<span style='color:#4ade80'>▼ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
                 if not items: items.append("Piyasada son 24 saatte önemli bir fiyat değişimi olmadı.")
+                
                 # ---------------------------------------------------------
                 # 2. TICKER (Kayan Yazı - Fixlendi)
-                # items listesi oluşturulduktan hemen sonra burayı yapıştır:
                 # ---------------------------------------------------------
                 ticker_html_content = " &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items)
-                
                 st.markdown(f"""
                 <style>
                     .ticker-wrap {{
-                        width: 100%;
-                        overflow: hidden;
-                        background: rgba(255, 255, 255, 0.03);
-                        border: 1px solid rgba(255, 255, 255, 0.05);
-                        border-radius: 12px;
-                        padding: 12px 0;
-                        margin-bottom: 25px;
-                        white-space: nowrap;
-                        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-                        position: relative;
+                        width: 100%; overflow: hidden; background: rgba(255, 255, 255, 0.03);
+                        border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px;
+                        padding: 12px 0; margin-bottom: 25px; white-space: nowrap;
+                        box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative;
                     }}
-                    
                     .ticker-move {{
-                        display: inline-block;
-                        padding-left: 100%;
-                        animation: marquee 60s linear infinite;
-                        color: #e2e8f0;
-                        font-family: 'Outfit', monospace;
-                        font-size: 14px;
+                        display: inline-block; padding-left: 100%;
+                        animation: marquee 60s linear infinite; color: #e2e8f0;
+                        font-family: 'Outfit', monospace; font-size: 14px;
                     }}
-                    
                     @keyframes marquee {{
                         0% {{ transform: translate(0, 0); }}
                         100% {{ transform: translate(-100%, 0); }}
                     }}
                 </style>
-                
-                <div class="ticker-wrap">
-                    <div class="ticker-move">
-                        {ticker_html_content}
-                    </div>
-                </div>
+                <div class="ticker-wrap"><div class="ticker-move">{ticker_html_content}</div></div>
                 """, unsafe_allow_html=True)
 
-                # KPI
                 df_resmi, msg = get_official_inflation()
-                resmi_aylik_enf = 0.0; resmi_tarih_str = "-"; resmi_alt_bilgi = "Veri Bekleniyor"
+                resmi_aylik_enf = 0.0; resmi_tarih_str = "-"; 
                 if df_resmi is not None and not df_resmi.empty and len(df_resmi) > 1:
                     try:
                         df_resmi = df_resmi.sort_values('Tarih'); son_veri = df_resmi.iloc[-1]; onceki_veri = df_resmi.iloc[-2]
                         resmi_aylik_enf = ((son_veri['Resmi_TUFE'] / onceki_veri['Resmi_TUFE']) - 1) * 100
                         aylar = {1: 'Ocak', 2: 'Şubat', 3: 'Mart', 4: 'Nisan', 5: 'Mayıs', 6: 'Haziran', 7: 'Temmuz', 8: 'Ağustos', 9: 'Eylül', 10: 'Ekim', 11: 'Kasım', 12: 'Aralık'}
                         resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
-                        resmi_alt_bilgi = "TCMB/TÜİK Kaynaklı"
-                    except: resmi_alt_bilgi = "Hesaplama Hatası"
-                else: resmi_alt_bilgi = f"Bağlantı Sorunu: {msg}"
+                    except: pass
 
-                # ... dashboard_modu içinde ...
-                
-                # KPI Card Fonksiyonunu Güncelle
+                # KPI Card Fonksiyonu (Yeni Tasarıma Uygun)
                 def kpi_card(title, val, sub, sub_color, accent_color, is_long_text=False):
                      st.markdown(f"""
                         <div class="metric-box" style="--accent-color: {accent_color}">
@@ -1075,80 +865,40 @@ def dashboard_modu():
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#f59e0b", "#f59e0b")
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # --- GRAFİK STİL FONKSİYONU ---
-                # ... dashboard_modu içinde ...
-                
+                # GRAFİK STİLİ (Transparent)
                 def style_chart(fig, is_pdf=False):
                     if is_pdf:
-                        # PDF ayarları aynı kalsın (Beyaz zemin)
-                        fig.update_layout(
-                            template="plotly_white", 
-                            font=dict(family="Arial", size=14, color="black"),
-                            plot_bgcolor="white",
-                            paper_bgcolor="white",
-                            margin=dict(l=50, r=50, t=80, b=50)
-                        )
+                        fig.update_layout(template="plotly_white", font=dict(family="Arial", size=14, color="black"), plot_bgcolor="white", paper_bgcolor="white", title_font=dict(size=20, color="#002855", family="Arial Black"), margin=dict(l=50, r=50, t=80, b=50))
                     else:
-                        # EKRAN İÇİN: Şeffaf Zemin ve Neon Çizgiler
                         fig.update_layout(
                             template="plotly_dark",
-                            paper_bgcolor="rgba(0,0,0,0)", # Tam şeffaf
-                            plot_bgcolor="rgba(0,0,0,0)",  # Tam şeffaf
+                            paper_bgcolor="rgba(0,0,0,0)", 
+                            plot_bgcolor="rgba(0,0,0,0)",
                             font=dict(family="Outfit, sans-serif", color="#e2e8f0"),
                             title_font=dict(size=18, color="white", family="Outfit, sans-serif"),
                             hovermode="x unified",
                             margin=dict(l=20, r=20, t=60, b=20),
-                            xaxis=dict(showgrid=False, zeroline=False), # Izgaraları kaldır, temiz görünüm
+                            xaxis=dict(showgrid=False, zeroline=False), 
                             yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", zeroline=False)
                         )
                     return fig
 
-                # --- TREND GRAFİĞİ ---
                 fig_trend = go.Figure()
-                fig_trend.add_trace(go.Scatter(
-                    x=df_trend['Tarih'], y=df_trend['TÜFE'], 
-                    mode='lines+markers', name='Enflasyon', 
-                    line=dict(color='#FDB913', width=4),
-                    marker=dict(size=8, line=dict(width=2, color='white'))
-                ))
-
+                fig_trend.add_trace(go.Scatter(x=df_trend['Tarih'], y=df_trend['TÜFE'], mode='lines+markers', name='Enflasyon', line=dict(color='#FDB913', width=4), marker=dict(size=8, line=dict(width=2, color='white'))))
                 if not df_forecast.empty:
-                    # Forecast'i Ocak sonuna kadar (31'i dahil) filtrele
                     future = df_forecast[(df_forecast['ds'] > df_trend['Tarih'].max()) & (df_forecast['ds'] <= target_jan_end)]
-                    
-                    fig_trend.add_trace(go.Scatter(
-                        x=future['ds'], y=future['yhat'],
-                        mode='lines', name='AI Tahmini',
-                        line=dict(color='#3b82f6', width=2, dash='dash')
-                    ))
-                    fig_trend.add_trace(go.Scatter(
-                        x=future['ds'].tolist() + future['ds'].tolist()[::-1],
-                        y=future['yhat_upper'].tolist() + future['yhat_lower'].tolist()[::-1],
-                        fill='toself', fillcolor='rgba(59, 130, 246, 0.1)',
-                        line=dict(color='rgba(0,0,0,0)'), showlegend=False, hoverinfo='skip'
-                    ))
-
-                fig_trend.update_layout(
-                    title="Enflasyon Trendi ve Ay Sonu Tahmini",
-                    yaxis=dict(range=[95, 105]),
-                    xaxis=dict(range=[dt_baz, target_jan_end]), # BAŞLANGIÇ: Aralık Sonu, BİTİŞ: Ocak Sonu
-                    legend=dict(orientation="h", y=1.1)
-                )
+                    fig_trend.add_trace(go.Scatter(x=future['ds'], y=future['yhat'], mode='lines', name='AI Tahmini', line=dict(color='#3b82f6', width=2, dash='dash')))
+                    fig_trend.add_trace(go.Scatter(x=future['ds'].tolist() + future['ds'].tolist()[::-1], y=future['yhat_upper'].tolist() + future['yhat_lower'].tolist()[::-1], fill='toself', fillcolor='rgba(59, 130, 246, 0.1)', line=dict(color='rgba(0,0,0,0)'), showlegend=False, hoverinfo='skip'))
+                fig_trend.update_layout(title="Enflasyon Trendi ve Ay Sonu Tahmini", yaxis=dict(range=[95, 105]), xaxis=dict(range=[dt_baz, target_jan_end]), legend=dict(orientation="h", y=1.1))
                 
-                # --- HİSTOGRAM ---
                 df_analiz['Fark_Yuzde'] = df_analiz['Fark'] * 100
                 fig_hist = go.Figure()
-                fig_hist.add_trace(go.Histogram(
-                    x=df_analiz['Fark_Yuzde'], nbinsx=30, 
-                    marker_color='#3b82f6', opacity=0.8
-                ))
+                fig_hist.add_trace(go.Histogram(x=df_analiz['Fark_Yuzde'], nbinsx=30, marker_color='#3b82f6', opacity=0.8))
                 fig_hist.update_layout(title="Fiyat Değişim Dağılımı", xaxis_title="Değişim (%)")
 
-                # 3. TABLARI OLUŞTUR VE YERLEŞTİR
                 t_analiz, t_istatistik, t_harita, t_liste, t_rapor = st.tabs(["📊 ANALİZ", "📈 İSTATİSTİK", "🗺️ HARİTA", "📋 LİSTE", "📝 RAPOR"])
                 
-                with t_analiz: 
-                    st.plotly_chart(style_chart(go.Figure(fig_trend), is_pdf=False), use_container_width=True)
+                with t_analiz: st.plotly_chart(style_chart(go.Figure(fig_trend), is_pdf=False), use_container_width=True)
                 
                 with t_istatistik:
                     st.plotly_chart(style_chart(go.Figure(fig_hist), is_pdf=False), use_container_width=True)
@@ -1176,106 +926,34 @@ def dashboard_modu():
 
                 with t_rapor:
                     st.markdown("### 📝 Stratejik Yönetim Raporu")
-                    st.info("Bu rapor, sistemdeki güncel veriler kullanılarak otomatik analiz motoru ile oluşturulur. Yapay zeka yorumu içermez, kesin matematiksel veriler ve istatistiksel analiz içerir.")
-                    
+                    st.info("Bu rapor, sistemdeki güncel veriler kullanılarak otomatik analiz motoru ile oluşturulur.")
                     if st.button("🚀 DETAYLI RAPORU HAZIRLA", type="primary"):
                         with st.spinner("Veriler derleniyor, özel analiz grafikleri çiziliyor ve PDF basılıyor..."):
-                            
-                            # A. METNİ OTOMATİK HAZIRLA (STATİK MOTOR)
                             en_cok_artan_row = df_analiz.sort_values('Fark', ascending=False).iloc[0]
-                            rap_text = generate_detailed_static_report(
-                                df_analiz=df_analiz,
-                                tarih=son,
-                                enf_genel=enf_genel,
-                                enf_gida=enf_gida,
-                                gun_farki=gun_farki,
-                                tahmin=month_end_forecast,
-                                ad_col=ad_col,
-                                agirlik_col=agirlik_col
-                            )
-
-                            # B. RAPORA ÖZEL GRAFİKLERİ HAZIRLA (YENİ KISIM)
-                            # --- ÖZEL GRAFİK 1: SEKTÖREL KATKI ANALİZİ ---
+                            rap_text = generate_detailed_static_report(df_analiz=df_analiz, tarih=son, enf_genel=enf_genel, enf_gida=enf_gida, gun_farki=gun_farki, tahmin=month_end_forecast, ad_col=ad_col, agirlik_col=agirlik_col)
                             toplam_agirlik = df_analiz[agirlik_col].sum()
                             df_analiz['Katki_Puan'] = (df_analiz['Fark'] * df_analiz[agirlik_col] / toplam_agirlik) * 100
                             df_sektor_katki = df_analiz.groupby('Grup')['Katki_Puan'].sum().reset_index().sort_values('Katki_Puan', ascending=True)
-                            
-                            fig_katki = go.Figure(go.Bar(
-                                x=df_sektor_katki['Katki_Puan'],
-                                y=df_sektor_katki['Grup'],
-                                orientation='h',
-                                marker=dict(color='#002855', line=dict(color='#FDB913', width=1)),
-                                text=df_sektor_katki['Katki_Puan'].apply(lambda x: f"+{x:.2f} puan" if x>0 else f"{x:.2f} puan"),
-                                textposition='auto'
-                            ))
-                            fig_katki.update_layout(
-                                title="Manşet Enflasyona Sektörel Katkı (Puan)",
-                                xaxis_title="Katkı (Puan)", yaxis_title=None,
-                                margin=dict(l=150)
-                            )
+                            fig_katki = go.Figure(go.Bar(x=df_sektor_katki['Katki_Puan'], y=df_sektor_katki['Grup'], orientation='h', marker=dict(color='#002855', line=dict(color='#FDB913', width=1)), text=df_sektor_katki['Katki_Puan'].apply(lambda x: f"+{x:.2f} puan" if x>0 else f"{x:.2f} puan"), textposition='auto'))
+                            fig_katki.update_layout(title="Manşet Enflasyona Sektörel Katkı (Puan)", xaxis_title="Katkı (Puan)", yaxis_title=None, margin=dict(l=150))
                             style_chart(fig_katki, is_pdf=True)
 
-                            # --- ÖZEL GRAFİK 2: UÇ NOKTALAR (EN ÇOK ARTAN/AZALAN 7 ÜRÜN) ---
                             top_n = 7
                             en_cok_artanlar = df_analiz.sort_values('Fark', ascending=False).head(top_n).copy()
                             en_az_artanlar = df_analiz.sort_values('Fark', ascending=True).head(top_n).copy()
                             df_uclar = pd.concat([en_az_artanlar, en_cok_artanlar]).sort_values('Fark', ascending=True)
                             df_uclar['Renk'] = df_uclar['Fark'].apply(lambda x: '#ef4444' if x > 0 else '#10b981')
-                            
-                            fig_uclar = go.Figure(go.Bar(
-                                x=df_uclar['Fark'] * 100,
-                                y=df_uclar[ad_col],
-                                orientation='h',
-                                marker=dict(color=df_uclar['Renk']),
-                                text=(df_uclar['Fark']*100).apply(lambda x: f"%{x:+.2f}"),
-                                textposition='outside'
-                            ))
-                            fig_uclar.update_layout(
-                                title=f"Uç Noktalar: En Yüksek ve En Düşük {top_n} Değişim",
-                                xaxis_title="Değişim (%)", yaxis_title=None,
-                                xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'),
-                                margin=dict(l=200)
-                            )
+                            fig_uclar = go.Figure(go.Bar(x=df_uclar['Fark'] * 100, y=df_uclar[ad_col], orientation='h', marker=dict(color=df_uclar['Renk']), text=(df_uclar['Fark']*100).apply(lambda x: f"%{x:+.2f}"), textposition='outside'))
+                            fig_uclar.update_layout(title=f"Uç Noktalar: En Yüksek ve En Düşük {top_n} Değişim", xaxis_title="Değişim (%)", yaxis_title=None, xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'), margin=dict(l=200))
                             style_chart(fig_uclar, is_pdf=True)
 
-                            figs = {
-                                "Enflasyonun Sektörel Kaynakları (Katkı Analizi)": fig_katki,
-                                "Fiyat Hareketlerinde Uç Noktalar": fig_uclar
-                            }
-                            
-                            # C. KPI VERİLERİ
+                            figs = {"Enflasyonun Sektörel Kaynakları (Katkı Analizi)": fig_katki, "Fiyat Hareketlerinde Uç Noktalar": fig_uclar}
                             metrics = {'genel': enf_genel, 'gida': enf_gida, 'top_urun': en_cok_artan_row[ad_col]}
-
-                            # D. PDF OLUŞTUR
-                            pdf_data = create_pdf_report_advanced(
-                                text_content=rap_text,
-                                df_table=df_analiz.sort_values('Fark', ascending=False).head(20),
-                                figures=figs,
-                                manset_oran=enf_genel,
-                                metrics_dict=metrics, 
-                                date_str_ignored="-"
-                            )
-                            
+                            pdf_data = create_pdf_report_advanced(text_content=rap_text, df_table=df_analiz.sort_values('Fark', ascending=False).head(20), figures=figs, manset_oran=enf_genel, metrics_dict=metrics, date_str_ignored="-")
                             st.success("✅ Rapor Hazırlandı!")
                             st.download_button("📥 PDF Raporunu İndir", data=pdf_data, file_name=f"Strateji_Raporu_{son}.pdf", mime="application/pdf")
-
-        except Exception as e:
-            st.error(f"Kritik Hata: {e}")
+        except Exception as e: st.error(f"Kritik Hata: {e}")
     st.markdown('<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">VALIDASYON MUDURLUGU © 2025</div>', unsafe_allow_html=True)
 
-# --- 9. ANA GİRİŞ SİSTEMİ ---
-def main():
-    dashboard_modu()
-
 if __name__ == "__main__":
-    main()
-
-
-
-
-
-
-
-
-
-
+    dashboard_modu()
