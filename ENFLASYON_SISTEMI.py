@@ -35,13 +35,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS MOTORU (PREMIUM TASARIM - GÜNCELLENDİ V2) ---
+# --- CSS MOTORU (ZİFİRİ KARANLIK MOD - FORCED DARK) ---
 def apply_theme():
-    # Modern FinTech Renk Paleti
+    # Zorla Koyu Tema Renkleri
     colors = {
-        "text_primary": "#F8FAFC",
-        "text_secondary": "#94A3B8",
-        "accent_blue": "#3B82F6",
+        "text_primary": "#F8FAFC",    # Beyazımsı
+        "text_secondary": "#94A3B8",  # Gri
+        "accent_blue": "#3B82F6",     # Mavi
+        "bg_dark": "#020617",         # Zifiri Lacivert
+        "panel_bg": "rgba(30, 41, 59, 0.5)" # Yarı saydam koyu
     }
     st.session_state.plotly_template = "plotly_dark"
 
@@ -50,12 +52,13 @@ def apply_theme():
         /* FONT IMPORT - Outfit */
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
 
-        /* 1. CANLI ARKA PLAN (Aurora Effect) */
-        body {{
-            background: linear-gradient(-45deg, #020617, #0f172a, #1e1b4b, #020617);
+        /* 1. ZORUNLU KOYU ARKA PLAN (Light Mode Override) */
+        [data-testid="stAppViewContainer"], .stApp {{
+            background: linear-gradient(-45deg, #000000, #0f172a, #020617);
             background-size: 400% 400%;
             animation: gradientBG 15s ease infinite;
             font-family: 'Outfit', sans-serif !important;
+            color: {colors['text_primary']} !important;
         }}
         
         @keyframes gradientBG {{
@@ -63,95 +66,102 @@ def apply_theme():
             50% {{ background-position: 100% 50%; }}
             100% {{ background-position: 0% 50%; }}
         }}
-
-        .stApp {{
-            background: transparent !important;
-        }}
         
-        /* 2. GİZLEME */
+        /* Beyaz olabilecek her şeyi zorla karart */
+        .main, .block-container {{
+            background-color: transparent !important;
+        }}
+
+        /* 2. HEADER VE TOOLBAR GİZLEME */
         header[data-testid="stHeader"], [data-testid="stToolbar"] {{ display: none !important; }}
         .block-container {{ padding-top: 1rem !important; padding-bottom: 5rem !important; }}
 
-        /* 3. SIDEBAR - Gelişmiş Glassmorphism */
+        /* 3. SIDEBAR - KOYU CAM */
         section[data-testid="stSidebar"] {{
-            background-color: rgba(15, 23, 42, 0.6) !important;
-            backdrop-filter: blur(20px);
+            background-color: #020617 !important; /* Tam koyu */
             border-right: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 10px 0 30px rgba(0,0,0,0.3);
+            box-shadow: 5px 0 20px rgba(0,0,0,0.5);
         }}
         
-        /* 4. METİNLER */
-        h1, h2, h3, h4, h5, h6, p, label, .stMarkdown {{ color: {colors['text_primary']} !important; }}
+        /* Sidebar içindeki metinleri düzelt */
+        section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 {{
+            color: white !important;
+        }}
         
-        /* 5. GİRİŞ KUTULARI */
-        .stTextInput input, .stNumberInput input {{
-            background-color: rgba(255, 255, 255, 0.03) !important;
+        /* 4. METİNLERİN RENGİNİ ZORLA */
+        h1, h2, h3, h4, h5, h6, p, label, .stMarkdown, span, div {{ 
+            color: {colors['text_primary']} !important; 
+        }}
+        
+        /* 5. INPUT ALANLARI (Koyu Gri) */
+        .stTextInput input, .stNumberInput input, .stSelectbox, div[data-baseweb="select"] > div {{
+            background-color: #1e293b !important;
             color: white !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             border-radius: 8px !important;
-            font-family: 'Outfit', sans-serif !important;
-            transition: all 0.3s ease;
-        }}
-        .stTextInput input:focus, .stNumberInput input:focus {{
-            border-color: {colors['accent_blue']} !important;
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
         }}
         
-        /* 6. TABLO VE DATAFRAME (Neon Header) */
+        /* Dropdown menü içi */
+        ul[data-baseweb="menu"] {{
+            background-color: #0f172a !important;
+        }}
+        
+        /* 6. TABLO VE DATAFRAME */
         [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
-            background-color: rgba(15, 23, 42, 0.3) !important;
-            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            background-color: #0f172a !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
             border-radius: 12px;
-            backdrop-filter: blur(10px);
         }}
         [data-testid="stDataFrame"] th {{
-            background-color: rgba(30, 41, 59, 0.8) !important;
+            background-color: #1e293b !important;
             color: #60A5FA !important;
-            font-weight: 700 !important;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 2px solid rgba(59, 130, 246, 0.5) !important;
-            font-family: 'Outfit', sans-serif !important;
+            border-bottom: 2px solid #3B82F6 !important;
+        }}
+        [data-testid="stDataFrame"] td {{
+            background-color: #0f172a !important;
+            color: white !important;
         }}
 
-        /* 7. BUTONLAR (Glow Effect) */
+        /* 7. BUTONLAR */
         div.stButton > button, [data-testid="stDownloadButton"] button {{
             background: linear-gradient(90deg, #1e293b 0%, #0f172a 100%) !important;
             color: white !important;
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            border-radius: 10px !important;
-            transition: all 0.3s ease !important;
-            font-family: 'Outfit', sans-serif !important;
             font-weight: 600 !important;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }}
         div.stButton > button:hover {{
             background: linear-gradient(90deg, {colors['accent_blue']} 0%, #2563EB 100%) !important;
-            transform: translateY(-2px);
-            box-shadow: 0 0 20px rgba(37, 99, 235, 0.6);
             border-color: transparent !important;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
         }}
         
-        /* 8. TAB YAPISI (Modern Pill Design) */
+        /* 8. TAB YAPISI */
         .stTabs [data-baseweb="tab-list"] {{
-            gap: 10px; background-color: rgba(0,0,0,0.2); padding: 10px; border-radius: 50px;
+            background-color: rgba(0,0,0,0.4); border-radius: 50px;
             border: 1px solid rgba(255,255,255,0.05);
-            display: inline-flex;
+            padding: 5px;
         }}
         .stTabs [data-baseweb="tab"] {{
-            height: 40px; border-radius: 30px; background-color: transparent; 
-            color: {colors['text_secondary']}; border: none; padding: 0 20px;
-            font-family: 'Outfit', sans-serif !important;
+            background-color: transparent; color: #94a3b8 !important; border: none;
         }}
         .stTabs [data-baseweb="tab"][aria-selected="true"] {{
-            background-color: {colors['accent_blue']} !important; color: white !important;
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+            background-color: {colors['accent_blue']} !important; 
+            color: white !important;
         }}
         
+        /* Expander (Açılır kutular) */
+        .streamlit-expanderHeader {{
+            background-color: #1e293b !important;
+            color: white !important;
+        }}
+        .streamlit-expanderContent {{
+            background-color: #0f172a !important;
+            color: white !important;
+        }}
+
         /* Scrollbar */
         ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
-        ::-webkit-scrollbar-track {{ background: #0f172a; }}
+        ::-webkit-scrollbar-track {{ background: #020617; }}
         ::-webkit-scrollbar-thumb {{ background: #334155; border-radius: 4px; }}
         ::-webkit-scrollbar-thumb:hover {{ background: #3b82f6; }}
     </style>
@@ -648,7 +658,7 @@ def dashboard_modu():
         components.html(all_stocks_html, height=600)
 
     # ---------------------------------------------------------
-    # CSS: KPI BOXES (YENİLENEN SHIMMER EFEKTİ)
+    # CSS: KPI BOXES (YENİLENEN SHIMMER EFEKTİ - KOYU ZEMİN)
     # ---------------------------------------------------------
     st.markdown("""
     <style>
@@ -660,6 +670,7 @@ def dashboard_modu():
             position: relative;
             overflow: hidden;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         
         /* Parıltı Efekti (Shimmer) */
@@ -670,7 +681,7 @@ def dashboard_modu():
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
             transition: 0.5s;
         }
         
@@ -682,7 +693,7 @@ def dashboard_modu():
             transform: translateY(-8px); 
             background: rgba(30, 41, 59, 0.8); 
             border-color: var(--accent-color);
-            box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
         }
         
         .metric-box::after {
@@ -693,15 +704,14 @@ def dashboard_modu():
         .m-val { 
             font-size: 36px; 
             font-weight: 800; 
-            background: linear-gradient(to right, #fff, #94a3b8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #ffffff; /* Kesin beyaz */
             font-family: 'Outfit', sans-serif; 
             margin: 5px 0; 
             letter-spacing: -1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
         .m-label { font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; font-family: 'Outfit', sans-serif; }
-        .m-sub { font-size: 12px; display: flex; align-items: center; gap: 5px; font-family: 'Outfit', sans-serif; }
+        .m-sub { font-size: 12px; display: flex; align-items: center; gap: 5px; font-family: 'Outfit', sans-serif; color: #cbd5e1 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -722,7 +732,7 @@ def dashboard_modu():
             
             .header-wrapper {
                 position: relative;
-                background: rgba(15, 23, 42, 0.6);
+                background: rgba(15, 23, 42, 0.8); /* Daha koyu arka plan */
                 backdrop-filter: blur(20px);
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 20px;
@@ -730,13 +740,13 @@ def dashboard_modu():
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             }
             
             /* Animasyonlu Arka Plan */
             .header-wrapper::before {
                 content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-                background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%);
+                background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, rgba(0,0,0,0) 70%);
                 animation: rotate 20s linear infinite; z-index: -1;
             }
             @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -897,10 +907,10 @@ def dashboard_modu():
                 st.markdown(f"""
                 <style>
                     .ticker-wrap {{
-                        width: 100%; overflow: hidden; background: rgba(255, 255, 255, 0.03);
+                        width: 100%; overflow: hidden; background: rgba(0, 0, 0, 0.3); /* Koyu */
                         border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px;
                         padding: 12px 0; margin-bottom: 25px; white-space: nowrap;
-                        box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative;
+                        box-shadow: 0 4px 15px rgba(0,0,0,0.5); position: relative;
                     }}
                     .ticker-move {{
                         display: inline-block; padding-left: 100%;
@@ -925,7 +935,7 @@ def dashboard_modu():
                         resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
                     except: pass
 
-                # KPI Card Fonksiyonu
+                # KPI Card Fonksiyonu (Tanımlandı - Yukarıda)
                 def kpi_card(title, val, sub, sub_color, accent_color, is_long_text=False):
                       st.markdown(f"""
                         <div class="metric-box" style="--accent-color: {accent_color}">
@@ -945,7 +955,7 @@ def dashboard_modu():
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#f59e0b", "#f59e0b")
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # GRAFİK STİLİ (YENİLENMİŞ - NEON)
+                # GRAFİK STİLİ (YENİLENMİŞ - NEON & DARK BACKGROUND)
                 def style_chart(fig, is_pdf=False):
                     if is_pdf:
                         fig.update_layout(template="plotly_white", font=dict(family="Arial", size=14, color="black"), plot_bgcolor="white", paper_bgcolor="white", title_font=dict(size=20, color="#002855", family="Arial Black"), margin=dict(l=50, r=50, t=80, b=50))
