@@ -650,6 +650,7 @@ Hesaplanan veriler, fiyat istikrarında henüz tam bir dengelenme (konsolidasyon
     return text.strip()
 
 # --- 8. DASHBOARD MODU ---
+# --- 8. DASHBOARD MODU ---
 def dashboard_modu():
     bugun = datetime.now().strftime("%Y-%m-%d")
     colors = {"bg": "#0E1117", "sidebar": "#262730", "text": "#FAFAFA", "input_bg": "#1A1C24", "input_border": "#4A4A4A", "card_bg": "#1A1C24", "border_color": "#414141"}
@@ -657,7 +658,6 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # SIDEBAR
     # SIDEBAR
     with st.sidebar:
         st.title("💎 CANLI PİYASA")
@@ -819,15 +819,11 @@ def dashboard_modu():
                 son = gunler[-1]
                 dt_son = datetime.strptime(son, '%Y-%m-%d')
                 
-                # 1. BAZ TARİH AYARI: Aralık ayının en son verisini bul
-                # Veri setindeki tarihlerin aylarını kontrol et
+                # 1. BAZ TARİH AYARI
                 aralik_gunleri = [g for g in gunler if datetime.strptime(g, '%Y-%m-%d').month == 12]
-                
                 if aralik_gunleri:
-                    # Aralık verisi varsa, aralığın son gününü baz al (örn: 31.12.2024)
                     baz = aralik_gunleri[-1]
                 else:
-                    # Aralık verisi yoksa (örn: veri ocakta başladıysa), listenin en başını al
                     baz = gunler[0]
 
                 # --------------------------------------------------------                
@@ -839,8 +835,34 @@ def dashboard_modu():
                 
                 dt_baz = datetime.strptime(baz, '%Y-%m-%d')
                 days_left = calendar.monthrange(dt_son.year, dt_son.month)[1] - dt_son.day
-                month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
                 gun_farki = (dt_son - dt_baz).days
+
+                # 1. VERİLERİ HAZIRLA
+                trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[agirlik_col].sum() * 100} for g in gunler]
+                df_trend = pd.DataFrame(trend_data); df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
+
+                # 2. PROPHET TAHMİN MOTORU (KPI ÖNCESİ ÇALIŞMALI)
+                with st.spinner("İstatistiksel Tahmin Motoru Çalışıyor..."):
+                    df_forecast = predict_inflation_prophet(df_trend)
+
+                # 3. GRAFİK ZAMAN VE KPI AYARI (OCAK SONUNA KADAR)
+                # Ocağın son gününü hedefle (Örn: 2025-01-31)
+                target_jan_end = pd.Timestamp(dt_son.year, 1, 31)
+
+                # --- YENİ KPI HESAPLAMA (PROPHET BAZLI) ---
+                month_end_forecast = 0.0
+                if not df_forecast.empty:
+                    # Forecast verisi içinde hedef tarih var mı bak
+                    # (Prophet endeksi 100 bazlı tahmin eder, oranı bulmak için 100 çıkarıyoruz)
+                    forecast_row = df_forecast[df_forecast['ds'] == target_jan_end]
+                    if not forecast_row.empty:
+                        month_end_forecast = forecast_row.iloc[0]['yhat'] - 100
+                    else:
+                        # Tam tarih yoksa en son prophet tahminini al
+                        month_end_forecast = df_forecast.iloc[-1]['yhat'] - 100
+                else:
+                    # Prophet çalışmazsa lineer fallback
+                    month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
 
                 # Ticker
                 if len(gunler) >= 2:
@@ -882,7 +904,7 @@ def dashboard_modu():
                 c1, c2, c3, c4 = st.columns(4)
                 with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#ef4444", "card-blue")
                 with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
-                with c3: kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"🗓️ {days_left} gün kaldı", "#8b5cf6", "card-purple")
+                with c3: kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"Prophet Tahmini ({days_left} gün)", "#8b5cf6", "card-purple")
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str} Dönemi", "#f59e0b", "card-orange")
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -906,18 +928,6 @@ def dashboard_modu():
                             margin=dict(l=20, r=20, t=50, b=20)
                         )
                     return fig
-
-                # 1. VERİLERİ HAZIRLA
-                trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[agirlik_col].sum() * 100} for g in gunler]
-                df_trend = pd.DataFrame(trend_data); df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
-
-                # 2. GRAFİKLERİ GLOBAL OLARAK OLUŞTUR
-                with st.spinner("İstatistiksel Tahmin Motoru Çalışıyor..."):
-                    df_forecast = predict_inflation_prophet(df_trend)
-
-                # 2. GRAFİK ZAMAN AYARI (OCAK SONUNA KADAR)
-                # Son verinin olduğu yılın 31 Ocak tarihini belirle
-                target_jan_end = pd.Timestamp(dt_son.year, 1, 31)
 
                 # --- TREND GRAFİĞİ ---
                 fig_trend = go.Figure()
@@ -947,7 +957,7 @@ def dashboard_modu():
                 fig_trend.update_layout(
                     title="Enflasyon Trendi ve Ay Sonu Tahmini",
                     yaxis=dict(range=[95, 105]),
-                    xaxis=dict(range=[df_trend['Tarih'].min(), target_jan_end]), # X ekseni Ocak sonuna kadar
+                    xaxis=dict(range=[df_trend['Tarih'].min(), target_jan_end]), # X ekseni Ocak sonuna kadar sabitlendi
                     legend=dict(orientation="h", y=1.1)
                 )
                 
@@ -985,10 +995,10 @@ def dashboard_modu():
                     st.plotly_chart(style_chart(fig_tree, is_pdf=False), use_container_width=True)
 
                 with t_liste:
-                     st.data_editor(df_analiz[['Grup', ad_col, 'Fark', baz, son]], column_config={"Fark": st.column_config.ProgressColumn("Değişim Oranı", format="%.2f", min_value=-0.5, max_value=0.5), ad_col: "Ürün Adı", "Grup": "Kategori"}, hide_index=True, use_container_width=True)
-                     output = BytesIO()
-                     with pd.ExcelWriter(output, engine='openpyxl') as writer: df_analiz.to_excel(writer, index=False, sheet_name='Analiz')
-                     st.download_button("📥 Excel Raporunu İndir", data=output.getvalue(), file_name=f"Enflasyon_Raporu_{son}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                      st.data_editor(df_analiz[['Grup', ad_col, 'Fark', baz, son]], column_config={"Fark": st.column_config.ProgressColumn("Değişim Oranı", format="%.2f", min_value=-0.5, max_value=0.5), ad_col: "Ürün Adı", "Grup": "Kategori"}, hide_index=True, use_container_width=True)
+                      output = BytesIO()
+                      with pd.ExcelWriter(output, engine='openpyxl') as writer: df_analiz.to_excel(writer, index=False, sheet_name='Analiz')
+                      st.download_button("📥 Excel Raporunu İndir", data=output.getvalue(), file_name=f"Enflasyon_Raporu_{son}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
                 with t_rapor:
                     st.markdown("### 📝 Stratejik Yönetim Raporu")
@@ -1085,6 +1095,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
