@@ -37,75 +37,130 @@ st.set_page_config(
 
 # --- CSS MOTORU ---
 def apply_theme():
+    # Modern FinTech Renk Paleti (Vakıf Sarı/Lacivert uyumlu ama Neon Esintili)
     colors = {
-        "bg": "#0E1117",
-        "sidebar": "#262730",
-        "text": "#FAFAFA",
-        "input_bg": "#1A1C24",
-        "input_border": "#4A4A4A",
-        "card_bg": "#1A1C24",
-        "border_color": "#414141"
+        "bg_gradient": "linear-gradient(135deg, #0f172a 0%, #020617 100%)", # Derin uzay mavisi
+        "glass_bg": "rgba(30, 41, 59, 0.4)", # Buzlu cam rengi
+        "glass_border": "rgba(255, 255, 255, 0.08)",
+        "text_primary": "#F8FAFC",
+        "text_secondary": "#94A3B8",
+        "accent_blue": "#3B82F6",
+        "accent_gold": "#FDB913", # Kurumsal Sarı
+        "neon_glow": "0 0 10px rgba(59, 130, 246, 0.5)"
     }
     st.session_state.plotly_template = "plotly_dark"
 
     final_css = f"""
     <style>
-        /* STREAMLIT VARSAYILAN HEADER VE TOOLBAR GİZLEME */
-        header[data-testid="stHeader"] {{
-            display: none !important;
-            visibility: hidden !important;
-        }}
-        [data-testid="stToolbar"] {{
-            display: none !important;
-            visibility: hidden !important;
-        }}
-        .stApp > header {{
-            display: none !important;
-        }}
-        /* Üst boşluğu kapatıp içeriği yukarı çekme */
-        .block-container {{
-            padding-top: 1rem !important;
-            padding-bottom: 5rem !important;
+        /* 1. GENEL SAYFA YAPISI VE ARKA PLAN */
+        .stApp {{
+            background: {colors['bg_gradient']};
+            background-attachment: fixed;
         }}
         
-        @media (min-width: 768px) {{
-            section[data-testid="stSidebar"] {{
-                width: 400px !important;
-                min-width: 400px !important;
-                max-width: 400px !important;
-                display: block !important;
-            }}
-            [data-testid="collapsedControl"] {{ display: none !important; }}
+        /* 2. GİZLEME (HEADER & TOOLBAR) */
+        header[data-testid="stHeader"], [data-testid="stToolbar"] {{ display: none !important; }}
+        .block-container {{ padding-top: 1rem !important; padding-bottom: 5rem !important; }}
+
+        /* 3. SIDEBAR (Sol Menü) - Glassmorphism */
+        section[data-testid="stSidebar"] {{
+            background-color: rgba(15, 23, 42, 0.85) !important;
+            backdrop-filter: blur(12px);
+            border-right: 1px solid {colors['glass_border']};
         }}
-        .stApp {{ background-color: {colors['bg']}; color: {colors['text']}; }}
-        section[data-testid="stSidebar"] {{ background-color: {colors['sidebar']}; border-right: 1px solid {colors['border_color']}; }}
-        h1, h2, h3, h4, h5, h6, p, li, label, .stMarkdown, .stRadio label {{ color: {colors['text']} !important; }}
+        
+        /* 4. METİNLER VE FONTLAR */
+        h1, h2, h3, h4, h5, h6, p, label, .stMarkdown {{ color: {colors['text_primary']} !important; font-family: 'Inter', sans-serif; }}
+        
+        /* 5. GİRİŞ KUTULARI (INPUTS) */
         .stTextInput input, .stNumberInput input {{
-            background-color: {colors['input_bg']} !important;
-            color: {colors['text']} !important;
-            border: 1px solid {colors['input_border']} !important;
-        }}
-        [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
-            background-color: {colors['card_bg']} !important;
-            border: 1px solid {colors['border_color']} !important;
-        }}
-        div.stButton > button, div.stFormSubmitButton > button, [data-testid="stDownloadButton"] button {{
-            background-color: #FFFFFF !important;
-            color: #000000 !important;
-            border: 2px solid #FFFFFF !important;
+            background-color: rgba(255, 255, 255, 0.05) !important;
+            color: white !important;
+            border: 1px solid {colors['glass_border']} !important;
             border-radius: 8px !important;
-            font-weight: bold !important;
+            transition: all 0.3s ease;
         }}
-        div.stButton > button:hover, [data-testid="stDownloadButton"] button:hover {{
-            background-color: #E0E0E0 !important;
-            border-color: #E0E0E0 !important;
-            color: #000000 !important;
+        .stTextInput input:focus {{ border-color: {colors['accent_blue']} !important; box-shadow: {colors['neon_glow']}; }}
+
+        /* 6. TABLO VE DATAFRAME */
+        [data-testid="stDataFrame"], [data-testid="stDataEditor"] {{
+            background-color: transparent !important;
+            border: 1px solid {colors['glass_border']} !important;
+            border-radius: 12px;
+            overflow: hidden;
         }}
-        div.stButton > button *, [data-testid="stDownloadButton"] button * {{
-            color: #000000 !important;
+
+        /* 7. BUTONLAR (Modern & Hover Efektli) */
+        div.stButton > button, [data-testid="stDownloadButton"] button {{
+            background: linear-gradient(90deg, #1e293b 0%, #334155 100%) !important;
+            color: white !important;
+            border: 1px solid {colors['glass_border']} !important;
+            border-radius: 10px !important;
+            font-weight: 600 !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }}
-        .metric-card {{ background: {colors['card_bg']} !important; border: 1px solid {colors['border_color']} !important; }}
-        .metric-val {{ color: {colors['text']} !important; }}
+        div.stButton > button:hover {{
+            background: linear-gradient(90deg, {colors['accent_blue']} 0%, #2563EB 100%) !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            border-color: transparent !important;
+        }}
+        
+        /* 8. TAB YAPISI (Pill Shape) */
+        .stTabs [data-baseweb="tab-list"] {{
+            gap: 8px;
+            background-color: rgba(255,255,255,0.03);
+            padding: 8px;
+            border-radius: 16px;
+        }}
+        .stTabs [data-baseweb="tab"] {{
+            height: 45px;
+            border-radius: 10px;
+            background-color: transparent;
+            color: {colors['text_secondary']};
+            border: none;
+            font-weight: 600;
+        }}
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {{
+            background-color: {colors['accent_blue']} !important;
+            color: white !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }}
+
+        /* 9. ÖZEL CSS CLASS'LAR (Uygulama İçi Kullanım İçin) */
+        
+        /* Kartlar için Buzlu Cam Efekti */
+        .glass-card {{
+            background: {colors['glass_bg']};
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid {colors['glass_border']};
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            margin-bottom: 20px;
+        }}
+        .glass-card:hover {{
+            transform: translateY(-5px);
+            border-color: {colors['accent_blue']};
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+        }}
+
+        /* Scrollbar Özelleştirme */
+        ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+        ::-webkit-scrollbar-track {{ background: #0f172a; }}
+        ::-webkit-scrollbar-thumb {{ background: #334155; border-radius: 4px; }}
+        ::-webkit-scrollbar-thumb:hover {{ background: {colors['accent_blue']}; }}
+        
+        /* Giriş Animasyonu */
+        @keyframes fadeIn {{
+            from {{ opacity: 0; transform: translateY(20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        .element-container, .stMarkdown, .stPlotlyChart {{
+            animation: fadeIn 0.8s ease-out forwards;
+        }}
     </style>
     """
     st.markdown(final_css, unsafe_allow_html=True)
@@ -710,39 +765,128 @@ def dashboard_modu():
         components.html(all_stocks_html, height=600)
 
     # CSS Header
+    # ... dashboard_modu içinde ...
+
+    # CSS Header (Yeni Versiyon)
     st.markdown(f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Poppins:wght@400;600;800&family=JetBrains+Mono:wght@400&display=swap');
-        .header-container {{ display: flex; justify-content: space-between; align-items: center; padding: 20px 30px; background: #1A1C24; border-radius: 16px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); border-bottom: 4px solid #3b82f6; }}
-        .app-title {{ font-family: 'Poppins', sans-serif; font-size: 32px; font-weight: 800; letter-spacing: -1px; background: linear-gradient(90deg, #FFFFFF 0%, #3b82f6 50%, #FFFFFF 100%); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: shine 5s linear infinite; }}
-        @keyframes shine {{ to {{ background-position: 200% center; }} }}
-        .update-btn-container button {{ background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important; color: white !important; font-weight: 700 !important; font-size: 16px !important; border-radius: 12px !important; height: 60px !important; border: none !important; box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); transition: all 0.3s ease !important; animation: pulse 2s infinite; }}
-        .update-btn-container button:hover {{ transform: scale(1.02); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5); animation: none; }}
-        @keyframes pulse {{ 0% {{ box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }} 70% {{ box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }} 100% {{ box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }} }}
-        .ticker-wrap {{ width: 100%; overflow: hidden; background: linear-gradient(90deg, #0f172a, #1e293b); color: white; padding: 12px 0; margin-bottom: 25px; border-radius: 12px; }}
-        .ticker {{ display: inline-block; animation: ticker 45s linear infinite; white-space: nowrap; }}
-        .ticker-item {{ display: inline-block; padding: 0 2rem; font-weight: 500; font-size: 14px; font-family: 'JetBrains Mono', monospace; }}
-        @keyframes ticker {{ 0% {{ transform: translateX(100%); }} 100% {{ transform: translateX(-100%); }} }}
-        .bot-bubble {{ background: #1A1C24; border-left: 4px solid #3b82f6; padding: 15px; border-radius: 0 8px 8px 8px; margin-top: 15px; color: #FAFAFA; font-size: 14px; line-height: 1.5; }}
-        .bot-log {{ background: #1e293b; color: #4ade80; font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 15px; border-radius: 12px; height: 180px; overflow-y: auto; }}
-        #live_clock_js {{ font-family: 'JetBrains Mono', monospace; color: #2563eb; }}
-        .metric-card {{ padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; overflow: hidden; transition: all 0.3s ease; }}
-        .metric-card:hover {{ transform: translateY(-5px); box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15); border-color: #3b82f6; }}
-        .metric-card::before {{ content: ''; position: absolute; top: 0; left: 0; width: 6px; height: 100%; }}
-        .card-blue::before {{ background: #3b82f6; }} .card-purple::before {{ background: #8b5cf6; }} .card-emerald::before {{ background: #10b981; }} .card-orange::before {{ background: #f59e0b; }}
-        .metric-label {{ color: #94a3b8; font-size: 13px; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; }}
-        .metric-val {{ color: #FAFAFA; font-size: 36px; font-weight: 800; font-family: 'Poppins', sans-serif; letter-spacing: -1px; }}
-        .metric-val.long-text {{ font-size: 24px !important; line-height: 1.2; }}
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap');
+        
+        .header-wrapper {{
+            position: relative;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 25px 40px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }}
+        
+        /* Arka plandaki parlama efekti */
+        .header-wrapper::before {{
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%);
+            animation: rotate 20s linear infinite;
+            z-index: 0;
+            pointer-events: none;
+        }}
+        @keyframes rotate {{ from {{ transform: rotate(0deg); }} to {{ transform: rotate(360deg); }} }}
+        
+        .header-content {{ position: relative; z-index: 1; }}
+        
+        .app-title {{
+            font-family: 'Outfit', sans-serif;
+            font-size: 38px;
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            background: linear-gradient(to right, #ffffff, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+        }}
+        
+        .app-subtitle {{
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            color: #94a3b8;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-top: -5px;
+            font-weight: 500;
+        }}
+        
+        .live-badge {{
+            display: inline-flex;
+            align-items: center;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-left: 15px;
+            vertical-align: middle;
+        }}
+        .live-dot {{
+            width: 8px; height: 8px; background: #10b981; border-radius: 50%;
+            margin-right: 8px; box-shadow: 0 0 10px #10b981;
+            animation: pulse-dot 2s infinite;
+        }}
+        @keyframes pulse-dot {{ 0% {{ opacity: 1; }} 50% {{ opacity: 0.5; }} 100% {{ opacity: 1; }} }}
+        
+        .clock-container {{ text-align: right; z-index: 1; }}
+        #live_clock_js {{
+            font-family: 'Outfit', monospace;
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }}
+        .location-tag {{ font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }}
+
+        /* KPI Kart Düzeni */
+        .metric-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }}
+        .metric-box {{
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }}
+        .metric-box:hover {{ transform: translateY(-5px); background: rgba(30, 41, 59, 0.7); border-color: rgba(255,255,255,0.1); }}
+        .metric-box::after {{
+            content: ''; position: absolute; top:0; left:0; width: 100%; height: 4px;
+            background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+        }}
+        .m-val {{ font-size: 32px; font-weight: 800; color: #fff; font-family: 'Outfit', sans-serif; margin: 10px 0; }}
+        .m-label {{ font-size: 13px; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; }}
+        .m-sub {{ font-size: 12px; display: flex; align-items: center; gap: 5px; }}
+
     </style>
     """, unsafe_allow_html=True)
 
-    tr_time_start = datetime.now() + timedelta(hours=3)
     header_html = f"""
-    <div class="header-container">
-        <div class="app-title">Enflasyon Monitörü</div>
-        <div style="text-align:right;">
-            <div style="color:#94a3b8; font-size:12px; font-weight:600; margin-bottom:4px;">İSTANBUL, TR</div>
-            <div id="live_clock_js" style="color:#FAFAFA; font-size:16px; font-weight:800; font-family:'JetBrains Mono', monospace;">{tr_time_start.strftime('%d %B %Y, %H:%M:%S')}</div>
+    <div class="header-wrapper">
+        <div class="header-content">
+            <div class="app-title">Enflasyon Monitörü <span class="live-badge"><div class="live-dot"></div>CANLI SİSTEM</span></div>
+            <div class="app-subtitle">Yapay Zeka Destekli Piyasa Analiz Paneli</div>
+        </div>
+        <div class="clock-container">
+            <div class="location-tag">İSTANBUL / HQ</div>
+            <div id="live_clock_js">--:--:--</div>
         </div>
     </div>
     <script>
@@ -750,7 +894,7 @@ def dashboard_modu():
         var clockElement = document.getElementById('live_clock_js');
         function update() {{
             var now = new Date();
-            var options = {{ timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }};
+            var options = {{ hour: '2-digit', minute: '2-digit', second: '2-digit' }};
             if (clockElement) {{ clockElement.innerHTML = now.toLocaleTimeString('tr-TR', options); }}
         }}
         setInterval(update, 1000); update(); 
@@ -892,41 +1036,53 @@ def dashboard_modu():
                     except: resmi_alt_bilgi = "Hesaplama Hatası"
                 else: resmi_alt_bilgi = f"Bağlantı Sorunu: {msg}"
 
-                def kpi_card(title, val, sub, sub_color, color_class, is_long_text=False):
-                    val_class = "metric-val long-text" if is_long_text else "metric-val"
-                    st.markdown(f"""
-                        <div class="metric-card {color_class}">
-                            <div class="metric-label">{title}</div>
-                            <div class="{val_class}">{val}</div>
-                            <div class="metric-sub" style="color:{sub_color}">{sub}</div>
+                # ... dashboard_modu içinde ...
+                
+                # KPI Card Fonksiyonunu Güncelle
+                def kpi_card(title, val, sub, sub_color, accent_color, is_long_text=False):
+                     st.markdown(f"""
+                        <div class="metric-box" style="--accent-color: {accent_color}">
+                            <div class="m-label">{title}</div>
+                            <div class="m-val" style="{'font-size: 24px;' if is_long_text else ''}">{val}</div>
+                            <div class="m-sub" style="color:{sub_color}">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                                {sub}
+                            </div>
                         </div>
                     """, unsafe_allow_html=True)
-                
+
                 c1, c2, c3, c4 = st.columns(4)
-                with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#ef4444", "card-blue")
-                with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "card-emerald")
-                with c3: kpi_card("Simülasyon Beklentisi", f"%{month_end_forecast:.2f}", f"Prophet Tahmini ({days_left} gün)", "#8b5cf6", "card-purple")
-                with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str} Dönemi", "#f59e0b", "card-orange")
+                with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#ef4444", "#3b82f6")
+                with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "#10b981")
+                with c3: kpi_card("Simülasyon (AI)", f"%{month_end_forecast:.2f}", f"Yıl Sonu Tahmini", "#8b5cf6", "#8b5cf6")
+                with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#f59e0b", "#f59e0b")
                 st.markdown("<br>", unsafe_allow_html=True)
 
                 # --- GRAFİK STİL FONKSİYONU ---
+                # ... dashboard_modu içinde ...
+                
                 def style_chart(fig, is_pdf=False):
                     if is_pdf:
+                        # PDF ayarları aynı kalsın (Beyaz zemin)
                         fig.update_layout(
                             template="plotly_white", 
                             font=dict(family="Arial", size=14, color="black"),
                             plot_bgcolor="white",
                             paper_bgcolor="white",
-                            title_font=dict(size=20, color="#002855", family="Arial Black"), 
                             margin=dict(l=50, r=50, t=80, b=50)
                         )
                     else:
+                        # EKRAN İÇİN: Şeffaf Zemin ve Neon Çizgiler
                         fig.update_layout(
                             template="plotly_dark",
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            plot_bgcolor="rgba(0,0,0,0)",
-                            title_font=dict(color="white"),
-                            margin=dict(l=20, r=20, t=50, b=20)
+                            paper_bgcolor="rgba(0,0,0,0)", # Tam şeffaf
+                            plot_bgcolor="rgba(0,0,0,0)",  # Tam şeffaf
+                            font=dict(family="Outfit, sans-serif", color="#e2e8f0"),
+                            title_font=dict(size=18, color="white", family="Outfit, sans-serif"),
+                            hovermode="x unified",
+                            margin=dict(l=20, r=20, t=60, b=20),
+                            xaxis=dict(showgrid=False, zeroline=False), # Izgaraları kaldır, temiz görünüm
+                            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", zeroline=False)
                         )
                     return fig
 
@@ -1096,6 +1252,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
