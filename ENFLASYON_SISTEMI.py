@@ -35,10 +35,10 @@ st.set_page_config(
     page_title="Piyasa Monitörü | Executive",
     layout="wide",
     page_icon="💎",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded" # Başlangıçta açık
 )
 
-# --- CSS MOTORU (AURORA FX & HIGH-END UI) ---
+# --- CSS MOTORU (AURORA FX & SIDEBAR LOCK) ---
 def apply_theme():
     st.session_state.plotly_template = "plotly_white"
 
@@ -47,7 +47,7 @@ def apply_theme():
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap');
 
-        /* 1. BACKGROUND (AURORA EFFECT - GÖZ YORMAYAN) */
+        /* 1. BACKGROUND (AURORA EFFECT) */
         @keyframes aurora {{
             0% {{ background-position: 0% 50%; }}
             50% {{ background-position: 100% 50%; }}
@@ -61,7 +61,24 @@ def apply_theme():
             color: #0f172a !important;
         }}
         
-        /* 2. BUTONLAR (FULL WIDTH & MONOCHROME) */
+        /* 2. SIDEBAR KİLİTLEME (GİZLEME TUŞUNU YOK ET) */
+        /* Sidebar içindeki kapatma (ok/çarpı) tuşunu gizle */
+        [data-testid="stSidebar"] button[kind="header"] {{
+            display: none !important;
+        }}
+        /* Eğer bir şekilde kapanırsa, tekrar açma okunu gizle (tam güvenlik) */
+        [data-testid="stSidebarCollapsedControl"] {{
+            display: none !important;
+        }}
+        /* Sidebar boyutunu ve duruşunu sabitle */
+        section[data-testid="stSidebar"] {{
+            min-width: 320px !important;
+            max-width: 320px !important;
+            border-right: 1px solid #e2e8f0;
+            box-shadow: 2px 0 15px rgba(0,0,0,0.03);
+        }}
+
+        /* 3. BUTONLAR (FULL WIDTH & MONOCHROME) */
         div.stButton > button, [data-testid="stDownloadButton"] button {{
             width: 100% !important;
             background-color: #ffffff !important;
@@ -85,7 +102,7 @@ def apply_theme():
         }}
         div.stButton > button:active {{ transform: translateY(4px) !important; box-shadow: none !important; }}
 
-        /* 3. KPI KARTLARI (GLASS) */
+        /* 4. KPI KARTLARI (GLASS) */
         .kpi-card {{
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
@@ -103,16 +120,16 @@ def apply_theme():
             box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1);
         }}
 
-        /* 4. ÜRÜN KARTLARI (BENTO GRID - KARE KUTULAR - FIXED) */
+        /* 5. ÜRÜN KARTLARI (BENTO GRID - FIXED) */
         .pg-card {{
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 16px;
             padding: 20px;
-            height: 180px; /* Sabit yükseklik, hepsi eşit dursun */
+            height: 180px; 
             display: flex;
             flex-direction: column;
-            justify-content: space-between; /* İçeriği yay */
+            justify-content: space-between;
             align-items: center;
             text-align: center;
             transition: all 0.3s ease;
@@ -129,7 +146,7 @@ def apply_theme():
         .pg-name {{ 
             font-size: 13px; font-weight: 600; color: #475569; 
             margin-bottom: 5px; line-height: 1.3; 
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; /* Uzun isimleri kes */
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }}
         .pg-price {{ font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }}
         
@@ -147,7 +164,7 @@ def apply_theme():
         .tag-peak {{ background: #000; color: #fff; }}
         .tag-dip {{ background: #3b82f6; color: #fff; }}
 
-        /* 5. TICKER (ZORLANMIŞ RENKLER) */
+        /* 6. TICKER (ZORLANMIŞ RENKLER) */
         .ticker-wrap {{
             width: 100%; overflow: hidden; background: #ffffff;
             border-top: 3px solid #000000; border-bottom: 1px solid #e2e8f0;
@@ -750,7 +767,7 @@ def dashboard_modu():
 
             if not pivot.empty:
                 if 'Grup' not in df_s.columns:
-                    grup_map = {"01": "Gıda", "02": "Alkol ve Tütünlü İçecekler", "03": "Giyim ve Ayakkabı", "04": "Konut", "05": "Ev Eşyası", "06": "Sağlık", "07": "Ulaşım", "08": "Haberleşme", "09": "Eğlence", "10": "Eğitim", "11": "Lokanta", "12": "Çeşitli Mal ve Hizmetler"}
+                    grup_map = {"01": "Gıda", "02": "Alkol", "03": "Giyim", "04": "Konut", "05": "Ev", "06": "Sağlık", "07": "Ulaşım", "08": "İletişim", "09": "Eğlence", "10": "Eğitim", "11": "Lokanta", "12": "Çeşitli"}
                     df_s['Grup'] = df_s['Kod'].str[:2].map(grup_map).fillna("Diğer")
                 df_analiz = pd.merge(df_s, pivot, on='Kod', how='left')
                 if agirlik_col in df_analiz.columns:
@@ -906,7 +923,7 @@ def dashboard_modu():
                         st.plotly_chart(style_chart(fig_sun), use_container_width=True)
 
                     with c_ozet2:
-                        st.subheader("💧 Sektörel Etki (Waterfall)")
+                        st.subheader("💧 Sektörel Etki")
                         toplam_agirlik = df_analiz[agirlik_col].sum()
                         df_analiz['Katki_Puan'] = (df_analiz['Fark'] * df_analiz[agirlik_col] / toplam_agirlik) * 100
                         df_sektor_katki = df_analiz.groupby('Grup')['Katki_Puan'].sum().reset_index().sort_values('Katki_Puan', ascending=False)
@@ -964,5 +981,3 @@ def dashboard_modu():
 
 if __name__ == "__main__":
     dashboard_modu()
-
-
