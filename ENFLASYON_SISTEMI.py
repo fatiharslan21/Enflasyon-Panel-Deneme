@@ -750,7 +750,7 @@ def dashboard_modu():
 
             if not pivot.empty:
                 if 'Grup' not in df_s.columns:
-                    grup_map = {"01": "Gıda", "02": "Alkol", "03": "Giyim", "04": "Konut", "05": "Ev", "06": "Sağlık", "07": "Ulaşım", "08": "İletişim", "09": "Eğlence", "10": "Eğitim", "11": "Lokanta", "12": "Çeşitli"}
+                    grup_map = {"01": "Gıda", "02": "Alkol ve Tütünlü İçecekler", "03": "Giyim ve Ayakkabı", "04": "Konut", "05": "Ev Eşyası", "06": "Sağlık", "07": "Ulaşım", "08": "Haberleşme", "09": "Eğlence", "10": "Eğitim", "11": "Lokanta", "12": "Çeşitli Mal ve Hizmetler"}
                     df_s['Grup'] = df_s['Kod'].str[:2].map(grup_map).fillna("Diğer")
                 df_analiz = pd.merge(df_s, pivot, on='Kod', how='left')
                 if agirlik_col in df_analiz.columns:
@@ -964,3 +964,4 @@ def dashboard_modu():
 
 if __name__ == "__main__":
     dashboard_modu()
+
