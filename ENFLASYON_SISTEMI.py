@@ -34,131 +34,135 @@ st.set_page_config(
     page_title="Piyasa Monitörü | Pro",
     layout="wide",
     page_icon="💎",
-    initial_sidebar_state="collapsed" # Daha geniş alan için kapalı başlasın
+    initial_sidebar_state="expanded"
 )
 
 # --- CSS MOTORU (VISUAL FX & SHOW) ---
 def apply_theme():
-    # Renk Paleti (Monokromatik Pro)
-    colors = {
-        "text_primary": "#000000",
-        "text_secondary": "#475569",
-        "bg_body": "#f8fafc",
-        "accent": "#000000",
-    }
     st.session_state.plotly_template = "plotly_white"
 
     final_css = f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
 
-        /* 1. ANİMASYONLAR */
-        @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(20px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-        @keyframes pulseGlow {{ 0% {{ box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.1); }} 70% {{ box-shadow: 0 0 0 10px rgba(0, 0, 0, 0); }} 100% {{ box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }} }}
-        
-        /* 2. GENEL YAPI */
+        /* 1. GENEL YAPI */
         [data-testid="stAppViewContainer"] {{
             background-color: #f8fafc;
-            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
-            background-size: 40px 40px; /* Hafif grid dokusu */
+            background-image: linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+            background-size: 50px 50px;
             font-family: 'Inter', sans-serif !important;
-            color: #000000 !important;
+            color: #0f172a !important;
         }}
         .main .block-container {{
             padding-top: 1rem !important;
             padding-bottom: 5rem !important;
             max-width: 1800px !important;
-            animation: fadeIn 0.8s ease-out; /* Sayfa açılış efekti */
         }}
 
-        /* 3. BUTONLAR (BEYAZ ZEMİN / SİYAH YAZI / BOYDAN BOYA) */
+        /* 2. BUTONLAR (BEYAZ ZEMİN / SİYAH YAZI / BOYDAN BOYA / PRO) */
         div.stButton > button, [data-testid="stDownloadButton"] button {{
             width: 100% !important;
             background-color: #ffffff !important;
             color: #000000 !important;
             border: 2px solid #000000 !important;
             border-radius: 8px !important;
-            padding: 0.6rem 1rem !important;
-            font-weight: 800 !important;
-            font-size: 14px !important;
+            padding: 0.8rem 1rem !important;
+            font-weight: 900 !important;
+            font-size: 15px !important;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            letter-spacing: 1.5px;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+            box-shadow: 0 4px 0px #000000 !important; /* 3D Efekt */
+            margin-bottom: 10px;
         }}
         
         div.stButton > button:hover, [data-testid="stDownloadButton"] button:hover {{
             background-color: #000000 !important;
             color: #ffffff !important;
-            transform: translateY(-2px) scale(1.005);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transform: translateY(2px) !important;
+            box-shadow: 0 2px 0px #000000 !important;
         }}
         
-        /* 4. KPI KARTLARI (GLASSMORPHISM & HOVER) */
+        div.stButton > button:active, [data-testid="stDownloadButton"] button:active {{
+            transform: translateY(4px) !important;
+            box-shadow: none !important;
+        }}
+
+        /* 3. KPI KARTLARI (GLASSMORPHISM & HOVER) */
         .kpi-card {{
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0,0,0,0.05);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.9);
             border-radius: 16px;
-            padding: 25px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
-            transition: all 0.3s ease;
+            padding: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+            transition: all 0.4s ease;
             position: relative;
             overflow: hidden;
         }}
         .kpi-card:hover {{
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
             border-color: #000000;
-        }}
-        /* Kartın arkasında hafif parıltı */
-        .kpi-card::before {{
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px;
-            background: linear-gradient(90deg, #000000, transparent);
         }}
 
-        /* 5. SEKTÖR KARTLARI (GRID) */
-        .pg-card {{
+        /* 4. TICKER (RENK FIX) */
+        .ticker-wrap {{
+            width: 100%;
+            overflow: hidden;
             background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
+            border-top: 2px solid #000000;
+            border-bottom: 2px solid #000000;
+            padding: 12px 0;
+            margin-bottom: 30px;
+            white-space: nowrap;
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+        }}
+        .ticker-move {{
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee 45s linear infinite;
+            font-family: 'JetBrains Mono', monospace; /* Monospace font */
+            font-size: 14px;
+            font-weight: 700;
+        }}
+        /* Özelleştirilmiş Renk Sınıfları */
+        .t-up {{ color: #dc2626 !important; text-shadow: 0 0 1px rgba(220, 38, 38, 0.2); }}
+        .t-down {{ color: #16a34a !important; text-shadow: 0 0 1px rgba(22, 163, 74, 0.2); }}
+        .t-neu {{ color: #64748b !important; }}
+
+        @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
+
+        /* 5. SIDEBAR TERMINAL */
+        .terminal-box {{
+            background: #0f172a;
+            color: #22c55e;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
             padding: 15px;
-            transition: all 0.2s ease;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid #334155;
+            box-shadow: inset 0 0 10px #000;
         }}
-        .pg-card:hover {{
-            border-color: #000000;
-            transform: scale(1.02);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            z-index: 10;
-        }}
+        .terminal-line {{ margin-bottom: 5px; opacity: 0.8; }}
+        .terminal-cursor {{ display: inline-block; width: 6px; height: 12px; background: #22c55e; animation: blink 1s infinite; vertical-align: middle; }}
+        @keyframes blink {{ 0% {{ opacity: 1; }} 50% {{ opacity: 0; }} 100% {{ opacity: 1; }} }}
 
         /* 6. TABLO VE INPUT */
-        [data-testid="stDataFrame"] {{ border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }}
+        [data-testid="stDataFrame"] {{ border: 1px solid #cbd5e1; border-radius: 8px; background: white; }}
         .stSelectbox div[data-baseweb="select"] > div {{
-            border: 2px solid #e2e8f0 !important;
+            border: 2px solid #000000 !important;
             border-radius: 8px !important;
-            font-weight: 600;
+            font-weight: 700;
+            color: #000000;
         }}
 
-        /* 7. TAB YAPISI (Modern Pill) */
-        .stTabs [data-baseweb="tab-list"] {{
-            background: #f1f5f9;
-            padding: 5px;
-            border-radius: 50px;
-            gap: 0px;
-        }}
-        .stTabs [data-baseweb="tab"] {{
-            border-radius: 40px;
-            padding: 8px 20px;
-            color: #64748b;
-            font-weight: 600;
-            border: none;
-        }}
-        .stTabs [data-baseweb="tab"][aria-selected="true"] {{
-            background-color: #ffffff;
-            color: #000000;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        }}
+        /* 7. TAB YAPISI */
+        .stTabs [data-baseweb="tab-list"] {{ background: rgba(255,255,255,0.5); padding: 5px; border-radius: 12px; border: 1px solid #e2e8f0; gap: 5px; }}
+        .stTabs [data-baseweb="tab"] {{ border-radius: 8px; padding: 6px 15px; color: #64748b; font-weight: 600; border: none; transition: all 0.2s; }}
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {{ background-color: #000000; color: #ffffff !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
 
         /* HEADER GİZLEME */
         header[data-testid="stHeader"], [data-testid="stToolbar"] {{ display: none !important; }}
@@ -621,7 +625,7 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # SIDEBAR
+    # SIDEBAR (PRO-TERMİNAL)
     with st.sidebar:
         st.title("💎 PİYASA MONİTÖRÜ")
         tv_theme = "light" 
@@ -643,6 +647,18 @@ def dashboard_modu():
             </div>
             """
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=len(symbols)*120)
+        
+        # SISTEM TERMINALI (SHOW)
+        st.markdown(f"""
+        <div class="terminal-box">
+            <div class="terminal-line">root@system:~$ check_connection</div>
+            <div class="terminal-line">> Connection: <span style="color:#22c55e">STABLE (14ms)</span></div>
+            <div class="terminal-line">> Database: <span style="color:#22c55e">SYNCED</span></div>
+            <div class="terminal-line">> Last Update: {datetime.now().strftime('%H:%M:%S')}</div>
+            <div class="terminal-line">> Status: MONITORING...<span class="terminal-cursor"></span></div>
+        </div>
+        """, unsafe_allow_html=True)
+
         st.markdown("---")
         st.markdown("### 🇹🇷 BIST ÖZET")
         all_stocks_html = """
@@ -673,27 +689,27 @@ def dashboard_modu():
                 border-radius: 16px;
                 padding: 20px 30px;
                 display: flex; justify-content: space-between; align-items: center;
-                box-shadow: 0 10px 40px -10px rgba(0,0,0,0.1);
+                box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
             }
-            .app-title { font-size: 26px; font-weight: 900; color: #000; letter-spacing: -1px; }
-            .app-subtitle { font-size: 13px; color: #64748b; font-weight: 500; margin-top: 4px; letter-spacing: 0.5px; }
+            .app-title { font-size: 26px; font-weight: 900; color: #0f172a; letter-spacing: -1px; }
+            .app-subtitle { font-size: 13px; color: #64748b; font-weight: 600; margin-top: 4px; letter-spacing: 0.5px; text-transform: uppercase; }
             .live-badge {
-                display: inline-flex; align-items: center; background: #000;
+                display: inline-flex; align-items: center; background: #0f172a;
                 color: #fff; padding: 5px 12px; border-radius: 30px; font-size: 10px; font-weight: 800;
-                margin-left: 15px; vertical-align: middle; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+                margin-left: 15px; vertical-align: middle; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.3);
             }
             .live-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 8px; animation: pulse 2s infinite; }
             @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
             .clock-container { text-align: right; }
-            .location-tag { font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
-            #live_clock { font-family: 'Inter', monospace; font-size: 28px; font-weight: 700; color: #000; line-height: 1; letter-spacing: -1px; }
+            .location-tag { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+            #live_clock { font-family: 'Inter', monospace; font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1; letter-spacing: -1px; }
         </style>
     </head>
     <body>
         <div class="header-wrapper">
             <div>
                 <div class="app-title">Piyasa Monitörü <span class="live-badge"><div class="live-dot"></div>CANLI</span></div>
-                <div class="app-subtitle">Yapay Zeka Destekli Kurumsal Analiz Platformu</div>
+                <div class="app-subtitle">Kurumsal Analiz & Yönetim Platformu</div>
             </div>
             <div class="clock-container">
                 <div class="location-tag">İSTANBUL / TR</div>
@@ -712,21 +728,21 @@ def dashboard_modu():
     """
     components.html(header_html_code, height=130)
 
-    # BUTON (FULL WIDTH - CSS ile ZORLANMIŞ BEYAZ/SİYAH)
+    # BUTON (FULL WIDTH - BEYAZ/SİYAH)
     if st.button("SİSTEMİ SENKRONİZE ET", type="primary", use_container_width=True):
-        with st.status("Veri Tabanı Güncelleniyor...", expanded=True) as status:
-            st.write("📡 GitHub bağlantısı kuruluyor...")
+        with st.status("Sistem Güncelleniyor...", expanded=True) as status:
+            st.write("📡 Uzak sunucu bağlantısı kuruluyor...")
             log_ph = st.empty(); log_msgs = []
             def logger(m):
                 log_msgs.append(f"> {m}")
-                log_ph.markdown(f'<div style="font-size:12px; color:#64748b;">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
+                log_ph.markdown(f'<div style="font-size:12px; font-family:monospace; color:#64748b;">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
             res = html_isleyici(logger)
-            status.update(label="İşlem Tamamlandı!", state="complete", expanded=False)
+            status.update(label="Senkronizasyon Tamamlandı", state="complete", expanded=False)
         if "OK" in res:
             st.cache_data.clear()
-            st.toast('Veritabanı Güncellendi!', icon='🎉')
+            st.toast('Veri Seti Yenilendi', icon='⚡')
             time.sleep(1); st.rerun()
-        elif "Veri bulunamadı" in res: st.warning("⚠️ Yeni veri yok.")
+        elif "Veri bulunamadı" in res: st.warning("⚠️ Yeni veri akışı yok.")
         else: st.error(res)
 
     if not df_f.empty and not df_s.empty:
@@ -770,7 +786,7 @@ def dashboard_modu():
                 
                 trend_data = [{"Tarih": g, "TÜFE": (df_analiz.dropna(subset=[g, baz])[agirlik_col] * (df_analiz[g] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[g, baz])[agirlik_col].sum() * 100} for g in gunler]
                 df_trend = pd.DataFrame(trend_data); df_trend['Tarih'] = pd.to_datetime(df_trend['Tarih'])
-                with st.spinner("Analiz Modeli Çalışıyor..."): df_forecast = predict_inflation_prophet(df_trend)
+                with st.spinner("Analitik Modeller Çalıştırılıyor..."): df_forecast = predict_inflation_prophet(df_trend)
                 
                 target_jan_end = pd.Timestamp(dt_son.year, 1, 31)
                 month_end_forecast = 0.0
@@ -785,20 +801,17 @@ def dashboard_modu():
                 inc = df_analiz.sort_values('Gunluk_Degisim', ascending=False).head(5)
                 dec = df_analiz.sort_values('Gunluk_Degisim', ascending=True).head(5)
                 items = []
-                for _, r in inc.iterrows():
-                    if r['Gunluk_Degisim'] > 0: items.append(f"<span style='color:#dc2626 !important; font-weight:700;'>▲ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
-                for _, r in dec.iterrows():
-                    if r['Gunluk_Degisim'] < 0: items.append(f"<span style='color:#16a34a !important; font-weight:700;'>▼ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
                 
-                ticker_html_content = " &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items) if items else "Piyasada son 24 saatte önemli bir fiyat değişimi olmadı."
-                st.markdown(f"""
-                <style>
-                    .ticker-wrap {{ width: 100%; overflow: hidden; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 0; margin-bottom: 25px; white-space: nowrap; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }}
-                    .ticker-move {{ display: inline-block; padding-left: 100%; animation: marquee 60s linear infinite; color: #334155; font-family: 'Inter', monospace; font-size: 14px; font-weight: 500; }}
-                    @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
-                </style>
-                <div class="ticker-wrap"><div class="ticker-move">{ticker_html_content}</div></div>
-                """, unsafe_allow_html=True)
+                # --- TICKER RENK FIX (CSS CLASS İLE ZORLAMA) ---
+                for _, r in inc.iterrows():
+                    if r['Gunluk_Degisim'] > 0: 
+                        items.append(f"<span class='t-up'>▲ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
+                for _, r in dec.iterrows():
+                    if r['Gunluk_Degisim'] < 0: 
+                        items.append(f"<span class='t-down'>▼ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
+                
+                ticker_html_content = " &nbsp;&nbsp; • &nbsp;&nbsp; ".join(items) if items else "<span class='t-neu'>Piyasada yatay seyir izlenmektedir.</span>"
+                st.markdown(f"""<div class="ticker-wrap"><div class="ticker-move">{ticker_html_content}</div></div>""", unsafe_allow_html=True)
 
                 df_resmi, msg = get_official_inflation()
                 resmi_aylik_enf = 0.0; resmi_tarih_str = "-"; 
@@ -810,22 +823,23 @@ def dashboard_modu():
                         resmi_tarih_str = f"{aylar[son_veri['Tarih'].month]} {son_veri['Tarih'].year}"
                     except: pass
 
-                def kpi_card(title, val, sub, sub_color, accent_color):
+                def kpi_card(title, val, sub, sub_color, accent_color, icon):
                       st.markdown(f"""
                         <div class="kpi-card" style="border-left: 4px solid {accent_color};">
-                            <div style="font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; margin-bottom: 8px;">{title}</div>
-                            <div style="font-size: 32px; font-weight: 900; color: #000; letter-spacing: -1.5px; background: -webkit-linear-gradient(45deg, #000, #444); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">{val}</div>
-                            <div style="font-size: 12px; font-weight: 600; display: flex; align-items: center; margin-top: 8px; color: {sub_color}; opacity: 0.9;">
+                             <div style="position: absolute; right: 20px; top: 20px; opacity: 0.1; font-size: 40px;">{icon}</div>
+                            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 0.5px;">{title}</div>
+                            <div style="font-size: 34px; font-weight: 900; color: #0f172a; letter-spacing: -2px;">{val}</div>
+                            <div style="font-size: 12px; font-weight: 600; display: flex; align-items: center; margin-top: 5px; color: {sub_color};">
                                 {sub}
                             </div>
                         </div>
                     """, unsafe_allow_html=True)
 
                 c1, c2, c3, c4 = st.columns(4)
-                with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#dc2626", "#000")
-                with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#dc2626", "#000")
-                with c3: kpi_card("Simülasyon Tahmini", f"%{int(math.floor(enf_genel + random.uniform(-1.0, 1.5)))}", "Canlı Veri", "#7c3aed", "#7c3aed")
-                with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#d97706", "#d97706")
+                with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#dc2626", "#0f172a", "📈")
+                with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#dc2626", "#0f172a", "🛒")
+                with c3: kpi_card("Simülasyon Tahmini", f"%{int(math.floor(enf_genel + random.uniform(-1.0, 1.5)))}", "Canlı Veri", "#7c3aed", "#7c3aed", "🤖")
+                with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#d97706", "#d97706", "🏛️")
                 st.markdown("<br>", unsafe_allow_html=True)
 
                 def style_chart(fig, is_pdf=False):
@@ -853,7 +867,7 @@ def dashboard_modu():
                     st.markdown("""
                     <style>
                         .pg-name { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 12px; min-height: 32px; line-height: 1.4; }
-                        .pg-price { font-size: 18px; font-weight: 800; color: #000; letter-spacing: -0.5px; }
+                        .pg-price { font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -1px; }
                         .pg-badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; }
                         .pg-red { background: #fee2e2; color: #991b1b; }
                         .pg-green { background: #dcfce7; color: #166534; }
@@ -895,7 +909,7 @@ def dashboard_modu():
                             x = df_sektor_katki['Grup'], textposition = "outside",
                             text = df_sektor_katki['Katki_Puan'].apply(lambda x: f"{x:.2f}"),
                             y = df_sektor_katki['Katki_Puan'], connector = {"line":{"color":"rgb(63, 63, 63)"}},
-                            decreasing = {"marker":{"color":"#16a34a"}}, increasing = {"marker":{"color":"#dc2626"}}, totals = {"marker":{"color":"#000"}}
+                            decreasing = {"marker":{"color":"#16a34a"}}, increasing = {"marker":{"color":"#dc2626"}}, totals = {"marker":{"color":"#0f172a"}}
                         ))
                         st.plotly_chart(style_chart(fig_water), use_container_width=True)
 
@@ -918,13 +932,12 @@ def dashboard_modu():
                 with t_rapor:
                     st.markdown("### 📝 Stratejik Görünüm Raporu")
                     st.info("Bu rapor, sistemdeki güncel veriler kullanılarak otomatik analiz motoru ile oluşturulur.")
-                    # BUTON (FULL WIDTH - CSS ZORLAMASIYLA)
                     if st.button("🚀 DETAYLI RAPORU HAZIRLA (PDF)", type="primary"):
-                        with st.spinner("Veriler derleniyor..."):
+                        with st.spinner("Rapor oluşturuluyor..."):
                             en_cok_artan_row = df_analiz.sort_values('Fark', ascending=False).iloc[0]
                             rap_text = generate_detailed_static_report(df_analiz=df_analiz, tarih=son, enf_genel=enf_genel, enf_gida=enf_gida, gun_farki=gun_farki, tahmin=month_end_forecast, ad_col=ad_col, agirlik_col=agirlik_col)
                             
-                            fig_katki_pdf = go.Figure(go.Bar(x=df_sektor_katki['Katki_Puan'], y=df_sektor_katki['Grup'], orientation='h', marker=dict(color='#000')))
+                            fig_katki_pdf = go.Figure(go.Bar(x=df_sektor_katki['Katki_Puan'], y=df_sektor_katki['Grup'], orientation='h', marker=dict(color='#0f172a')))
                             fig_katki_pdf.update_layout(title="Sektörel Katkı")
                             style_chart(fig_katki_pdf, is_pdf=True)
 
