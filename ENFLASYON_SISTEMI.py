@@ -28,6 +28,7 @@ import os
 import urllib.request
 import math
 import random
+import html
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
 st.set_page_config(
@@ -102,21 +103,22 @@ def apply_theme():
             box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1);
         }}
 
-        /* 4. ÜRÜN KARTLARI (BENTO GRID - KARE KUTULAR) */
+        /* 4. ÜRÜN KARTLARI (BENTO GRID - KARE KUTULAR - FIXED) */
         .pg-card {{
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 16px;
             padding: 20px;
-            height: 100%;
+            height: 180px; /* Sabit yükseklik, hepsi eşit dursun */
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: space-between; /* İçeriği yay */
             align-items: center;
             text-align: center;
             transition: all 0.3s ease;
             box-shadow: 0 2px 5px rgba(0,0,0,0.02);
             position: relative;
+            overflow: hidden;
         }}
         .pg-card:hover {{
             border-color: #0f172a;
@@ -124,19 +126,23 @@ def apply_theme():
             box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.15);
             z-index: 10;
         }}
-        .pg-name {{ font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 10px; line-height: 1.3; }}
-        .pg-price {{ font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 8px; letter-spacing: -0.5px; }}
+        .pg-name {{ 
+            font-size: 13px; font-weight: 600; color: #475569; 
+            margin-bottom: 5px; line-height: 1.3; 
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; /* Uzun isimleri kes */
+        }}
+        .pg-price {{ font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }}
         
         /* Etiketler */
-        .pg-badge {{ padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; width: 100%; }}
+        .pg-badge {{ padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; width: 100%; display:block; }}
         .pg-red {{ background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }}
         .pg-green {{ background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }}
         .pg-gray {{ background: #f8fafc; color: #94a3b8; border: 1px solid #f1f5f9; }}
         
         /* Zirve/Dip Tagleri */
         .status-tag {{
-            position: absolute; top: 10px; right: 10px; font-size: 10px; font-weight: 800;
-            padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+            position: absolute; top: 8px; right: 8px; font-size: 9px; font-weight: 800;
+            padding: 3px 6px; border-radius: 4px; text-transform: uppercase; z-index:2;
         }}
         .tag-peak {{ background: #000; color: #fff; }}
         .tag-dip {{ background: #3b82f6; color: #fff; }}
@@ -859,21 +865,16 @@ def dashboard_modu():
                         elif fark < 0: badge_cls = "pg-green"; symbol = "▼"
                         else: badge_cls = "pg-gray"; symbol = "-"
                         
-                        # Smart Tag Logic
                         smart_tag = ""
                         if fiyat >= row['Max_Fiyat']: smart_tag = "<div class='status-tag tag-peak'>🔥 ZİRVE</div>"
                         elif fiyat <= row['Min_Fiyat'] and fiyat > 0: smart_tag = "<div class='status-tag tag-dip'>💎 FIRSAT</div>"
 
+                        # HTML MINIFIED FIX
+                        card_html = f"""<div class="pg-card">{smart_tag}<div class="pg-name">{html.escape(str(row[ad_col]))}</div><div class="pg-price">{fiyat:.2f} ₺</div><div class="pg-badge {badge_cls}">{symbol} %{fark:.2f}</div></div>"""
+                        
                         with cols[idx % 4]:
-                            st.markdown(f"""
-                            <div class="pg-card">
-                                {smart_tag}
-                                <div class="pg-name">{row[ad_col]}</div>
-                                <div class="pg-price">{fiyat:.2f} ₺</div>
-                                <div class="pg-badge {badge_cls}">{symbol} %{fark:.2f}</div>
-                            </div>
-                            <div style="margin-bottom:20px;"></div>
-                            """, unsafe_allow_html=True)
+                            st.markdown(card_html, unsafe_allow_html=True)
+                            st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
                 
                 with t_ozet:
                     # YENİ: Piyasa Momentum Bar
@@ -903,23 +904,6 @@ def dashboard_modu():
                         st.subheader("☀️ Isı Haritası")
                         fig_sun = px.sunburst(df_analiz, path=['Grup', ad_col], values=agirlik_col, color='Fark', color_continuous_scale='RdYlGn_r', title=None)
                         st.plotly_chart(style_chart(fig_sun), use_container_width=True)
-                        
-                        # THERMOMETER (GAUGE) - GERİ GELDİ
-                        st.subheader("🌡️ Enflasyon Termometresi")
-                        fig_gauge = go.Figure(go.Indicator(
-                            mode = "gauge+number",
-                            value = enf_genel,
-                            gauge = {
-                                'axis': {'range': [None, 100]},
-                                'bar': {'color': "#0f172a"},
-                                'steps': [
-                                    {'range': [0, 20], 'color': "#dcfce7"}, # Yeşil
-                                    {'range': [20, 50], 'color': "#fef9c3"}, # Sarı
-                                    {'range': [50, 100], 'color': "#fee2e2"}], # Kırmızı
-                            }
-                        ))
-                        fig_gauge.update_layout(height=300, margin=dict(l=20,r=20,t=20,b=20))
-                        st.plotly_chart(style_chart(fig_gauge), use_container_width=True)
 
                     with c_ozet2:
                         st.subheader("💧 Sektörel Etki (Waterfall)")
