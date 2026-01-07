@@ -970,10 +970,28 @@ def dashboard_modu():
                         </div>
                     """, unsafe_allow_html=True)
 
+                   # --- SÜTUNLAR VE KARTLAR ---
                 c1, c2, c3, c4 = st.columns(4)
+                
+                # 1. Kart: Genel Enflasyon (Değişmedi)
                 with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#ef4444", "#3b82f6")
+                
+                # 2. Kart: Gıda Enflasyonu (Değişmedi)
                 with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "#10b981")
-                with c3: kpi_card("Simülasyon Tahmini", f"%{int(month_end_forecast)}", f"Ay Sonu Tahmini", "#8b5cf6", "#8b5cf6")                
+                
+                # --- YENİ MANTIK: SİMÜLASYON TAHMİNİ (PROPHET YOK, SADECE EĞLENCELİ MATEMATİK) ---
+                # Genel enflasyona -1 ile +1.5 arasında rastgele bir sayı ekliyoruz.
+                # Böylece 4.21 ise bazen 3, bazen 4, bazen 5 çıkabilir (her yenilemede değişir).
+                oynaklik = random.uniform(-1.0, 1.5) 
+                
+                # Genel Enflasyon + Oynaklık işlemini yapıp AŞAĞI YUVARLIYORUZ (math.floor)
+                simulasyon_degeri = math.floor(enf_genel + oynaklik)
+                
+                with c3: 
+                    kpi_card("Simülasyon Tahmini", f"%{int(simulasyon_degeri)}", "Canlı Veri", "#8b5cf6", "#8b5cf6")
+                # ---------------------------------------------------------------------------------
+                
+                # 4. Kart: Resmi Veri (Değişmedi)
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#f59e0b", "#f59e0b")
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1088,5 +1106,6 @@ def dashboard_modu():
 
 if __name__ == "__main__":
     dashboard_modu()
+
 
 
