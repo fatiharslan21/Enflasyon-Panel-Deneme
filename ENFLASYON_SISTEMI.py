@@ -46,7 +46,7 @@ def apply_theme():
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap');
 
-        /* 1. BACKGROUND (AURORA EFFECT) */
+        /* 1. BACKGROUND (AURORA EFFECT - GÖZ YORMAYAN) */
         @keyframes aurora {{
             0% {{ background-position: 0% 50%; }}
             50% {{ background-position: 100% 50%; }}
@@ -55,7 +55,7 @@ def apply_theme():
         [data-testid="stAppViewContainer"] {{
             background: linear-gradient(-45deg, #f8fafc, #f1f5f9, #e2e8f0, #f8fafc);
             background-size: 400% 400%;
-            animation: aurora 15s ease infinite;
+            animation: aurora 20s ease infinite;
             font-family: 'Inter', sans-serif !important;
             color: #0f172a !important;
         }}
@@ -86,12 +86,12 @@ def apply_theme():
 
         /* 3. KPI KARTLARI (GLASS) */
         .kpi-card {{
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
             border: 1px solid rgba(255,255,255,0.5);
             border-radius: 20px;
             padding: 24px;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
             transition: transform 0.3s ease;
             position: relative;
             overflow: hidden;
@@ -116,11 +116,12 @@ def apply_theme():
             text-align: center;
             transition: all 0.3s ease;
             box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            position: relative;
         }}
         .pg-card:hover {{
             border-color: #0f172a;
             transform: scale(1.05);
-            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.15);
             z-index: 10;
         }}
         .pg-name {{ font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 10px; line-height: 1.3; }}
@@ -131,6 +132,14 @@ def apply_theme():
         .pg-red {{ background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }}
         .pg-green {{ background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }}
         .pg-gray {{ background: #f8fafc; color: #94a3b8; border: 1px solid #f1f5f9; }}
+        
+        /* Zirve/Dip Tagleri */
+        .status-tag {{
+            position: absolute; top: 10px; right: 10px; font-size: 10px; font-weight: 800;
+            padding: 2px 6px; border-radius: 4px; text-transform: uppercase;
+        }}
+        .tag-peak {{ background: #000; color: #fff; }}
+        .tag-dip {{ background: #3b82f6; color: #fff; }}
 
         /* 5. TICKER (ZORLANMIŞ RENKLER) */
         .ticker-wrap {{
@@ -751,6 +760,10 @@ def dashboard_modu():
                 days_left = calendar.monthrange(dt_son.year, dt_son.month)[1] - dt_son.day
                 gun_farki = (dt_son - dt_baz).days
 
+                # ZİRVE/DİP HESAPLAMA (Grid İçin)
+                df_analiz['Max_Fiyat'] = df_analiz[gunler].max(axis=1)
+                df_analiz['Min_Fiyat'] = df_analiz[gunler].min(axis=1)
+
                 endeks_genel = (df_analiz.dropna(subset=[son, baz])[agirlik_col] * (df_analiz[son] / df_analiz[baz])).sum() / df_analiz.dropna(subset=[son, baz])[agirlik_col].sum() * 100
                 enf_genel = (endeks_genel / 100 - 1) * 100
                 df_analiz['Fark'] = (df_analiz[son] / df_analiz[baz]) - 1
@@ -837,7 +850,7 @@ def dashboard_modu():
                     secilen_kategori = st.selectbox("Kategori Filtrele:", kategoriler)
                     df_goster = df_analiz.copy() if secilen_kategori == "TÜMÜ" else df_analiz[df_analiz['Grup'] == secilen_kategori]
                     
-                    # BENTO GRID MANTIĞI
+                    # BENTO GRID MANTIĞI + SMART TAGS
                     cols = st.columns(4)
                     for idx, row in df_goster.iterrows():
                         fiyat, fark = row[son], row['Fark'] * 100
@@ -846,9 +859,15 @@ def dashboard_modu():
                         elif fark < 0: badge_cls = "pg-green"; symbol = "▼"
                         else: badge_cls = "pg-gray"; symbol = "-"
                         
+                        # Smart Tag Logic
+                        smart_tag = ""
+                        if fiyat >= row['Max_Fiyat']: smart_tag = "<div class='status-tag tag-peak'>🔥 ZİRVE</div>"
+                        elif fiyat <= row['Min_Fiyat'] and fiyat > 0: smart_tag = "<div class='status-tag tag-dip'>💎 FIRSAT</div>"
+
                         with cols[idx % 4]:
                             st.markdown(f"""
                             <div class="pg-card">
+                                {smart_tag}
                                 <div class="pg-name">{row[ad_col]}</div>
                                 <div class="pg-price">{fiyat:.2f} ₺</div>
                                 <div class="pg-badge {badge_cls}">{symbol} %{fark:.2f}</div>
@@ -857,15 +876,53 @@ def dashboard_modu():
                             """, unsafe_allow_html=True)
                 
                 with t_ozet:
+                    # YENİ: Piyasa Momentum Bar
+                    rising = len(df_analiz[df_analiz['Fark'] > 0])
+                    falling = len(df_analiz[df_analiz['Fark'] < 0])
+                    total = len(df_analiz)
+                    if total > 0:
+                        r_pct = (rising / total) * 100
+                        f_pct = (falling / total) * 100
+                        n_pct = 100 - r_pct - f_pct
+                        
+                        st.subheader("📊 Piyasa Derinliği (Yükselen / Düşen)")
+                        st.markdown(f"""
+                        <div style="display:flex; width:100%; height:20px; border-radius:10px; overflow:hidden; margin-bottom:20px;">
+                            <div style="width:{r_pct}%; background:#dc2626;" title="Yükselen: %{r_pct:.1f}"></div>
+                            <div style="width:{n_pct}%; background:#e2e8f0;" title="Nötr"></div>
+                            <div style="width:{f_pct}%; background:#16a34a;" title="Düşen: %{f_pct:.1f}"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:12px; color:#64748b; font-weight:600;">
+                            <span style="color:#dc2626">▲ {rising} Ürün Artışta</span>
+                            <span style="color:#16a34a">▼ {falling} Ürün Düşüşte</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
                     c_ozet1, c_ozet2 = st.columns(2)
                     with c_ozet1:
                         st.subheader("☀️ Isı Haritası")
                         fig_sun = px.sunburst(df_analiz, path=['Grup', ad_col], values=agirlik_col, color='Fark', color_continuous_scale='RdYlGn_r', title=None)
                         st.plotly_chart(style_chart(fig_sun), use_container_width=True)
                         
+                        # THERMOMETER (GAUGE) - GERİ GELDİ
+                        st.subheader("🌡️ Enflasyon Termometresi")
+                        fig_gauge = go.Figure(go.Indicator(
+                            mode = "gauge+number",
+                            value = enf_genel,
+                            gauge = {
+                                'axis': {'range': [None, 100]},
+                                'bar': {'color': "#0f172a"},
+                                'steps': [
+                                    {'range': [0, 20], 'color': "#dcfce7"}, # Yeşil
+                                    {'range': [20, 50], 'color': "#fef9c3"}, # Sarı
+                                    {'range': [50, 100], 'color': "#fee2e2"}], # Kırmızı
+                            }
+                        ))
+                        fig_gauge.update_layout(height=300, margin=dict(l=20,r=20,t=20,b=20))
+                        st.plotly_chart(style_chart(fig_gauge), use_container_width=True)
+
                     with c_ozet2:
                         st.subheader("💧 Sektörel Etki (Waterfall)")
-                        # WATERFALL CHART (ESKİ FAVORİ)
                         toplam_agirlik = df_analiz[agirlik_col].sum()
                         df_analiz['Katki_Puan'] = (df_analiz['Fark'] * df_analiz[agirlik_col] / toplam_agirlik) * 100
                         df_sektor_katki = df_analiz.groupby('Grup')['Katki_Puan'].sum().reset_index().sort_values('Katki_Puan', ascending=False)
@@ -877,27 +934,6 @@ def dashboard_modu():
                             decreasing = {"marker":{"color":"#16a34a"}}, increasing = {"marker":{"color":"#dc2626"}}, totals = {"marker":{"color":"#0f172a"}}
                         ))
                         st.plotly_chart(style_chart(fig_water), use_container_width=True)
-                    
-                    st.markdown("---")
-                    
-                    # --- YENİ EKLENEN: RADAR CHART (ÖRÜMCEK AĞI) ---
-                    st.subheader("🕸️ Enflasyon Baskı Radarı (Sektörel Dağılım)")
-                    df_radar = df_analiz.groupby('Grup')['Fark_Yuzde'].mean().reset_index()
-                    fig_radar = go.Figure(data=go.Scatterpolar(
-                      r=df_radar['Fark_Yuzde'],
-                      theta=df_radar['Grup'],
-                      fill='toself',
-                      line=dict(color='#0f172a'),
-                      fillcolor='rgba(15, 23, 42, 0.2)'
-                    ))
-                    fig_radar.update_layout(
-                      polar=dict(radialaxis=dict(visible=True, showticklabels=True, gridcolor="#e2e8f0")),
-                      showlegend=False,
-                      template="plotly_white",
-                      paper_bgcolor="rgba(0,0,0,0)",
-                      margin=dict(l=40, r=40, t=20, b=20)
-                    )
-                    st.plotly_chart(fig_radar, use_container_width=True)
 
                 with t_veri:
                       st.markdown("### 📋 Veri Seti")
