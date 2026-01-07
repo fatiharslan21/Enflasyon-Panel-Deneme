@@ -31,141 +31,125 @@ import random
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
 st.set_page_config(
-    page_title="Piyasa Monitörü | Pro",
+    page_title="Piyasa Monitörü | Executive",
     layout="wide",
     page_icon="💎",
     initial_sidebar_state="expanded"
 )
 
-# --- CSS MOTORU (VISUAL FX & SHOW) ---
+# --- CSS MOTORU (BENTO GRID & HIGH-END UI) ---
 def apply_theme():
     st.session_state.plotly_template = "plotly_white"
 
     final_css = f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap');
 
-        /* 1. GENEL YAPI */
+        /* 1. ANA ZEMİN VE YAPILANDIRMA */
         [data-testid="stAppViewContainer"] {{
-            background-color: #f8fafc;
-            background-image: linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
-            background-size: 50px 50px;
+            background-color: #f8fafc; /* Ultra Açık Gri */
             font-family: 'Inter', sans-serif !important;
             color: #0f172a !important;
         }}
-        .main .block-container {{
-            padding-top: 1rem !important;
-            padding-bottom: 5rem !important;
-            max-width: 1800px !important;
-        }}
-
-        /* 2. BUTONLAR (BEYAZ ZEMİN / SİYAH YAZI / BOYDAN BOYA / PRO) */
+        
+        /* 2. BUTONLAR (FULL WIDTH & MONOCHROME) */
         div.stButton > button, [data-testid="stDownloadButton"] button {{
             width: 100% !important;
             background-color: #ffffff !important;
             color: #000000 !important;
             border: 2px solid #000000 !important;
-            border-radius: 8px !important;
-            padding: 0.8rem 1rem !important;
-            font-weight: 900 !important;
-            font-size: 15px !important;
+            border-radius: 12px !important;
+            padding: 1rem !important;
+            font-weight: 800 !important;
+            font-size: 14px !important;
             text-transform: uppercase;
-            letter-spacing: 1.5px;
+            letter-spacing: 1px;
             transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-            box-shadow: 0 4px 0px #000000 !important; /* 3D Efekt */
-            margin-bottom: 10px;
+            box-shadow: 0 4px 0px #000000 !important;
+            margin-bottom: 12px;
         }}
-        
         div.stButton > button:hover, [data-testid="stDownloadButton"] button:hover {{
             background-color: #000000 !important;
             color: #ffffff !important;
             transform: translateY(2px) !important;
             box-shadow: 0 2px 0px #000000 !important;
         }}
-        
-        div.stButton > button:active, [data-testid="stDownloadButton"] button:active {{
-            transform: translateY(4px) !important;
-            box-shadow: none !important;
-        }}
+        div.stButton > button:active {{ transform: translateY(4px) !important; box-shadow: none !important; }}
 
-        /* 3. KPI KARTLARI (GLASSMORPHISM & HOVER) */
+        /* 3. KPI KARTLARI (GLASS) */
         .kpi-card {{
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.9);
-            border-radius: 16px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
             padding: 24px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
-            transition: all 0.4s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease;
             position: relative;
             overflow: hidden;
         }}
         .kpi-card:hover {{
-            transform: translateY(-8px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transform: translateY(-5px);
             border-color: #000000;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
         }}
 
-        /* 4. TICKER (RENK FIX) */
-        .ticker-wrap {{
-            width: 100%;
-            overflow: hidden;
+        /* 4. ÜRÜN KARTLARI (BENTO GRID - KARE KUTULAR) */
+        .pg-card {{
             background: #ffffff;
-            border-top: 2px solid #000000;
-            border-bottom: 2px solid #000000;
-            padding: 12px 0;
-            margin-bottom: 30px;
-            white-space: nowrap;
-            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 20px;
+            height: 100%; /* Sütun boyunca tam boy */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }}
-        .ticker-move {{
-            display: inline-block;
-            padding-left: 100%;
-            animation: marquee 45s linear infinite;
-            font-family: 'JetBrains Mono', monospace; /* Monospace font */
-            font-size: 14px;
-            font-weight: 700;
+        .pg-card:hover {{
+            border-color: #0f172a;
+            transform: scale(1.03);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.15);
+            z-index: 10;
         }}
-        /* Özelleştirilmiş Renk Sınıfları */
-        .t-up {{ color: #dc2626 !important; text-shadow: 0 0 1px rgba(220, 38, 38, 0.2); }}
-        .t-down {{ color: #16a34a !important; text-shadow: 0 0 1px rgba(22, 163, 74, 0.2); }}
-        .t-neu {{ color: #64748b !important; }}
+        .pg-name {{ font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 10px; line-height: 1.3; }}
+        .pg-price {{ font-size: 22px; font-weight: 800; color: #0f172a; margin-bottom: 8px; letter-spacing: -0.5px; }}
+        
+        /* Etiketler */
+        .pg-badge {{ padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; width: 100%; }}
+        .pg-red {{ background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }}
+        .pg-green {{ background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }}
+        .pg-gray {{ background: #f8fafc; color: #94a3b8; border: 1px solid #f1f5f9; }}
 
+        /* 5. TICKER (ZORLANMIŞ RENKLER) */
+        .ticker-wrap {{
+            width: 100%; overflow: hidden; background: #ffffff;
+            border-top: 3px solid #000000; border-bottom: 1px solid #e2e8f0;
+            padding: 14px 0; margin-bottom: 30px; white-space: nowrap;
+        }}
+        .ticker-move {{ display: inline-block; padding-left: 100%; animation: marquee 50s linear infinite; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; }}
+        .t-up {{ color: #dc2626 !important; }}
+        .t-down {{ color: #16a34a !important; }}
+        .t-neu {{ color: #94a3b8 !important; }}
         @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
 
-        /* 5. SIDEBAR TERMINAL */
-        .terminal-box {{
-            background: #0f172a;
-            color: #22c55e;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 20px;
-            border: 1px solid #334155;
-            box-shadow: inset 0 0 10px #000;
+        /* 6. SIDEBAR BRIEFS (HABER AKIŞI) */
+        .brief-box {{
+            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;
+            padding: 15px; margin-top: 20px;
         }}
-        .terminal-line {{ margin-bottom: 5px; opacity: 0.8; }}
-        .terminal-cursor {{ display: inline-block; width: 6px; height: 12px; background: #22c55e; animation: blink 1s infinite; vertical-align: middle; }}
-        @keyframes blink {{ 0% {{ opacity: 1; }} 50% {{ opacity: 0; }} 100% {{ opacity: 1; }} }}
-
-        /* 6. TABLO VE INPUT */
-        [data-testid="stDataFrame"] {{ border: 1px solid #cbd5e1; border-radius: 8px; background: white; }}
-        .stSelectbox div[data-baseweb="select"] > div {{
-            border: 2px solid #000000 !important;
-            border-radius: 8px !important;
-            font-weight: 700;
-            color: #000000;
-        }}
-
-        /* 7. TAB YAPISI */
-        .stTabs [data-baseweb="tab-list"] {{ background: rgba(255,255,255,0.5); padding: 5px; border-radius: 12px; border: 1px solid #e2e8f0; gap: 5px; }}
-        .stTabs [data-baseweb="tab"] {{ border-radius: 8px; padding: 6px 15px; color: #64748b; font-weight: 600; border: none; transition: all 0.2s; }}
-        .stTabs [data-baseweb="tab"][aria-selected="true"] {{ background-color: #000000; color: #ffffff !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }}
-
-        /* HEADER GİZLEME */
+        .brief-title {{ font-size: 12px; font-weight: 800; color: #0f172a; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }}
+        .brief-item {{ font-size: 12px; color: #64748b; margin-bottom: 8px; padding-left: 10px; border-left: 2px solid #e2e8f0; }}
+        
+        /* GİZLEME */
         header[data-testid="stHeader"], [data-testid="stToolbar"] {{ display: none !important; }}
+        
+        /* TAB STYLE */
+        .stTabs [data-baseweb="tab-list"] {{ border-bottom: 2px solid #e2e8f0; }}
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {{ color: #000 !important; border-bottom: 2px solid #000; }}
     </style>
     """
     st.markdown(final_css, unsafe_allow_html=True)
@@ -625,7 +609,7 @@ def dashboard_modu():
     df_f = github_excel_oku(FIYAT_DOSYASI)
     df_s = github_excel_oku(EXCEL_DOSYASI, SAYFA_ADI)
 
-    # SIDEBAR (PRO-TERMİNAL)
+    # SIDEBAR (HABER AKIŞI)
     with st.sidebar:
         st.title("💎 PİYASA MONİTÖRÜ")
         tv_theme = "light" 
@@ -648,14 +632,14 @@ def dashboard_modu():
             """
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=len(symbols)*120)
         
-        # SISTEM TERMINALI (SHOW)
+        # EXECUTIVE BRIEF (YENİ TERMİNAL)
         st.markdown(f"""
-        <div class="terminal-box">
-            <div class="terminal-line">root@system:~$ check_connection</div>
-            <div class="terminal-line">> Connection: <span style="color:#22c55e">STABLE (14ms)</span></div>
-            <div class="terminal-line">> Database: <span style="color:#22c55e">SYNCED</span></div>
-            <div class="terminal-line">> Last Update: {datetime.now().strftime('%H:%M:%S')}</div>
-            <div class="terminal-line">> Status: MONITORING...<span class="terminal-cursor"></span></div>
+        <div class="brief-box">
+            <div class="brief-title">EXECUTIVE BRIEFING</div>
+            <div class="brief-item">Piyasa genelinde volatilite düşük seyrediyor.</div>
+            <div class="brief-item">Gıda grubunda mevsimsel fiyat artışları gözlemlendi.</div>
+            <div class="brief-item">Enerji kalemlerinde yatay seyir hakim.</div>
+            <div class="brief-item" style="color:#0f172a; font-weight:700;">Son Güncelleme: {datetime.now().strftime('%H:%M')}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -730,14 +714,14 @@ def dashboard_modu():
 
     # BUTON (FULL WIDTH - BEYAZ/SİYAH)
     if st.button("SİSTEMİ SENKRONİZE ET", type="primary", use_container_width=True):
-        with st.status("Sistem Güncelleniyor...", expanded=True) as status:
-            st.write("📡 Uzak sunucu bağlantısı kuruluyor...")
+        with st.status("Veri Akışı Sağlanıyor...", expanded=True) as status:
+            st.write("📡 Uzak sunucu ile el sıkışılıyor...")
             log_ph = st.empty(); log_msgs = []
             def logger(m):
                 log_msgs.append(f"> {m}")
                 log_ph.markdown(f'<div style="font-size:12px; font-family:monospace; color:#64748b;">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
             res = html_isleyici(logger)
-            status.update(label="Senkronizasyon Tamamlandı", state="complete", expanded=False)
+            status.update(label="Senkronizasyon Başarılı", state="complete", expanded=False)
         if "OK" in res:
             st.cache_data.clear()
             st.toast('Veri Seti Yenilendi', icon='⚡')
@@ -802,7 +786,7 @@ def dashboard_modu():
                 dec = df_analiz.sort_values('Gunluk_Degisim', ascending=True).head(5)
                 items = []
                 
-                # --- TICKER RENK FIX (CSS CLASS İLE ZORLAMA) ---
+                # --- TICKER RENK FIX ---
                 for _, r in inc.iterrows():
                     if r['Gunluk_Degisim'] > 0: 
                         items.append(f"<span class='t-up'>▲ {r[ad_col]} %{r['Gunluk_Degisim'] * 100:.1f}</span>")
@@ -859,37 +843,28 @@ def dashboard_modu():
                 t_sektor, t_ozet, t_veri, t_rapor = st.tabs(["📂 KATEGORİ DETAY", "📊 PİYASA ÖZETİ", "📋 TAM LİSTE", "📝 RAPORLAMA"])
                 
                 with t_sektor:
-                    st.markdown("### 🔍 Kategori Bazlı Fiyat Analizi")
+                    st.markdown("### 🔍 Detaylı Fiyat Analizi (Grid Görünüm)")
                     kategoriler = ["TÜMÜ"] + sorted(df_analiz['Grup'].unique().tolist())
                     secilen_kategori = st.selectbox("Kategori Filtrele:", kategoriler)
                     df_goster = df_analiz.copy() if secilen_kategori == "TÜMÜ" else df_analiz[df_analiz['Grup'] == secilen_kategori]
                     
-                    st.markdown("""
-                    <style>
-                        .pg-name { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 12px; min-height: 32px; line-height: 1.4; }
-                        .pg-price { font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -1px; }
-                        .pg-badge { padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; }
-                        .pg-red { background: #fee2e2; color: #991b1b; }
-                        .pg-green { background: #dcfce7; color: #166534; }
-                        .pg-gray { background: #f1f5f9; color: #64748b; }
-                    </style>
-                    """, unsafe_allow_html=True)
-
+                    # BENTO GRID MANTIĞI
                     cols = st.columns(4)
                     for idx, row in df_goster.iterrows():
                         fiyat, fark = row[son], row['Fark'] * 100
-                        badge_cls = "pg-red" if fark > 0 else ("pg-green" if fark < 0 else "pg-gray")
-                        symbol = "▲" if fark > 0 else ("▼" if fark < 0 else "-")
+                        
+                        if fark > 0: badge_cls = "pg-red"; symbol = "▲"
+                        elif fark < 0: badge_cls = "pg-green"; symbol = "▼"
+                        else: badge_cls = "pg-gray"; symbol = "-"
+                        
                         with cols[idx % 4]:
                             st.markdown(f"""
                             <div class="pg-card">
                                 <div class="pg-name">{row[ad_col]}</div>
-                                <div style="display:flex; justify-content:space-between; align-items:center;">
-                                    <div class="pg-price">{fiyat:.2f} ₺</div>
-                                    <div class="pg-badge {badge_cls}">{symbol} %{fark:.2f}</div>
-                                </div>
+                                <div class="pg-price">{fiyat:.2f} ₺</div>
+                                <div class="pg-badge {badge_cls}">{symbol} %{fark:.2f}</div>
                             </div>
-                            <div style="margin-bottom:16px;"></div>
+                            <div style="margin-bottom:20px;"></div>
                             """, unsafe_allow_html=True)
                 
                 with t_ozet:
@@ -900,18 +875,23 @@ def dashboard_modu():
                         st.plotly_chart(style_chart(fig_sun), use_container_width=True)
                         
                     with c_ozet2:
-                        st.subheader("💧 Sektörel Etki")
-                        toplam_agirlik = df_analiz[agirlik_col].sum()
-                        df_analiz['Katki_Puan'] = (df_analiz['Fark'] * df_analiz[agirlik_col] / toplam_agirlik) * 100
-                        df_sektor_katki = df_analiz.groupby('Grup')['Katki_Puan'].sum().reset_index().sort_values('Katki_Puan', ascending=False)
-                        fig_water = go.Figure(go.Waterfall(
-                            name = "", orientation = "v", measure = ["relative"] * len(df_sektor_katki),
-                            x = df_sektor_katki['Grup'], textposition = "outside",
-                            text = df_sektor_katki['Katki_Puan'].apply(lambda x: f"{x:.2f}"),
-                            y = df_sektor_katki['Katki_Puan'], connector = {"line":{"color":"rgb(63, 63, 63)"}},
-                            decreasing = {"marker":{"color":"#16a34a"}}, increasing = {"marker":{"color":"#dc2626"}}, totals = {"marker":{"color":"#0f172a"}}
+                        st.subheader("🌡️ Piyasa Isı Göstergesi (Volatilite)")
+                        # GAUGE CHART EKLENDİ (YENİ ÖZELLİK)
+                        fig_gauge = go.Figure(go.Indicator(
+                            mode = "gauge+number",
+                            value = enf_genel,
+                            title = {'text': "Enflasyon Basıncı"},
+                            gauge = {
+                                'axis': {'range': [None, 100]},
+                                'bar': {'color': "#0f172a"},
+                                'steps': [
+                                    {'range': [0, 20], 'color': "#dcfce7"},
+                                    {'range': [20, 50], 'color': "#fef9c3"},
+                                    {'range': [50, 100], 'color': "#fee2e2"}],
+                            }
                         ))
-                        st.plotly_chart(style_chart(fig_water), use_container_width=True)
+                        fig_gauge.update_layout(height=350)
+                        st.plotly_chart(style_chart(fig_gauge), use_container_width=True)
 
                 with t_veri:
                       st.markdown("### 📋 Veri Seti")
