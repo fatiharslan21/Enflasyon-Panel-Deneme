@@ -26,6 +26,8 @@ import streamlit.components.v1 as components
 import tempfile
 import os
 import urllib.request
+import math
+import random
 
 # --- 1. AYARLAR VE TEMA YÖNETİMİ ---
 st.set_page_config(
@@ -884,6 +886,8 @@ def dashboard_modu():
                 with st.spinner("İstatistiksel Tahmin Motoru Çalışıyor..."):
                     df_forecast = predict_inflation_prophet(df_trend)
 
+               # ... (Prophet tahmin kodları yukarıda aynı kalacak) ...
+                
                 target_jan_end = pd.Timestamp(dt_son.year, 1, 31)
                 month_end_forecast = 0.0
                 if not df_forecast.empty:
@@ -891,6 +895,14 @@ def dashboard_modu():
                     if not forecast_row.empty: month_end_forecast = forecast_row.iloc[0]['yhat'] - 100
                     else: month_end_forecast = df_forecast.iloc[-1]['yhat'] - 100
                 else: month_end_forecast = enf_genel + ((enf_genel / max(dt_son.day, 1)) * days_left)
+
+                # --- YENİ EKLENEN KISIM: Volatilite ve Yuvarlama ---
+                # 1. Ufak bir rastgele oynama ekliyoruz (-0.8 ile +0.8 arası) ki sayı her seferinde değişsin
+                volatilite = random.uniform(-0.8, 0.8)
+                
+                # 2. Tahmin + Volatilite işlemini yapıp aşağı yuvarlıyoruz (math.floor)
+                month_end_forecast = math.floor(month_end_forecast + volatilite)
+                # ---------------------------------------------------
 
                 if len(gunler) >= 2: df_analiz['Gunluk_Degisim'] = (df_analiz[gunler[-1]] / df_analiz[gunler[-2]]) - 1
                 else: df_analiz['Gunluk_Degisim'] = 0
@@ -961,7 +973,7 @@ def dashboard_modu():
                 c1, c2, c3, c4 = st.columns(4)
                 with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#ef4444", "#3b82f6")
                 with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#ef4444", "#10b981")
-                with c3: kpi_card("Simülasyon Tahmini", f"%{month_end_forecast:.2f}", f"Ay Sonu Tahmini", "#8b5cf6", "#8b5cf6")
+                with c3: kpi_card("Simülasyon Tahmini", f"%{int(month_end_forecast)}", f"Ay Sonu Tahmini", "#8b5cf6", "#8b5cf6")                
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#f59e0b", "#f59e0b")
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1076,4 +1088,5 @@ def dashboard_modu():
 
 if __name__ == "__main__":
     dashboard_modu()
+
 
