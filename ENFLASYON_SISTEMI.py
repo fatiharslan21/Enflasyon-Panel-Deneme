@@ -851,7 +851,7 @@ def dashboard_modu():
                 t_sektor, t_ozet, t_veri, t_rapor = st.tabs(["📂 KATEGORİ DETAY", "📊 PİYASA ÖZETİ", "📋 TAM LİSTE", "📝 RAPORLAMA"])
                 
                 with t_sektor:
-                    st.markdown("### 🔍 Detaylı Fiyat Analizi (Grid Görünüm)")
+                    st.markdown("### 🔍 Detaylı Fiyat Analizi")
                     kategoriler = ["TÜMÜ"] + sorted(df_analiz['Grup'].unique().tolist())
                     secilen_kategori = st.selectbox("Kategori Filtrele:", kategoriler)
                     df_goster = df_analiz.copy() if secilen_kategori == "TÜMÜ" else df_analiz[df_analiz['Grup'] == secilen_kategori]
@@ -886,7 +886,7 @@ def dashboard_modu():
                         f_pct = (falling / total) * 100
                         n_pct = 100 - r_pct - f_pct
                         
-                        st.subheader("📊 Piyasa Derinliği (Yükselen / Düşen)")
+                        st.subheader("📊 Piyasa Derinliği")
                         st.markdown(f"""
                         <div style="display:flex; width:100%; height:20px; border-radius:10px; overflow:hidden; margin-bottom:20px;">
                             <div style="width:{r_pct}%; background:#dc2626;" title="Yükselen: %{r_pct:.1f}"></div>
@@ -964,4 +964,5 @@ def dashboard_modu():
 
 if __name__ == "__main__":
     dashboard_modu()
+
 
