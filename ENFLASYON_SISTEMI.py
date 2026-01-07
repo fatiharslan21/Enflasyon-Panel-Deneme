@@ -37,7 +37,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS MOTORU (BENTO GRID & HIGH-END UI) ---
+# --- CSS MOTORU (AURORA FX & HIGH-END UI) ---
 def apply_theme():
     st.session_state.plotly_template = "plotly_white"
 
@@ -46,9 +46,16 @@ def apply_theme():
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap');
 
-        /* 1. ANA ZEMİN VE YAPILANDIRMA */
+        /* 1. BACKGROUND (AURORA EFFECT) */
+        @keyframes aurora {{
+            0% {{ background-position: 0% 50%; }}
+            50% {{ background-position: 100% 50%; }}
+            100% {{ background-position: 0% 50%; }}
+        }}
         [data-testid="stAppViewContainer"] {{
-            background-color: #f8fafc; /* Ultra Açık Gri */
+            background: linear-gradient(-45deg, #f8fafc, #f1f5f9, #e2e8f0, #f8fafc);
+            background-size: 400% 400%;
+            animation: aurora 15s ease infinite;
             font-family: 'Inter', sans-serif !important;
             color: #0f172a !important;
         }}
@@ -79,11 +86,12 @@ def apply_theme():
 
         /* 3. KPI KARTLARI (GLASS) */
         .kpi-card {{
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.5);
             border-radius: 20px;
             padding: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
             transition: transform 0.3s ease;
             position: relative;
             overflow: hidden;
@@ -91,7 +99,7 @@ def apply_theme():
         .kpi-card:hover {{
             transform: translateY(-5px);
             border-color: #000000;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1);
         }}
 
         /* 4. ÜRÜN KARTLARI (BENTO GRID - KARE KUTULAR) */
@@ -100,19 +108,19 @@ def apply_theme():
             border: 1px solid #e2e8f0;
             border-radius: 16px;
             padding: 20px;
-            height: 100%; /* Sütun boyunca tam boy */
+            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             align-items: center;
             text-align: center;
             transition: all 0.3s ease;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
         }}
         .pg-card:hover {{
             border-color: #0f172a;
-            transform: scale(1.03);
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.15);
+            transform: scale(1.05);
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.1);
             z-index: 10;
         }}
         .pg-name {{ font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 10px; line-height: 1.3; }}
@@ -136,14 +144,6 @@ def apply_theme():
         .t-neu {{ color: #94a3b8 !important; }}
         @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
 
-        /* 6. SIDEBAR BRIEFS (HABER AKIŞI) */
-        .brief-box {{
-            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;
-            padding: 15px; margin-top: 20px;
-        }}
-        .brief-title {{ font-size: 12px; font-weight: 800; color: #0f172a; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }}
-        .brief-item {{ font-size: 12px; color: #64748b; margin-bottom: 8px; padding-left: 10px; border-left: 2px solid #e2e8f0; }}
-        
         /* GİZLEME */
         header[data-testid="stHeader"], [data-testid="stToolbar"] {{ display: none !important; }}
         
@@ -632,17 +632,6 @@ def dashboard_modu():
             """
         components.html(f'<div style="display:flex; flex-direction:column; overflow:hidden;">{widgets_html}</div>', height=len(symbols)*120)
         
-        # EXECUTIVE BRIEF (YENİ TERMİNAL)
-        st.markdown(f"""
-        <div class="brief-box">
-            <div class="brief-title">EXECUTIVE BRIEFING</div>
-            <div class="brief-item">Piyasa genelinde volatilite düşük seyrediyor.</div>
-            <div class="brief-item">Gıda grubunda mevsimsel fiyat artışları gözlemlendi.</div>
-            <div class="brief-item">Enerji kalemlerinde yatay seyir hakim.</div>
-            <div class="brief-item" style="color:#0f172a; font-weight:700;">Son Güncelleme: {datetime.now().strftime('%H:%M')}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
         st.markdown("---")
         st.markdown("### 🇹🇷 BIST ÖZET")
         all_stocks_html = """
@@ -875,23 +864,40 @@ def dashboard_modu():
                         st.plotly_chart(style_chart(fig_sun), use_container_width=True)
                         
                     with c_ozet2:
-                        st.subheader("🌡️ Piyasa Isı Göstergesi (Volatilite)")
-                        # GAUGE CHART EKLENDİ (YENİ ÖZELLİK)
-                        fig_gauge = go.Figure(go.Indicator(
-                            mode = "gauge+number",
-                            value = enf_genel,
-                            title = {'text': "Enflasyon Basıncı"},
-                            gauge = {
-                                'axis': {'range': [None, 100]},
-                                'bar': {'color': "#0f172a"},
-                                'steps': [
-                                    {'range': [0, 20], 'color': "#dcfce7"},
-                                    {'range': [20, 50], 'color': "#fef9c3"},
-                                    {'range': [50, 100], 'color': "#fee2e2"}],
-                            }
+                        st.subheader("💧 Sektörel Etki (Waterfall)")
+                        # WATERFALL CHART (ESKİ FAVORİ)
+                        toplam_agirlik = df_analiz[agirlik_col].sum()
+                        df_analiz['Katki_Puan'] = (df_analiz['Fark'] * df_analiz[agirlik_col] / toplam_agirlik) * 100
+                        df_sektor_katki = df_analiz.groupby('Grup')['Katki_Puan'].sum().reset_index().sort_values('Katki_Puan', ascending=False)
+                        fig_water = go.Figure(go.Waterfall(
+                            name = "", orientation = "v", measure = ["relative"] * len(df_sektor_katki),
+                            x = df_sektor_katki['Grup'], textposition = "outside",
+                            text = df_sektor_katki['Katki_Puan'].apply(lambda x: f"{x:.2f}"),
+                            y = df_sektor_katki['Katki_Puan'], connector = {"line":{"color":"rgb(63, 63, 63)"}},
+                            decreasing = {"marker":{"color":"#16a34a"}}, increasing = {"marker":{"color":"#dc2626"}}, totals = {"marker":{"color":"#0f172a"}}
                         ))
-                        fig_gauge.update_layout(height=350)
-                        st.plotly_chart(style_chart(fig_gauge), use_container_width=True)
+                        st.plotly_chart(style_chart(fig_water), use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # --- YENİ EKLENEN: RADAR CHART (ÖRÜMCEK AĞI) ---
+                    st.subheader("🕸️ Enflasyon Baskı Radarı (Sektörel Dağılım)")
+                    df_radar = df_analiz.groupby('Grup')['Fark_Yuzde'].mean().reset_index()
+                    fig_radar = go.Figure(data=go.Scatterpolar(
+                      r=df_radar['Fark_Yuzde'],
+                      theta=df_radar['Grup'],
+                      fill='toself',
+                      line=dict(color='#0f172a'),
+                      fillcolor='rgba(15, 23, 42, 0.2)'
+                    ))
+                    fig_radar.update_layout(
+                      polar=dict(radialaxis=dict(visible=True, showticklabels=True, gridcolor="#e2e8f0")),
+                      showlegend=False,
+                      template="plotly_white",
+                      paper_bgcolor="rgba(0,0,0,0)",
+                      margin=dict(l=40, r=40, t=20, b=20)
+                    )
+                    st.plotly_chart(fig_radar, use_container_width=True)
 
                 with t_veri:
                       st.markdown("### 📋 Veri Seti")
