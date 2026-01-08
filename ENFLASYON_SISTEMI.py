@@ -35,55 +35,69 @@ st.set_page_config(
     page_title="Piyasa Monitörü | Executive",
     layout="wide",
     page_icon="💎",
-    initial_sidebar_state="expanded" # Başlangıçta açık
+    initial_sidebar_state="expanded" 
 )
 
-# --- CSS MOTORU (AURORA FX & SIDEBAR LOCK) ---
+# --- CSS MOTORU (AURORA FX & DARK MODE) ---
 def apply_theme():
-    st.session_state.plotly_template = "plotly_white"
+    # Grafikler için varsayılan tema artık dark
+    st.session_state.plotly_template = "plotly_dark"
 
     final_css = f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;800&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap');
 
-        /* 1. BACKGROUND (AURORA EFFECT) */
+        /* 0. GENEL AYARLAR (Dark Mode Force) */
+        :root {{
+            color-scheme: dark;
+        }}
+
+        /* 1. BACKGROUND (DARK AURORA EFFECT) */
         @keyframes aurora {{
             0% {{ background-position: 0% 50%; }}
             50% {{ background-position: 100% 50%; }}
             100% {{ background-position: 0% 50%; }}
         }}
         [data-testid="stAppViewContainer"] {{
-            background: linear-gradient(-45deg, #f8fafc, #f1f5f9, #e2e8f0, #f8fafc);
+            /* Koyu degrade arka plan */
+            background: linear-gradient(-45deg, #020617, #0f172a, #1e1b4b, #000000);
             background-size: 400% 400%;
             animation: aurora 20s ease infinite;
             font-family: 'Inter', sans-serif !important;
-            color: #0f172a !important;
+            color: #f8fafc !important; /* Genel yazı rengi beyaz */
         }}
         
-        /* 2. SIDEBAR KİLİTLEME (GİZLEME TUŞUNU YOK ET) */
-        /* Sidebar içindeki kapatma (ok/çarpı) tuşunu gizle */
+        /* Genel başlıklar ve yazılar için zorlama renkler */
+        h1, h2, h3, h4, h5, h6, p, div, span, label, .stMarkdown {{
+            color: #f1f5f9 !important;
+        }}
+
+        /* 2. SIDEBAR (KOYU) */
         [data-testid="stSidebar"] button[kind="header"] {{
             display: none !important;
         }}
-        /* Eğer bir şekilde kapanırsa, tekrar açma okunu gizle (tam güvenlik) */
         [data-testid="stSidebarCollapsedControl"] {{
             display: none !important;
         }}
-        /* Sidebar boyutunu ve duruşunu sabitle */
         section[data-testid="stSidebar"] {{
             min-width: 320px !important;
             max-width: 320px !important;
-            border-right: 1px solid #e2e8f0;
-            box-shadow: 2px 0 15px rgba(0,0,0,0.03);
+            background-color: #0b0f19 !important; /* Çok koyu lacivert/siyah */
+            border-right: 1px solid #334155;
+            box-shadow: 2px 0 15px rgba(0,0,0,0.5);
+        }}
+        /* Sidebar içindeki yazılar */
+        [data-testid="stSidebar"] * {{
+            color: #e2e8f0 !important;
         }}
 
-        /* 3. BUTONLAR (FULL WIDTH & MONOCHROME) */
+        /* 3. BUTONLAR (INVERTED: Siyah Zemin, Beyaz Yazı) */
         div.stButton > button, [data-testid="stDownloadButton"] button {{
             width: 100% !important;
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            border: 2px solid #000000 !important;
+            background-color: #000000 !important; /* Siyah zemin */
+            color: #ffffff !important; /* Beyaz yazı */
+            border: 2px solid #ffffff !important; /* Beyaz çerçeve */
             border-radius: 12px !important;
             padding: 1rem !important;
             font-weight: 800 !important;
@@ -91,39 +105,40 @@ def apply_theme():
             text-transform: uppercase;
             letter-spacing: 1px;
             transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-            box-shadow: 0 4px 0px #000000 !important;
+            box-shadow: 0 4px 0px #333333 !important; /* Gölge gri */
             margin-bottom: 12px;
         }}
         div.stButton > button:hover, [data-testid="stDownloadButton"] button:hover {{
-            background-color: #000000 !important;
-            color: #ffffff !important;
+            background-color: #ffffff !important; /* Beyaz zemin */
+            color: #000000 !important; /* Siyah yazı */
             transform: translateY(2px) !important;
-            box-shadow: 0 2px 0px #000000 !important;
+            box-shadow: 0 2px 0px #ffffff !important;
+            border-color: #ffffff !important;
         }}
         div.stButton > button:active {{ transform: translateY(4px) !important; box-shadow: none !important; }}
 
-        /* 4. KPI KARTLARI (GLASS) */
+        /* 4. KPI KARTLARI (DARK GLASS) */
         .kpi-card {{
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(15, 23, 42, 0.6); /* Koyu yarı saydam */
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
             border-radius: 20px;
             padding: 24px;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
             transition: transform 0.3s ease;
             position: relative;
             overflow: hidden;
         }}
         .kpi-card:hover {{
             transform: translateY(-5px);
-            border-color: #000000;
-            box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1);
+            border-color: #ffffff;
+            box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.5);
         }}
 
-        /* 5. ÜRÜN KARTLARI (BENTO GRID - FIXED) */
+        /* 5. ÜRÜN KARTLARI (DARK BENTO) */
         .pg-card {{
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
+            background: #1e293b; /* Koyu Gri */
+            border: 1px solid #334155;
             border-radius: 16px;
             padding: 20px;
             height: 180px; 
@@ -133,55 +148,61 @@ def apply_theme():
             align-items: center;
             text-align: center;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             position: relative;
             overflow: hidden;
         }}
         .pg-card:hover {{
-            border-color: #0f172a;
+            border-color: #f8fafc;
             transform: scale(1.05);
-            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.5);
             z-index: 10;
         }}
         .pg-name {{ 
-            font-size: 13px; font-weight: 600; color: #475569; 
+            font-size: 13px; font-weight: 600; color: #cbd5e1 !important; /* Açık gri yazı */
             margin-bottom: 5px; line-height: 1.3; 
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }}
-        .pg-price {{ font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }}
+        .pg-price {{ font-size: 20px; font-weight: 800; color: #ffffff !important; letter-spacing: -0.5px; }}
         
         /* Etiketler */
         .pg-badge {{ padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; width: 100%; display:block; }}
-        .pg-red {{ background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }}
-        .pg-green {{ background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }}
-        .pg-gray {{ background: #f8fafc; color: #94a3b8; border: 1px solid #f1f5f9; }}
+        /* Renkleri dark moda uygun hale getiriyoruz (daha pastel/belirgin) */
+        .pg-red {{ background: #450a0a; color: #f87171 !important; border: 1px solid #7f1d1d; }}
+        .pg-green {{ background: #052e16; color: #4ade80 !important; border: 1px solid #14532d; }}
+        .pg-gray {{ background: #334155; color: #94a3b8 !important; border: 1px solid #475569; }}
         
         /* Zirve/Dip Tagleri */
         .status-tag {{
             position: absolute; top: 8px; right: 8px; font-size: 9px; font-weight: 800;
             padding: 3px 6px; border-radius: 4px; text-transform: uppercase; z-index:2;
         }}
-        .tag-peak {{ background: #000; color: #fff; }}
-        .tag-dip {{ background: #3b82f6; color: #fff; }}
+        .tag-peak {{ background: #f8fafc; color: #000000 !important; }}
+        .tag-dip {{ background: #3b82f6; color: #ffffff !important; }}
 
-        /* 6. TICKER (ZORLANMIŞ RENKLER) */
+        /* 6. TICKER (DARK) */
         .ticker-wrap {{
-            width: 100%; overflow: hidden; background: #ffffff;
-            border-top: 3px solid #000000; border-bottom: 1px solid #e2e8f0;
+            width: 100%; overflow: hidden; background: #000000; /* Siyah zemin */
+            border-top: 3px solid #ffffff; /* Beyaz üst çizgi */
+            border-bottom: 1px solid #334155;
             padding: 14px 0; margin-bottom: 30px; white-space: nowrap;
         }}
         .ticker-move {{ display: inline-block; padding-left: 100%; animation: marquee 50s linear infinite; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; }}
-        .t-up {{ color: #dc2626 !important; }}
-        .t-down {{ color: #16a34a !important; }}
+        .t-up {{ color: #f87171 !important; }}
+        .t-down {{ color: #4ade80 !important; }}
         .t-neu {{ color: #94a3b8 !important; }}
         @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
 
         /* GİZLEME */
         header[data-testid="stHeader"], [data-testid="stToolbar"] {{ display: none !important; }}
         
-        /* TAB STYLE */
-        .stTabs [data-baseweb="tab-list"] {{ border-bottom: 2px solid #e2e8f0; }}
-        .stTabs [data-baseweb="tab"][aria-selected="true"] {{ color: #000 !important; border-bottom: 2px solid #000; }}
+        /* TAB STYLE (Dark) */
+        .stTabs [data-baseweb="tab-list"] {{ border-bottom: 2px solid #334155; }}
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {{ color: #ffffff !important; border-bottom: 2px solid #ffffff; }}
+        .stTabs [data-baseweb="tab"] {{ color: #94a3b8; }}
+
+        /* Dataframe/Editor düzenlemeleri */
+        [data-testid="stDataFrame"] {{ background-color: #1e293b; }}
     </style>
     """
     st.markdown(final_css, unsafe_allow_html=True)
@@ -333,9 +354,9 @@ class PDFReport(FPDF):
         self.ln(30)
         self.set_font(self.font_family, '', 12)
         self.set_text_color(*self.c_koyu)
-        aciklama = f"Bu rapor, {date_str} dönemi için piyasa analiz sistemi tarafından oluşturulmuştur."
+        self.aciklama = f"Bu rapor, {date_str} dönemi için piyasa analiz sistemi tarafından oluşturulmuştur."
         self.set_x(40)
-        self.multi_cell(130, 6, self.fix_text(aciklama), 0, 'C')
+        self.multi_cell(130, 6, self.fix_text(self.aciklama), 0, 'C')
 
     def add_plot_image(self, plot_bytes, title="Grafik", force_new_page=False):
         if plot_bytes:
@@ -644,7 +665,7 @@ def dashboard_modu():
     # SIDEBAR (HABER AKIŞI)
     with st.sidebar:
         st.title("💎 PİYASA MONİTÖRÜ")
-        tv_theme = "light" 
+        tv_theme = "dark" # Dark mode yapıldı
         symbols = [
             {"s": "FX_IDC:USDTRY", "d": "Dolar / TL"}, 
             {"s": "FX_IDC:EURTRY", "d": "Euro / TL"}, 
@@ -670,14 +691,14 @@ def dashboard_modu():
         <div class="tradingview-widget-container">
           <div class="tradingview-widget-container__widget"></div>
           <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
-          { "width": "100%", "height": 600, "defaultColumn": "overview", "defaultScreen": "general", "market": "turkey", "showToolbar": false, "colorTheme": "light", "locale": "tr", "isTransparent": true }
+          { "width": "100%", "height": 600, "defaultColumn": "overview", "defaultScreen": "general", "market": "turkey", "showToolbar": false, "colorTheme": "dark", "locale": "tr", "isTransparent": true }
           </script>
         </div>
         """
         components.html(all_stocks_html, height=600)
 
     # ---------------------------------------------------------
-    # HEADER (GLASSMORPHISM)
+    # HEADER (DARK GLASSMORPHISM)
     # ---------------------------------------------------------
     header_html_code = """
     <!DOCTYPE html>
@@ -688,26 +709,26 @@ def dashboard_modu():
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap');
             body { margin: 0; padding: 0; background: transparent; font-family: 'Inter', sans-serif; overflow: hidden; }
             .header-wrapper {
-                background: rgba(255, 255, 255, 0.7);
+                background: rgba(15, 23, 42, 0.7); /* Koyu Cam */
                 backdrop-filter: blur(20px);
-                border: 1px solid rgba(255,255,255,0.8);
+                border: 1px solid rgba(255,255,255,0.1); /* İnce beyaz çizgi */
                 border-radius: 16px;
                 padding: 20px 30px;
                 display: flex; justify-content: space-between; align-items: center;
-                box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+                box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5);
             }
-            .app-title { font-size: 26px; font-weight: 900; color: #0f172a; letter-spacing: -1px; }
-            .app-subtitle { font-size: 13px; color: #64748b; font-weight: 600; margin-top: 4px; letter-spacing: 0.5px; text-transform: uppercase; }
+            .app-title { font-size: 26px; font-weight: 900; color: #f8fafc; letter-spacing: -1px; } /* Beyaz Başlık */
+            .app-subtitle { font-size: 13px; color: #94a3b8; font-weight: 600; margin-top: 4px; letter-spacing: 0.5px; text-transform: uppercase; } /* Açık Gri */
             .live-badge {
-                display: inline-flex; align-items: center; background: #0f172a;
-                color: #fff; padding: 5px 12px; border-radius: 30px; font-size: 10px; font-weight: 800;
-                margin-left: 15px; vertical-align: middle; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.3);
+                display: inline-flex; align-items: center; background: #f1f5f9;
+                color: #0f172a; padding: 5px 12px; border-radius: 30px; font-size: 10px; font-weight: 800;
+                margin-left: 15px; vertical-align: middle; box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
             }
             .live-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 8px; animation: pulse 2s infinite; }
             @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
             .clock-container { text-align: right; }
-            .location-tag { font-size: 10px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
-            #live_clock { font-family: 'Inter', monospace; font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1; letter-spacing: -1px; }
+            .location-tag { font-size: 10px; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+            #live_clock { font-family: 'Inter', monospace; font-size: 28px; font-weight: 800; color: #f8fafc; line-height: 1; letter-spacing: -1px; }
         </style>
     </head>
     <body>
@@ -733,14 +754,14 @@ def dashboard_modu():
     """
     components.html(header_html_code, height=130)
 
-    # BUTON (FULL WIDTH - BEYAZ/SİYAH)
+    # BUTON (FULL WIDTH - INVERTED)
     if st.button("SİSTEMİ SENKRONİZE ET", type="primary", use_container_width=True):
         with st.status("Veri Akışı Sağlanıyor...", expanded=True) as status:
             st.write("📡 Uzak sunucu ile el sıkışılıyor...")
             log_ph = st.empty(); log_msgs = []
             def logger(m):
                 log_msgs.append(f"> {m}")
-                log_ph.markdown(f'<div style="font-size:12px; font-family:monospace; color:#64748b;">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
+                log_ph.markdown(f'<div style="font-size:12px; font-family:monospace; color:#cbd5e1;">{"<br>".join(log_msgs)}</div>', unsafe_allow_html=True)
             res = html_isleyici(logger)
             status.update(label="Senkronizasyon Başarılı", state="complete", expanded=False)
         if "OK" in res:
@@ -833,11 +854,12 @@ def dashboard_modu():
                     except: pass
 
                 def kpi_card(title, val, sub, sub_color, accent_color, icon):
+                      # Dark mod için renk güncellemeleri
                       st.markdown(f"""
                         <div class="kpi-card" style="border-left: 4px solid {accent_color};">
-                             <div style="position: absolute; right: 20px; top: 20px; opacity: 0.1; font-size: 40px;">{icon}</div>
-                            <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 0.5px;">{title}</div>
-                            <div style="font-size: 34px; font-weight: 900; color: #0f172a; letter-spacing: -2px;">{val}</div>
+                             <div style="position: absolute; right: 20px; top: 20px; opacity: 0.2; font-size: 40px; filter: grayscale(100%);">{icon}</div>
+                            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 0.5px;">{title}</div>
+                            <div style="font-size: 34px; font-weight: 900; color: #f8fafc; letter-spacing: -2px;">{val}</div>
                             <div style="font-size: 12px; font-weight: 600; display: flex; align-items: center; margin-top: 5px; color: {sub_color};">
                                 {sub}
                             </div>
@@ -845,10 +867,10 @@ def dashboard_modu():
                     """, unsafe_allow_html=True)
 
                 c1, c2, c3, c4 = st.columns(4)
-                with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#dc2626", "#0f172a", "📈")
-                with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#dc2626", "#0f172a", "🛒")
-                with c3: kpi_card("Simülasyon Tahmini", f"%{math.floor(enf_genel)}", "Canlı Veri", "#7c3aed", "#7c3aed", "🤖")
-                with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#d97706", "#d97706", "🏛️")
+                with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#f87171", "#f8fafc", "📈")
+                with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#f87171", "#f8fafc", "🛒")
+                with c3: kpi_card("Simülasyon Tahmini", f"%{math.floor(enf_genel)}", "Canlı Veri", "#a78bfa", "#a78bfa", "🤖")
+                with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#fbbf24", "#fbbf24", "🏛️")
                 st.markdown("<br>", unsafe_allow_html=True)
 
                 def style_chart(fig, is_pdf=False):
@@ -856,11 +878,11 @@ def dashboard_modu():
                         fig.update_layout(template="plotly_white", font=dict(family="Arial", size=14, color="black"))
                     else:
                         fig.update_layout(
-                            template="plotly_white",
+                            template="plotly_dark", # UI için dark mode
                             paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                            font=dict(family="Inter, sans-serif", color="#334155"),
-                            margin=dict(l=0, r=0, t=10, b=0),
-                            xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor="#e2e8f0")
+                            font=dict(family="Inter, sans-serif", color="#f1f5f9"), # Yazılar beyaz
+                            margin=dict(l=0, r=0, t=30, b=0),
+                            xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor="#334155")
                         )
                     return fig
 
@@ -906,13 +928,13 @@ def dashboard_modu():
                         st.subheader("📊 Piyasa Derinliği")
                         st.markdown(f"""
                         <div style="display:flex; width:100%; height:20px; border-radius:10px; overflow:hidden; margin-bottom:20px;">
-                            <div style="width:{r_pct}%; background:#dc2626;" title="Yükselen: %{r_pct:.1f}"></div>
-                            <div style="width:{n_pct}%; background:#e2e8f0;" title="Nötr"></div>
-                            <div style="width:{f_pct}%; background:#16a34a;" title="Düşen: %{f_pct:.1f}"></div>
+                            <div style="width:{r_pct}%; background:#ef4444;" title="Yükselen: %{r_pct:.1f}"></div>
+                            <div style="width:{n_pct}%; background:#334155;" title="Nötr"></div>
+                            <div style="width:{f_pct}%; background:#22c55e;" title="Düşen: %{f_pct:.1f}"></div>
                         </div>
-                        <div style="display:flex; justify-content:space-between; font-size:12px; color:#64748b; font-weight:600;">
-                            <span style="color:#dc2626">▲ {rising} Ürün Artışta</span>
-                            <span style="color:#16a34a">▼ {falling} Ürün Düşüşte</span>
+                        <div style="display:flex; justify-content:space-between; font-size:12px; color:#94a3b8; font-weight:600;">
+                            <span style="color:#ef4444">▲ {rising} Ürün Artışta</span>
+                            <span style="color:#22c55e">▼ {falling} Ürün Düşüşte</span>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -931,8 +953,8 @@ def dashboard_modu():
                             name = "", orientation = "v", measure = ["relative"] * len(df_sektor_katki),
                             x = df_sektor_katki['Grup'], textposition = "outside",
                             text = df_sektor_katki['Katki_Puan'].apply(lambda x: f"{x:.2f}"),
-                            y = df_sektor_katki['Katki_Puan'], connector = {"line":{"color":"rgb(63, 63, 63)"}},
-                            decreasing = {"marker":{"color":"#16a34a"}}, increasing = {"marker":{"color":"#dc2626"}}, totals = {"marker":{"color":"#0f172a"}}
+                            y = df_sektor_katki['Katki_Puan'], connector = {"line":{"color":"#94a3b8"}},
+                            decreasing = {"marker":{"color":"#22c55e"}}, increasing = {"marker":{"color":"#ef4444"}}, totals = {"marker":{"color":"#f8fafc"}}
                         ))
                         st.plotly_chart(style_chart(fig_water), use_container_width=True)
 
@@ -962,14 +984,14 @@ def dashboard_modu():
                             
                             fig_katki_pdf = go.Figure(go.Bar(x=df_sektor_katki['Katki_Puan'], y=df_sektor_katki['Grup'], orientation='h', marker=dict(color='#0f172a')))
                             fig_katki_pdf.update_layout(title="Sektörel Katkı")
-                            style_chart(fig_katki_pdf, is_pdf=True)
+                            style_chart(fig_katki_pdf, is_pdf=True) # PDF için white tema
 
                             top_n = 7
                             df_uclar = pd.concat([df_analiz.sort_values('Fark', ascending=True).head(top_n), df_analiz.sort_values('Fark', ascending=False).head(top_n)]).sort_values('Fark', ascending=True)
                             df_uclar['Renk'] = df_uclar['Fark'].apply(lambda x: '#dc2626' if x > 0 else '#16a34a')
                             fig_uclar = go.Figure(go.Bar(x=df_uclar['Fark'] * 100, y=df_uclar[ad_col], orientation='h', marker=dict(color=df_uclar['Renk']), text=(df_uclar['Fark']*100).apply(lambda x: f"%{x:+.2f}"), textposition='outside'))
                             fig_uclar.update_layout(title=f"Uç Noktalar")
-                            style_chart(fig_uclar, is_pdf=True)
+                            style_chart(fig_uclar, is_pdf=True) # PDF için white tema
 
                             figs = {"Enflasyonun Sektörel Kaynakları": fig_katki_pdf, "Fiyat Hareketlerinde Uç Noktalar": fig_uclar}
                             metrics = {'genel': enf_genel, 'gida': enf_gida, 'top_urun': en_cok_artan_row[ad_col]}
@@ -977,9 +999,7 @@ def dashboard_modu():
                             st.success("✅ Rapor Hazırlandı!")
                             st.download_button("📥 PDF Raporunu İndir", data=pdf_data, file_name=f"Strateji_Raporu_{son}.pdf", mime="application/pdf")
         except Exception as e: st.error(f"Sistem Hatası: {e}")
-    st.markdown('<div style="text-align:center; color:#94a3b8; font-size:11px; margin-top:50px;">VALIDASYON MUDURLUGU © 2025 - CONFIDENTIAL</div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align:center; color:#475569; font-size:11px; margin-top:50px;">VALIDASYON MUDURLUGU © 2025 - CONFIDENTIAL</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     dashboard_modu()
-
-
