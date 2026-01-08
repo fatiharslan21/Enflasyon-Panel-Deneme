@@ -847,7 +847,7 @@ def dashboard_modu():
                 c1, c2, c3, c4 = st.columns(4)
                 with c1: kpi_card("Genel Enflasyon", f"%{enf_genel:.2f}", f"Baz: {baz}", "#dc2626", "#0f172a", "📈")
                 with c2: kpi_card("Gıda Enflasyonu", f"%{enf_gida:.2f}", "Mutfak Sepeti", "#dc2626", "#0f172a", "🛒")
-                with c3: kpi_card("Simülasyon Tahmini", f"%{int(math.floor(enf_genel + random.uniform(-1.0, 1.5)))}", "Canlı Veri", "#7c3aed", "#7c3aed", "🤖")
+                with c3: kpi_card("Simülasyon Tahmini", f"%{math.floor(enf_genel)}", "Canlı Veri", "#7c3aed", "#7c3aed", "🤖")
                 with c4: kpi_card("Resmi TÜİK Verisi", f"%{resmi_aylik_enf:.2f}", f"{resmi_tarih_str}", "#d97706", "#d97706", "🏛️")
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -981,3 +981,4 @@ def dashboard_modu():
 
 if __name__ == "__main__":
     dashboard_modu()
+
