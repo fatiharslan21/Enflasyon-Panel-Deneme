@@ -38,9 +38,9 @@ st.set_page_config(
     initial_sidebar_state="expanded" 
 )
 
-# --- CSS MOTORU (AURORA FX & DARK MODE) ---
+# --- CSS MOTORU (AURORA FX & DARK MODE REFINED) ---
 def apply_theme():
-    # Grafikler için varsayılan tema artık dark
+    # Grafikler için varsayılan tema dark
     st.session_state.plotly_template = "plotly_dark"
 
     final_css = f"""
@@ -60,119 +60,103 @@ def apply_theme():
             100% {{ background-position: 0% 50%; }}
         }}
         [data-testid="stAppViewContainer"] {{
-            /* Koyu degrade arka plan */
             background: linear-gradient(-45deg, #020617, #0f172a, #1e1b4b, #000000);
             background-size: 400% 400%;
             animation: aurora 20s ease infinite;
             font-family: 'Inter', sans-serif !important;
-            color: #f8fafc !important; /* Genel yazı rengi beyaz */
+            color: #f8fafc !important;
         }}
         
-        /* Genel başlıklar ve yazılar için zorlama renkler */
-        h1, h2, h3, h4, h5, h6, p, div, span, label, .stMarkdown {{
+        /* Genel başlıklar ve yazılar için zorlama beyaz/açık gri renkler */
+        h1, h2, h3, h4, h5, h6, p, div, span, label, .stMarkdown, [data-testid="stHeader"] {{
             color: #f1f5f9 !important;
         }}
 
+        /* --- DÜZELTME 2: SELECTBOX VE INPUTLAR İÇİN KOYU TEMA ZORLAMA --- */
+        /* Selectbox'ın iç kısmı ve etiketleri koyu zemin, açık yazı */
+        [data-baseweb="select"] > div, [data-baseweb="input"] > div {{
+            background-color: #0f172a !important; /* Koyu iç zemin */
+            color: #f8fafc !important; /* Beyaz yazı */
+            border-color: #334155 !important;
+        }}
+        /* Selectbox açılır menüsü (Popover) */
+        [data-baseweb="popover"] > div, [data-baseweb="menu"] {{
+             background-color: #1e293b !important;
+             color: #f8fafc !important;
+        }}
+        /* Seçeneklerin hover/seçili durumu */
+        [data-baseweb="menu"] li:hover, [data-baseweb="menu"] li[aria-selected="true"] {{
+             background-color: #334155 !important;
+             color: #ffffff !important;
+        }}
+        /* Selectbox içindeki seçili metin */
+        [data-baseweb="select"] .st-ae, [data-baseweb="select"] .st-af {{
+             color: #f8fafc !important;
+        }}
+
+
         /* 2. SIDEBAR (KOYU) */
-        [data-testid="stSidebar"] button[kind="header"] {{
-            display: none !important;
-        }}
-        [data-testid="stSidebarCollapsedControl"] {{
-            display: none !important;
-        }}
+        [data-testid="stSidebar"] button[kind="header"] {{ display: none !important; }}
+        [data-testid="stSidebarCollapsedControl"] {{ display: none !important; }}
         section[data-testid="stSidebar"] {{
-            min-width: 320px !important;
-            max-width: 320px !important;
-            background-color: #0b0f19 !important; /* Çok koyu lacivert/siyah */
+            min-width: 320px !important; max-width: 320px !important;
+            background-color: #0b0f19 !important;
             border-right: 1px solid #334155;
             box-shadow: 2px 0 15px rgba(0,0,0,0.5);
         }}
-        /* Sidebar içindeki yazılar */
-        [data-testid="stSidebar"] * {{
-            color: #e2e8f0 !important;
-        }}
+        [data-testid="stSidebar"] * {{ color: #e2e8f0 !important; }}
 
         /* 3. BUTONLAR (INVERTED: Siyah Zemin, Beyaz Yazı) */
         div.stButton > button, [data-testid="stDownloadButton"] button {{
             width: 100% !important;
-            background-color: #000000 !important; /* Siyah zemin */
-            color: #ffffff !important; /* Beyaz yazı */
-            border: 2px solid #ffffff !important; /* Beyaz çerçeve */
-            border-radius: 12px !important;
-            padding: 1rem !important;
-            font-weight: 800 !important;
-            font-size: 14px !important;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            background-color: #000000 !important; color: #ffffff !important;
+            border: 2px solid #ffffff !important; border-radius: 12px !important;
+            padding: 1rem !important; font-weight: 800 !important; font-size: 14px !important;
+            text-transform: uppercase; letter-spacing: 1px;
             transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
-            box-shadow: 0 4px 0px #333333 !important; /* Gölge gri */
-            margin-bottom: 12px;
+            box-shadow: 0 4px 0px #333333 !important; margin-bottom: 12px;
         }}
         div.stButton > button:hover, [data-testid="stDownloadButton"] button:hover {{
-            background-color: #ffffff !important; /* Beyaz zemin */
-            color: #000000 !important; /* Siyah yazı */
+            background-color: #ffffff !important; color: #000000 !important;
             transform: translateY(2px) !important;
-            box-shadow: 0 2px 0px #ffffff !important;
-            border-color: #ffffff !important;
+            box-shadow: 0 2px 0px #ffffff !important; border-color: #ffffff !important;
         }}
         div.stButton > button:active {{ transform: translateY(4px) !important; box-shadow: none !important; }}
 
         /* 4. KPI KARTLARI (DARK GLASS) */
         .kpi-card {{
-            background: rgba(15, 23, 42, 0.6); /* Koyu yarı saydam */
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 24px;
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            transition: transform 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+            padding: 24px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease; position: relative; overflow: hidden;
         }}
         .kpi-card:hover {{
-            transform: translateY(-5px);
-            border-color: #ffffff;
+            transform: translateY(-5px); border-color: #ffffff;
             box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.5);
         }}
 
         /* 5. ÜRÜN KARTLARI (DARK BENTO) */
         .pg-card {{
-            background: #1e293b; /* Koyu Gri */
-            border: 1px solid #334155;
-            border-radius: 16px;
-            padding: 20px;
-            height: 180px; 
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            text-align: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            position: relative;
-            overflow: hidden;
+            background: #1e293b; border: 1px solid #334155;
+            border-radius: 16px; padding: 20px; height: 180px; 
+            display: flex; flex-direction: column; justify-content: space-between;
+            align-items: center; text-align: center; transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); position: relative; overflow: hidden;
         }}
         .pg-card:hover {{
-            border-color: #f8fafc;
-            transform: scale(1.05);
-            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.5);
-            z-index: 10;
+            border-color: #f8fafc; transform: scale(1.05);
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.5); z-index: 10;
         }}
         .pg-name {{ 
-            font-size: 13px; font-weight: 600; color: #cbd5e1 !important; /* Açık gri yazı */
+            font-size: 13px; font-weight: 600; color: #cbd5e1 !important;
             margin-bottom: 5px; line-height: 1.3; 
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }}
         .pg-price {{ font-size: 20px; font-weight: 800; color: #ffffff !important; letter-spacing: -0.5px; }}
-        
-        /* Etiketler */
         .pg-badge {{ padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; width: 100%; display:block; }}
-        /* Renkleri dark moda uygun hale getiriyoruz (daha pastel/belirgin) */
         .pg-red {{ background: #450a0a; color: #f87171 !important; border: 1px solid #7f1d1d; }}
         .pg-green {{ background: #052e16; color: #4ade80 !important; border: 1px solid #14532d; }}
         .pg-gray {{ background: #334155; color: #94a3b8 !important; border: 1px solid #475569; }}
-        
-        /* Zirve/Dip Tagleri */
         .status-tag {{
             position: absolute; top: 8px; right: 8px; font-size: 9px; font-weight: 800;
             padding: 3px 6px; border-radius: 4px; text-transform: uppercase; z-index:2;
@@ -180,10 +164,11 @@ def apply_theme():
         .tag-peak {{ background: #f8fafc; color: #000000 !important; }}
         .tag-dip {{ background: #3b82f6; color: #ffffff !important; }}
 
-        /* 6. TICKER (DARK) */
+        /* --- DÜZELTME 1: TICKER ÇİZGİSİ --- */
+        /* Beyaz kalın çizgi, ince ve koyu bir çizgi ile değiştirildi */
         .ticker-wrap {{
-            width: 100%; overflow: hidden; background: #000000; /* Siyah zemin */
-            border-top: 3px solid #ffffff; /* Beyaz üst çizgi */
+            width: 100%; overflow: hidden; background: #000000;
+            border-top: 1px solid #334155; /* Kalın beyaz yerine ince koyu gri */
             border-bottom: 1px solid #334155;
             padding: 14px 0; margin-bottom: 30px; white-space: nowrap;
         }}
@@ -200,8 +185,6 @@ def apply_theme():
         .stTabs [data-baseweb="tab-list"] {{ border-bottom: 2px solid #334155; }}
         .stTabs [data-baseweb="tab"][aria-selected="true"] {{ color: #ffffff !important; border-bottom: 2px solid #ffffff; }}
         .stTabs [data-baseweb="tab"] {{ color: #94a3b8; }}
-
-        /* Dataframe/Editor düzenlemeleri */
         [data-testid="stDataFrame"] {{ background-color: #1e293b; }}
     </style>
     """
