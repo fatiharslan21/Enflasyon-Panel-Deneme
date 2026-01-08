@@ -38,7 +38,7 @@ st.set_page_config(
     initial_sidebar_state="expanded" 
 )
 
-# --- CSS MOTORU (AURORA FX & DARK MODE REFINED) ---
+# --- CSS MOTORU (AURORA FX & DARK MODE FIXED) ---
 def apply_theme():
     # Grafikler için varsayılan tema dark
     st.session_state.plotly_template = "plotly_dark"
@@ -72,26 +72,43 @@ def apply_theme():
             color: #f1f5f9 !important;
         }}
 
-        /* --- DÜZELTME 2: SELECTBOX VE INPUTLAR İÇİN KOYU TEMA ZORLAMA --- */
-        /* Selectbox'ın iç kısmı ve etiketleri koyu zemin, açık yazı */
-        [data-baseweb="select"] > div, [data-baseweb="input"] > div {{
-            background-color: #0f172a !important; /* Koyu iç zemin */
-            color: #f8fafc !important; /* Beyaz yazı */
-            border-color: #334155 !important;
+        /* --- KRİTİK DÜZELTME: SELECTBOX MENÜSÜ --- */
+        /* Seçim kutusunun kendisi (Kapalı hali) */
+        div[data-baseweb="select"] > div {{
+            background-color: #0f172a !important; /* Koyu Lacivert Zemin */
+            color: #f8fafc !important; /* Beyaz Yazı */
+            border-color: #334155 !important; /* Gri Çerçeve */
         }}
-        /* Selectbox açılır menüsü (Popover) */
-        [data-baseweb="popover"] > div, [data-baseweb="menu"] {{
-             background-color: #1e293b !important;
-             color: #f8fafc !important;
+        
+        /* Açılır Menü Konteynerı (Popover) */
+        div[data-baseweb="popover"], div[data-baseweb="popover"] > div {{
+            background-color: #0f172a !important; /* Arka planı kesinlikle koyu yap */
         }}
-        /* Seçeneklerin hover/seçili durumu */
-        [data-baseweb="menu"] li:hover, [data-baseweb="menu"] li[aria-selected="true"] {{
-             background-color: #334155 !important;
-             color: #ffffff !important;
+
+        /* Liste Elemanları (Seçenekler) */
+        ul[data-baseweb="menu"] {{
+            background-color: #0f172a !important;
         }}
-        /* Selectbox içindeki seçili metin */
-        [data-baseweb="select"] .st-ae, [data-baseweb="select"] .st-af {{
-             color: #f8fafc !important;
+        
+        li[role="option"] {{
+            color: #cbd5e1 !important; /* Seçenek yazısı açık gri */
+            background-color: #0f172a !important; /* Seçenek zemini koyu */
+        }}
+
+        /* Hover (Üzerine gelince) veya Seçili Durum */
+        li[role="option"]:hover, li[role="option"][aria-selected="true"] {{
+            background-color: #334155 !important; /* Daha açık bir koyu gri */
+            color: #ffffff !important; /* Parlak beyaz yazı */
+        }}
+        
+        /* Seçili olan metin rengi */
+        div[data-baseweb="select"] span {{
+            color: #f8fafc !important;
+        }}
+        
+        /* Dropdown ok simgesi rengi */
+        div[data-baseweb="select"] svg {{
+            fill: #f8fafc !important;
         }}
 
 
@@ -164,11 +181,10 @@ def apply_theme():
         .tag-peak {{ background: #f8fafc; color: #000000 !important; }}
         .tag-dip {{ background: #3b82f6; color: #ffffff !important; }}
 
-        /* --- DÜZELTME 1: TICKER ÇİZGİSİ --- */
-        /* Beyaz kalın çizgi, ince ve koyu bir çizgi ile değiştirildi */
+        /* 6. TICKER (KOYU ÇİZGİLİ) */
         .ticker-wrap {{
             width: 100%; overflow: hidden; background: #000000;
-            border-top: 1px solid #334155; /* Kalın beyaz yerine ince koyu gri */
+            border-top: 1px solid #334155; /* İnce koyu gri çizgi */
             border-bottom: 1px solid #334155;
             padding: 14px 0; margin-bottom: 30px; white-space: nowrap;
         }}
